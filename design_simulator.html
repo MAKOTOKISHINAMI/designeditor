@@ -57,7 +57,7 @@
 
     /* メインコンテナ：PCは横いっぱいを使い、左にツール・中央にキャンバス・右に説明を並べる */
     .editor-container {
-      display: flex; align-items: flex-start; justify-content: center;
+      display: flex; align-items: stretch; justify-content: center;
       gap: 24px; padding: 24px; width: 100%;
     }
 
@@ -424,6 +424,38 @@
         <button class="tool-btn btn-layer" id="backwardBtn" onclick="sendBackward()" disabled style="flex:1; padding:10px 4px;">
           背面へ<br><span style="font-size:9px;">1つ下げる</span>
         </button>
+      </div>
+
+      <div id="textPropsPanel" class="shape-props-panel">
+        <p class="shape-props-title">選んだ文字のスタイル</p>
+        <div class="draw-option-row">
+          <label style="flex:1;">フォント
+            <select id="textPropFont" style="width:100%; margin-top:4px; padding:6px; border-radius:6px; border:1px solid #ccc;">
+              <option value="Arial">Arial</option>
+              <option value="Georgia">Georgia</option>
+              <option value="'Times New Roman', serif">Times New Roman</option>
+              <option value="Impact">Impact</option>
+              <option value="'Comic Sans MS', cursive">Comic Sans MS</option>
+              <option value="'Yu Gothic', sans-serif">游ゴシック</option>
+              <option value="'Hiragino Sans', sans-serif">ヒラギノ角ゴ</option>
+              <option value="'Noto Sans JP', sans-serif">Noto Sans JP</option>
+              <option value="Meiryo">メイリオ</option>
+            </select>
+          </label>
+        </div>
+        <div class="draw-option-row">
+          <label>文字サイズ <input type="range" id="textPropSize" min="10" max="80" value="28"><span id="textPropSizeLabel">28px</span></label>
+        </div>
+        <div class="draw-option-row">
+          <label>文字色 <input type="color" id="textPropColor" value="#333333"></label>
+        </div>
+        <div class="draw-option-row">
+          <label>縁取り色 <input type="color" id="textPropOutlineColor" value="#000000"></label>
+          <label class="draw-checkbox"><input type="checkbox" id="textPropOutlineEnabled">縁取りする</label>
+        </div>
+        <div class="draw-option-row">
+          <label>縁取りの太さ <input type="range" id="textPropOutlineWidth" min="1" max="10" value="1"></label>
+        </div>
       </div>
 
       <div id="shapePropsPanel" class="shape-props-panel">
@@ -1332,7 +1364,60 @@
     forwardBtn.disabled = !enabled;
     backwardBtn.disabled = !enabled;
     updateShapePropsPanel();
+    updateTextPropsPanel();
   }
+
+  // ── 選択中の文字（テキスト）のフォント・サイズ・色・縁取りを、あとから変更できるパネル ──
+  const textPropsPanel = document.getElementById('textPropsPanel');
+  const textFontEl = document.getElementById('textPropFont');
+  const textSizeEl = document.getElementById('textPropSize');
+  const textSizeLabelEl = document.getElementById('textPropSizeLabel');
+  const textColorEl = document.getElementById('textPropColor');
+  const textOutlineColorEl = document.getElementById('textPropOutlineColor');
+  const textOutlineEnabledEl = document.getElementById('textPropOutlineEnabled');
+  const textOutlineWidthEl = document.getElementById('textPropOutlineWidth');
+
+  function isTextObject(obj) {
+    return obj && isDeletableObject(obj) && (obj.type === 'i-text' || obj.type === 'text' || obj.type === 'textbox');
+  }
+
+  function updateTextPropsPanel() {
+    const active = canvas.getActiveObject();
+    if (!isTextObject(active)) {
+      textPropsPanel.classList.remove('open');
+      return;
+    }
+    textPropsPanel.classList.add('open');
+    if (active.fontFamily) textFontEl.value = active.fontFamily;
+    textSizeEl.value = active.fontSize || 28;
+    textSizeLabelEl.textContent = (active.fontSize || 28) + 'px';
+    textColorEl.value = active.fill || '#333333';
+    const hasOutline = !!active.stroke;
+    textOutlineEnabledEl.checked = hasOutline;
+    if (hasOutline) textOutlineColorEl.value = active.stroke;
+    textOutlineWidthEl.value = active.strokeWidth || 1;
+  }
+
+  function applyTextPropsToActive() {
+    const active = canvas.getActiveObject();
+    if (!isTextObject(active)) return;
+    textSizeLabelEl.textContent = textSizeEl.value + 'px';
+    active.set({
+      fontFamily: textFontEl.value,
+      fontSize: parseInt(textSizeEl.value, 10),
+      fill: textColorEl.value,
+      stroke: textOutlineEnabledEl.checked ? textOutlineColorEl.value : null,
+      strokeWidth: textOutlineEnabledEl.checked ? parseInt(textOutlineWidthEl.value, 10) : 0
+    });
+    canvas.renderAll();
+  }
+
+  textFontEl.addEventListener('change', applyTextPropsToActive);
+  textSizeEl.addEventListener('input', applyTextPropsToActive);
+  textColorEl.addEventListener('input', applyTextPropsToActive);
+  textOutlineColorEl.addEventListener('input', applyTextPropsToActive);
+  textOutlineEnabledEl.addEventListener('change', applyTextPropsToActive);
+  textOutlineWidthEl.addEventListener('input', applyTextPropsToActive);
 
   // ── 選択中の図形（四角・円・線/多角形）の色・線の太さを、あとから変更できるパネル ──
   const SHAPE_TYPES_WITH_COLOR = ['rect', 'ellipse', 'circle', 'polygon', 'polyline', 'line', 'path'];
