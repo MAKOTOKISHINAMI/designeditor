@@ -62,7 +62,7 @@
     }
 
     /* 中央列：ツールボタン＋テンプレート一覧。余った横幅いっぱいに広がる */
-    .center-col { flex: 1 1 auto; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+    .center-col { flex: 1 1 auto; max-width: 700px; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 
     /* 下部：使い方の説明（エディタ＋アイコン欄と同じ横幅いっぱいに表示、高さは抑えて2段組み） */
     .usage-panel {
@@ -88,16 +88,16 @@
 
     /* キャンバスエリア（左側） */
     .canvas-section {
-      position: relative; background: #ffffff; padding: 20px;
+      position: relative; background: #ffffff; padding: 24px;
       border-radius: 16px; box-shadow: 0 2px 16px rgba(0,0,0,0.08);
       display: flex; flex-direction: column; align-items: center;
-      flex: 0 0 auto; width: 460px;
+      flex: 1 1 55%; max-width: 1100px;
     }
     .bleed-notice {
       background: #fef3c7; color: #92400e; padding: 8px 14px;
       border-radius: 8px; font-size: 12.5px; margin-bottom: 12px; font-weight: 700;
     }
-    .canvas-wrapper { border: 1px dashed #ccc; position: relative; width: 100%; max-width: 400px; }
+    .canvas-wrapper { border: 1px dashed #ccc; position: relative; width: 100%; max-width: 860px; }
     #designCanvas { width: 100%; height: auto; display: block; touch-action: none; }
 
     /* 使い方ガイドの中身：最大2段のグリッドで折り返し、縦を短くする */
@@ -243,6 +243,27 @@
     }
     .shape-props-panel.open { display: block; }
     .shape-props-title { font-size: 11px; font-weight: bold; color: #9a3412; margin-bottom: 8px; }
+
+    .admin-manage-panel {
+      background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 10px; padding: 14px;
+    }
+    .admin-list-title { font-size: 11.5px; font-weight: bold; color: #3730a3; margin: 10px 0 8px; }
+    .admin-list-title:first-child { margin-top: 0; }
+    .admin-list { display: flex; flex-direction: column; gap: 6px; max-height: 200px; overflow-y: auto; }
+    .admin-list-item {
+      display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid #e5e7eb;
+      border-radius: 8px; padding: 6px 8px; font-size: 11.5px;
+    }
+    .admin-list-item img { width: 28px; height: 28px; object-fit: contain; flex-shrink: 0; }
+    .admin-list-item span { flex: 1; word-break: break-all; }
+    .admin-list-item.is-hidden { opacity: 0.55; }
+    .admin-list-delete {
+      flex-shrink: 0; border: 1px solid #ccc; background: #fff; border-radius: 6px;
+      padding: 5px 10px; font-size: 10.5px; font-weight: bold; cursor: pointer; color: #444;
+    }
+    .admin-list-delete:hover { background: #f5f5f5; }
+    .admin-list-empty { font-size: 11.5px; color: #888; }
+    .admin-list-note { font-size: 10.5px; color: #666; line-height: 1.6; margin-top: 10px; }
     .tool-btn:hover { transform: translateY(-2px); opacity: 0.9; }
 
     .swatch-grid {
@@ -439,6 +460,26 @@
         </button>
       </div>
 
+      <!-- PNGスタンプ読込（管理者用のみ・隠しinputファイル選択） -->
+      <div class="admin-only">
+        <input type="file" id="stampAdminInput" accept="image/png" style="display:none;" onchange="handleStampAdminUpload(event)">
+        <button class="tool-btn btn-stamp" onclick="document.getElementById('stampAdminInput').click()">
+          PNGスタンプ読込(管理者用)<br><span style="font-size:9px;">(公開用に連番で書き出し)</span>
+        </button>
+      </div>
+
+      <!-- テンプレート一覧・スタンプ一覧（管理者用・削除可） -->
+      <div class="admin-only admin-manage-panel">
+        <p class="admin-list-title">テンプレート一覧(管理者用)</p>
+        <div id="adminTemplateList" class="admin-list"></div>
+        <p class="admin-list-title">スタンプ一覧(管理者用)</p>
+        <div id="adminStampList" class="admin-list"></div>
+        <p class="admin-list-note">
+          「削除」は一般公開の一覧から非表示にするだけです(ブラウザに保存され、次回も反映されます)。
+          ファイル自体を完全に削除するには、GitHub上の該当フォルダから手動で削除してください。
+        </p>
+      </div>
+
       <div class="tool-item" style="display:flex; gap:8px;">
         <button class="tool-btn btn-layer" id="forwardBtn" onclick="bringForward()" disabled style="flex:1; padding:10px 4px;">
           前面へ<br><span style="font-size:9px;">1つ上げる</span>
@@ -531,6 +572,84 @@
         <li>「3D プレビュー」ボタンで、できあがりのイメージを立体で確認できます。ドラッグすると回転します。</li>
         <li>デザインができたら、「確定/購入」ボタンで画像を保存できます。イラストレーターなどで編集したい場合は「SVGで保存」を使ってください。</li>
       </ol>
+
+      <div class="admin-only dev-readme">
+        <h3>開発者向け説明書(管理者モード限定表示)</h3>
+
+        <h4>1. 全体の仕組み</h4>
+        <ul>
+          <li><b>2Dエディタ</b>: Fabric.jsで、丸(またはSVGで読み込んだ形)の上に写真・テキスト・スタンプ・手描き図形を配置する。</li>
+          <li><b>3Dプレビュー</b>: Three.js。2Dエディタの内容を切り出して画像化し、立体の板(押し出しジオメトリ)にテクスチャとして貼り付ける。</li>
+          <li><b>テンプレート</b>: 「輪郭(仕上がり線・カットライン)」「塗り足し線」「ストラップ穴」を持つ<code>template</code>オブジェクトが、2Dガイド線・3D形状・書き出しデータすべての元になっている。丸もSVGから読み込んだ形も同じ仕組み。</li>
+        </ul>
+
+        <h4>2. フォルダの規約(HTMLファイルと同じ場所に作る)</h4>
+        <table class="dev-table">
+          <tr><th>フォルダ</th><th>ファイル名の付け方</th><th>用途</th></tr>
+          <tr><td><code>stamp/</code></td><td>stamp1.png, stamp2.png, …</td><td>スタンプ機能の選択肢(PNG、透過推奨)</td></tr>
+          <tr><td><code>template/</code></td><td>template1.svg, template2.svg, …</td><td>一般公開用の「テンプレート選択」の選択肢</td></tr>
+          <tr><td><code>background/</code></td><td>background.jpg(または.png)</td><td>ページ全体の背景(1枚を画面いっぱいに表示)</td></tr>
+          <tr><td><code>background/</code></td><td>pattern.png</td><td>上記が無い場合のみ使われる、繰り返し模様の背景ロゴ</td></tr>
+        </table>
+        <ul>
+          <li>存在チェックには上限がある(現在スタンプ40個・テンプレート20個)。増やす場合はコード内の<code>STAMP_MAX_CHECK</code> / <code>TEMPLATE_MAX_CHECK</code>を変更。</li>
+          <li>SVGテンプレートには、<b>塗り足し線</b>(赤系の線 or id="bleed")と<b>仕上がり線</b>(青系の線 or id="finish")の2つの<code>&lt;path&gt;</code>が必要。判定できない場合は面積が大きい方を塗り足し線とみなす。</li>
+        </ul>
+
+        <h4>3. 管理者モード / 一般公開モード</h4>
+        <ul>
+          <li><b>Ctrl+D</b>で切り替え(<code>document.body</code>に<code>admin-mode</code>クラスが付く/外れる)。CSSの<code>.admin-only</code> / <code>.public-only</code>で表示・非表示を切り替えている。</li>
+          <li>管理者用: 「SVGテンプレート読込」(<code>handleSVGTemplateUpload</code>) / 一般公開用: 「テンプレート選択」の帯(<code>loadTemplateGallery</code>)</li>
+        </ul>
+
+        <h4>4. 表面／裏面(両面デザイン)</h4>
+        <ul>
+          <li><code>currentSide</code>('front'か'back')で今どちらを編集中かを管理。</li>
+          <li>ユーザーが置いたものだけを<code>frontObjectsData</code> / <code>backObjectsData</code>にJSON形式で保存し、切り替え時に<code>fabric.util.enlivenObjects</code>で復元(<code>switchSide</code>関数)。テンプレート自体・ベースカラーは両面共通。</li>
+        </ul>
+
+        <h4>5. 3Dプレビューの仕組み(重要・要注意ポイント)</h4>
+        <ul>
+          <li>表面・裏面それぞれの2Dキャンバスを画像化し、<code>ExtrudeGeometry</code>に貼り付けている。</li>
+          <li><b>表と裏は完全に別のMesh</b>(<code>frontCapMesh</code> / <code>backCapMesh</code>)。以前、Three.jsが自動で割り振るマテリアル番号を当てにして表裏を判定していたが、形状や穴の有無で番号の並びが変わり取り違えるバグが繰り返し発生したため、この方式に変更した。<b>表裏の処理を触る場合は、必ず<code>plateMesh.userData.frontCapMesh</code> / <code>backCapMesh</code>を直接使うこと</b>(マテリアル配列のインデックスを当てにしない)。</li>
+          <li>裏面は物理的にひっくり返して見るため、テクスチャを貼る直前に左右反転させている(<code>update3DTexture</code>内)。2Dエディタや書き出しデータ自体は反転させていない。</li>
+          <li>ストラップ穴は丸テンプレートのみ自動生成(<code>template.hole</code>)。カスタムSVGテンプレートには付けない。</li>
+          <li>Retina対策で<code>canvas.getRetinaScaling()</code>を掛けている。ここを削ると「一部だけ切り出されて拡大表示される」バグが再発する。</li>
+        </ul>
+
+        <h4>6. SVG書き出し(<code>exportLayeredSVG</code>)</h4>
+        <ul>
+          <li><code>fabric.Canvas.toSVG()</code>の出力を、テンプレート／添付画像／手描き／テキストの4レイヤーに仕分け直している。</li>
+          <li>レイヤーでまとめる都合上、書き出したSVGの重なり順は「テンプレート→画像→手描き→テキスト」に統一される(エディタ上の個別の前後関係とは変わることがある)。</li>
+          <li>裏面もデザインされていれば、表面用・裏面用の2ファイルを書き出す(<code>hasBackContent</code>で判定)。</li>
+        </ul>
+
+        <h4>7. ローカルでテストする際の注意</h4>
+        <p>HTMLファイルを<b>ダブルクリックして直接開く(file://)</b>と、スタンプ・写真の3Dテクスチャ化(<code>canvas.toDataURL()</code>)がブロックされ、その面が真っ黒になることがある。確実にテストするには簡易ローカルサーバーを使う。</p>
+        <pre class="dev-code">cd (このHTMLファイルがあるフォルダ)
+python -m http.server 8000</pre>
+        <p>その後ブラウザで <code>http://localhost:8000/design_simulator.html</code> を開く。実サーバーに設置した場合はこの制限は発生しない。</p>
+
+        <h4>8. fabric.js / three.js が読み込めなかった場合</h4>
+        <p>CDNからの読み込みが広告ブロッカー等でブロックされると、スクリプトの実行が止まり「画面が少し暗くなるが何も選べない」壊れ方をする。この状態になった場合、画面上部に赤いエラーバナーが表示されるようにしてある(<code>typeof fabric === 'undefined'</code>のチェック)。</p>
+
+        <h4>9. コードを修正するときの探し方</h4>
+        <table class="dev-table">
+          <tr><th>やりたいこと</th><th>見る場所</th></tr>
+          <tr><td>ツールボタンを増やす</td><td>HTML内の<code>.toolbar</code>、対応するJS関数を追加</td></tr>
+          <tr><td>ポップアップパネルを増やす</td><td><code>.popover-modal</code>クラスを使い、<code>togglePopover()</code>で開閉</td></tr>
+          <tr><td>色を選ぶ機能を増やす</td><td><code>updateShapePropsPanel</code> / <code>updateTextPropsPanel</code>のパターンを参考</td></tr>
+          <tr><td>テンプレートの仕組みを変える</td><td><code>template</code>オブジェクトを中心に、<code>initProductGuide</code>(2D)と<code>rebuildPlateGeometry</code>(3D)を必ず一緒に直す</td></tr>
+          <tr><td>3Dの見た目がおかしい</td><td>まず<code>update3DTexture</code>と<code>rebuildPlateGeometry</code>を確認。表裏の取り違えなら<code>frontCapMesh</code>/<code>backCapMesh</code>の割り当てを確認</td></tr>
+          <tr><td>レイアウト・デザインを変える</td><td><code>&lt;style&gt;</code>内、<code>.editor-container</code> / <code>.center-col</code> / <code>.usage-panel</code> / スマホ用の<code>@media</code></td></tr>
+        </table>
+
+        <h4>10. 既知の制限事項</h4>
+        <ul>
+          <li>カスタムSVGテンプレートの3D表現では、表と裏で別デザインを貼れるが、側面(押し出しの壁)の質感は表裏共通。</li>
+          <li>スタンプ・テンプレートの番号は欠番があっても問題ない(その番号だけ無いものとして次を試すだけ)。</li>
+        </ul>
+      </div>
     </div>
   </div>
 
@@ -750,6 +869,23 @@
     try {
       const text = await file.text();
       await applySVGTemplateFromText(text, file.name);
+
+      // 一般公開の「テンプレート選択」に表示されるようにするには、templateフォルダに
+      // template◯.svg という名前でこのファイルを置く必要がある（自動アップロードはできないため、
+      // 正しい連番の名前を付けた状態でダウンロードし、それをGitHub等に手動で追加してもらう）。
+      const nextNum = foundTemplateNumbers.length ? Math.max.apply(null, foundTemplateNumbers) + 1 : 1;
+      const suggestedName = 'template' + nextNum + '.svg';
+      const blob = new Blob([text], { type: 'image/svg+xml' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = suggestedName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      alert('✅ 編集画面に反映しました。一般公開の「テンプレート選択」にも表示させたい場合は、'
+        + 'ダウンロードされた「' + suggestedName + '」を、templateフォルダに追加してください。');
     } finally {
       e.target.value = '';
     }
@@ -759,6 +895,7 @@
   // 名前のSVGを順番に探して一覧表示する（スタンプと同じ考え方）。
   const TEMPLATE_FOLDER = 'template/';
   const TEMPLATE_MAX_CHECK = 20;
+  let foundTemplateNumbers = []; // 見つかったテンプレート番号（新規追加時の連番の提案に使う）
 
   // <object>タグでSVGを読み込む方式。fetch()はfile://で直接開いた場合に完全にブロックされるが、
   // <object>はローカルファイルでも読み込め、中身のSVG DOMにアクセスできる（今回のケースに近い用途）。
@@ -800,19 +937,23 @@
     const grid = document.getElementById('templateStrip');
     const emptyNote = document.getElementById('templateEmptyNote');
     let found = 0;
+    foundTemplateNumbers = [];
 
     for (let i = 1; i <= TEMPLATE_MAX_CHECK; i++) {
       const url = TEMPLATE_FOLDER + 'template' + i + '.svg';
       const text = await probeTemplateSVG(url);
       if (!text) continue;
       found++;
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.innerHTML = '<img src="' + url + '" alt="テンプレート' + i + '"><span>テンプレート' + i + '</span>';
-      btn.addEventListener('click', function() {
-        applySVGTemplateFromText(text, 'template' + i + '.svg');
-      });
-      grid.appendChild(btn);
+      foundTemplateNumbers.push(i);
+      if (!hiddenTemplateNumbers.has(i)) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.innerHTML = '<img src="' + url + '" alt="テンプレート' + i + '"><span>テンプレート' + i + '</span>';
+        btn.addEventListener('click', function() {
+          applySVGTemplateFromText(text, 'template' + i + '.svg');
+        });
+        grid.appendChild(btn);
+      }
     }
     emptyNote.style.display = found ? 'none' : 'block';
     if (!found) {
@@ -821,8 +962,43 @@
         + '簡易ローカルサーバー、または実際のサーバー経由で開くと解決することがあります。'
         + '（template1.svg・template2.svg…という名前で保存されているかもご確認ください）';
     }
+    renderAdminTemplateList();
   }
   loadTemplateGallery();
+
+  function renderAdminTemplateList() {
+    const listEl = document.getElementById('adminTemplateList');
+    if (!listEl) return;
+    listEl.innerHTML = '';
+    if (!foundTemplateNumbers.length) {
+      listEl.innerHTML = '<p class="admin-list-empty">テンプレートがまだありません。</p>';
+      return;
+    }
+    foundTemplateNumbers.slice().sort(function(a, b) { return a - b; }).forEach(function(i) {
+      const url = TEMPLATE_FOLDER + 'template' + i + '.svg';
+      const isHidden = hiddenTemplateNumbers.has(i);
+      const item = document.createElement('div');
+      item.className = 'admin-list-item' + (isHidden ? ' is-hidden' : '');
+      item.innerHTML = '<img src="' + url + '" alt="テンプレート' + i + '"><span>template' + i + '.svg' + (isHidden ? '（非表示中）' : '') + '</span>';
+      const toggleBtn = document.createElement('button');
+      toggleBtn.type = 'button';
+      toggleBtn.className = 'admin-list-delete';
+      toggleBtn.textContent = isHidden ? '表示に戻す' : '削除（非表示）';
+      toggleBtn.addEventListener('click', function() {
+        if (isHidden) {
+          hiddenTemplateNumbers.delete(i);
+        } else {
+          if (!confirm('「template' + i + '.svg」を一般公開の一覧から非表示にしますか？\n※ブラウザ上の表示だけが変わります。ファイル自体を削除するには、GitHub上のtemplateフォルダから手動で削除してください。')) return;
+          hiddenTemplateNumbers.add(i);
+        }
+        saveHiddenSet(HIDDEN_TEMPLATES_KEY, hiddenTemplateNumbers);
+        document.getElementById('templateStrip').innerHTML = '';
+        loadTemplateGallery();
+      });
+      item.appendChild(toggleBtn);
+      listEl.appendChild(item);
+    });
+  }
 
   // ── ページ全体の背景（HTMLと同じ場所の「background」フォルダを見て自動設定） ──
   // パターン1: background/background.jpg（またはpng）があれば、PC・スマホどちらも画面いっぱいの
@@ -1060,34 +1236,124 @@
   // HTMLファイルと同じ場所にある「stamp」フォルダの中から、stamp1.png, stamp2.png…という
   // 名前のPNGを順番に探して読み込む（サーバー側のフォルダ一覧機能が使えない環境でも動くように、
   // 存在するものだけを自動判定する方式にしている）。
+  // ── 管理者用「削除」の実体 ──
+  // クライアント側だけでは実際にファイルを消せないため、「削除」は「一般公開の一覧から
+  // 非表示にする」というソフトデリートとして実装している（ブラウザに保存され、次回も
+  // 反映される）。本当にファイルを削除したい場合は、GitHub上のstamp/templateフォルダから
+  // 該当ファイルを手動で削除する必要がある。
+  function getHiddenSet(key) {
+    try {
+      const raw = window.localStorage.getItem(key);
+      return raw ? new Set(JSON.parse(raw)) : new Set();
+    } catch (e) { return new Set(); }
+  }
+  function saveHiddenSet(key, set) {
+    try { window.localStorage.setItem(key, JSON.stringify(Array.from(set))); } catch (e) { /* 保存できなければ今回のみ有効 */ }
+  }
+  const HIDDEN_TEMPLATES_KEY = 'designSimulator.hiddenTemplates';
+  const HIDDEN_STAMPS_KEY = 'designSimulator.hiddenStamps';
+  let hiddenTemplateNumbers = getHiddenSet(HIDDEN_TEMPLATES_KEY);
+  let hiddenStampNumbers = getHiddenSet(HIDDEN_STAMPS_KEY);
+
   const STAMP_FOLDER = 'stamp/';
   const STAMP_MAX_CHECK = 40; // stamp1.png ～ stamp40.png まで探す
   let stampsLoaded = false;
+  let foundStampNumbers = []; // 見つかったスタンプ番号（新規追加時の連番の提案に使う）
 
   function loadStampList() {
     const grid = document.getElementById('stampGrid');
     const emptyNote = document.getElementById('stampEmptyNote');
     let foundCount = 0;
     let checkedCount = 0;
+    foundStampNumbers = [];
 
     for (let i = 1; i <= STAMP_MAX_CHECK; i++) {
       const url = STAMP_FOLDER + 'stamp' + i + '.png';
       const testImg = new Image();
       testImg.onload = function() {
         foundCount++;
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.innerHTML = '<img src="' + url + '" alt="stamp' + i + '">';
-        btn.addEventListener('click', function() { addStampToCanvas(url); });
-        grid.appendChild(btn);
+        foundStampNumbers.push(i);
+        if (!hiddenStampNumbers.has(i)) {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.innerHTML = '<img src="' + url + '" alt="stamp' + i + '">';
+          btn.addEventListener('click', function() { addStampToCanvas(url); });
+          grid.appendChild(btn);
+        }
         checkedCount++;
-        if (checkedCount === STAMP_MAX_CHECK) emptyNote.style.display = foundCount ? 'none' : 'block';
+        if (checkedCount === STAMP_MAX_CHECK) {
+          emptyNote.style.display = foundCount ? 'none' : 'block';
+          renderAdminStampList();
+        }
       };
       testImg.onerror = function() {
         checkedCount++;
-        if (checkedCount === STAMP_MAX_CHECK) emptyNote.style.display = foundCount ? 'none' : 'block';
+        if (checkedCount === STAMP_MAX_CHECK) {
+          emptyNote.style.display = foundCount ? 'none' : 'block';
+          renderAdminStampList();
+        }
       };
       testImg.src = url;
+    }
+  }
+
+  function renderAdminStampList() {
+    const listEl = document.getElementById('adminStampList');
+    if (!listEl) return;
+    listEl.innerHTML = '';
+    if (!foundStampNumbers.length) {
+      listEl.innerHTML = '<p class="admin-list-empty">スタンプがまだありません。</p>';
+      return;
+    }
+    foundStampNumbers.slice().sort(function(a, b) { return a - b; }).forEach(function(i) {
+      const url = STAMP_FOLDER + 'stamp' + i + '.png';
+      const isHidden = hiddenStampNumbers.has(i);
+      const item = document.createElement('div');
+      item.className = 'admin-list-item' + (isHidden ? ' is-hidden' : '');
+      item.innerHTML = '<img src="' + url + '" alt="stamp' + i + '"><span>stamp' + i + '.png' + (isHidden ? '（非表示中）' : '') + '</span>';
+      const toggleBtn = document.createElement('button');
+      toggleBtn.type = 'button';
+      toggleBtn.className = 'admin-list-delete';
+      toggleBtn.textContent = isHidden ? '表示に戻す' : '削除（非表示）';
+      toggleBtn.addEventListener('click', function() {
+        if (isHidden) {
+          hiddenStampNumbers.delete(i);
+        } else {
+          if (!confirm('「stamp' + i + '.png」を一般公開の一覧から非表示にしますか？\n※ブラウザ上の表示だけが変わります。ファイル自体を削除するには、GitHub上のstampフォルダから手動で削除してください。')) return;
+          hiddenStampNumbers.add(i);
+        }
+        saveHiddenSet(HIDDEN_STAMPS_KEY, hiddenStampNumbers);
+        document.getElementById('stampGrid').innerHTML = '';
+        loadStampList();
+      });
+      item.appendChild(toggleBtn);
+      listEl.appendChild(item);
+    });
+  }
+
+  // 管理者用：PNGスタンプを直接アップロードして追加する
+  async function handleStampAdminUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      if (file.type !== 'image/png') {
+        alert('⚠️ PNG形式の画像を選んでください。');
+        return;
+      }
+      const nextNum = foundStampNumbers.length ? Math.max.apply(null, foundStampNumbers) + 1 : 1;
+      const suggestedName = 'stamp' + nextNum + '.png';
+      const url = URL.createObjectURL(file);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = suggestedName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      alert('✅ 「' + suggestedName + '」という名前でダウンロードしました。'
+        + '一般公開の「スタンプ」にも表示させるには、このファイルをGitHub等のstampフォルダに追加してください。');
+    } finally {
+      e.target.value = '';
     }
   }
 
@@ -1784,13 +2050,18 @@
     renderer.setSize(400, 400);
     container.appendChild(renderer.domElement);
 
-    // ライト追加
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    // ライト追加（表だけでなく裏もきちんと明るく見えるよう、環境光を強め、
+    // 表・裏それぞれの向きに1つずつ平行光を置く）
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
     scene.add(ambientLight);
 
     const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
     dirLight.position.set(5, 10, 7);
     scene.add(dirLight);
+
+    const dirLightBack = new THREE.DirectionalLight(0xffffff, 0.5);
+    dirLightBack.position.set(-5, 10, -7);
+    scene.add(dirLightBack);
 
     // メッシュ（チャームプレート）作成：形は現在の template に応じて構築する
     plateMesh = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial());
@@ -1906,12 +2177,12 @@
     const capGeometry = new THREE.ExtrudeGeometry(shape, { depth: 0.001, bevelEnabled: false, UVGenerator: flatUVGenerator });
 
     // 表面用の板（テクスチャ用・常に白のまま）：本体の手前側にごくわずかに重ねる
-    const frontCapMesh = new THREE.Mesh(capGeometry.clone(), new THREE.MeshStandardMaterial({ color: 0xffffff, side: THREE.FrontSide }));
+    const frontCapMesh = new THREE.Mesh(capGeometry.clone(), new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.FrontSide }));
     frontCapMesh.position.z = bodyBB.max.z + CAP_OFFSET;
 
     // 裏面用の板（無地のベースカラーのみ）：本体の奥側にごくわずかに重ねる。
     // BackSideにすることで、同じ向きの板でも裏側から見て正しく不透明に表示される。
-    const backCapMesh = new THREE.Mesh(capGeometry.clone(), new THREE.MeshStandardMaterial({ color: currentBaseColor, side: THREE.BackSide }));
+    const backCapMesh = new THREE.Mesh(capGeometry.clone(), new THREE.MeshBasicMaterial({ color: currentBaseColor, side: THREE.BackSide }));
     capGeometry.dispose(); // clone()した後は元のジオメトリは不要
     backCapMesh.position.z = bodyBB.min.z - CAP_OFFSET;
 
