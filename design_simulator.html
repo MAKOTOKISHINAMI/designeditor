@@ -58,19 +58,21 @@
     /* メインコンテナ：PCは横いっぱいを使い、左にツール・中央にキャンバス・右に説明を並べる */
     .editor-container {
       display: flex; align-items: stretch; justify-content: center;
-      gap: 24px; padding: 24px; width: 100%;
+      gap: 16px; padding: 16px; width: 100%;
     }
 
-    /* 右側：使い方の説明パネル */
+    /* 中央列：ツールボタン＋テンプレート一覧。余った横幅いっぱいに広がる */
+    .center-col { flex: 1 1 auto; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+    /* 下部：使い方の説明（エディタ＋アイコン欄と同じ横幅いっぱいに表示、高さは抑えて2段組み） */
     .usage-panel {
-      width: 300px; flex-shrink: 0;
+      width: 100%; margin: 0 16px 16px; max-width: none;
       background: #fff; border-radius: 16px; box-shadow: 0 2px 16px rgba(0,0,0,0.08);
-      position: sticky; top: 84px; max-height: calc(100vh - 104px); overflow-y: auto;
     }
 
-    /* 下部：テンプレート一覧（横スクロールの帯） */
+    /* テンプレート一覧（横スクロールの帯） */
     .template-strip-wrap {
-      background: #fff; border-top: 1px solid #e5e7eb; padding: 14px 24px 18px;
+      background: #fff; border-radius: 16px; box-shadow: 0 2px 16px rgba(0,0,0,0.08); padding: 14px 18px 18px;
     }
     .template-strip-label { font-size: 12px; font-weight: 700; color: #555; margin-bottom: 10px; }
     .template-strip {
@@ -84,12 +86,12 @@
     .template-strip button:hover { border-color: #6366f1; }
     .template-strip img { width: 56px; height: 56px; object-fit: contain; }
 
-    /* キャンバスエリア */
+    /* キャンバスエリア（左側） */
     .canvas-section {
       position: relative; background: #ffffff; padding: 20px;
       border-radius: 16px; box-shadow: 0 2px 16px rgba(0,0,0,0.08);
       display: flex; flex-direction: column; align-items: center;
-      flex: 1 1 auto; max-width: 640px; width: 100%;
+      flex: 0 0 auto; width: 460px;
     }
     .bleed-notice {
       background: #fef3c7; color: #92400e; padding: 8px 14px;
@@ -97,22 +99,25 @@
     }
     .canvas-wrapper { border: 1px dashed #ccc; position: relative; width: 100%; max-width: 400px; }
     #designCanvas { width: 100%; height: auto; display: block; touch-action: none; }
+
+    /* 使い方ガイドの中身：最大2段のグリッドで折り返し、縦を短くする */
     .usage-guide {
-      padding: 18px 20px; font-size: 13px; line-height: 1.85; color: #333;
+      padding: 16px 22px; font-size: 13px; line-height: 1.75; color: #333;
     }
     .usage-guide h3 { font-size: 14px; margin-bottom: 8px; color: #1a3a5c; }
-    .usage-guide ol { padding-left: 20px; }
-    .usage-guide li { margin-bottom: 6px; }
-
-    /* ツールボタンエリア：PCでは右側の固定幅サイドバー（スクロールに追従）。
-       ボタンは2列のグリッドにして、縦に長く並ぶのを防ぐ。 */
-    .toolbar {
-      display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; width: 300px; flex-shrink: 0;
-      background: #fff; padding: 18px; border-radius: 16px; box-shadow: 0 2px 16px rgba(0,0,0,0.08);
-      position: sticky; top: 84px; max-height: calc(100vh - 104px); overflow-y: auto;
-      align-content: start;
+    .usage-guide ol {
+      padding-left: 20px;
+      display: grid; grid-template-rows: repeat(2, auto); grid-auto-flow: column;
+      column-gap: 32px; row-gap: 4px;
     }
-    /* 前面へ/背面へ・削除・SVG保存・図形の色パネルなど、横幅を使いたいものは2列分使う */
+    .usage-guide li { break-inside: avoid; margin-bottom: 4px; }
+
+    /* ツールボタンエリア：横幅いっぱいに広がるグリッド */
+    .toolbar {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px;
+      background: #fff; padding: 18px; border-radius: 16px; box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+    }
+    /* 前面へ/背面へ・削除・SVG保存・図形の色パネルなど、横幅を使いたいものは全列分使う */
     .toolbar > .tool-item[style*="display:flex"],
     #deleteBtn, .btn-svgexport, .shape-props-panel,
     .toolbar > .admin-only, .toolbar > .public-only {
@@ -295,21 +300,17 @@
         padding: 14px;
         gap: 14px;
       }
-      .canvas-section { max-width: 100%; padding: 14px; order: 1; }
+      .canvas-section { width: 100%; padding: 14px; order: 1; }
+      .center-col { order: 2; }
       .toolbar {
-        position: static;
-        width: 100%;
-        max-height: none;
-        order: 2;
+        grid-template-columns: repeat(3, 1fr);
       }
       .usage-panel {
-        position: static;
-        width: 100%;
-        max-height: none;
-        order: 3;
+        width: 100%; margin: 0 14px 14px;
       }
+      .usage-guide ol { grid-template-rows: none; grid-auto-flow: row; }
 
-      .tool-btn { min-height: 52px; font-size: 13px; }
+      .tool-btn { min-height: 56px; font-size: 12.5px; }
       .draw-tool-btn { min-height: 48px; font-size: 12.5px; }
 
       .popover-modal { width: 92vw; padding: 16px; }
@@ -322,6 +323,12 @@
   </style>
 </head>
 <body>
+
+  <div id="libLoadError" style="display:none; position:fixed; top:0; left:0; right:0; z-index:9999; background:#dc2626; color:#fff; padding:14px 20px; font-size:13.5px; font-weight:bold; text-align:center;">
+    ⚠️ 必要な部品(Fabric.js / Three.js)の読み込みに失敗しました。インターネット接続、または社内ネットワーク・広告ブロッカーなどが
+    cdnjs.cloudflare.com / cdn.jsdelivr.net への接続をブロックしていないかご確認のうえ、ページを再読み込みしてください。
+    ベースカラー・スタンプなどのボタンが反応しないのはこれが原因です。
+  </div>
 
   <div id="popoverBackdrop"></div>
 
@@ -349,7 +356,22 @@
   <!-- メインエリア -->
   <div class="editor-container">
 
-    <!-- 左側：ツールボタン -->
+    <!-- 左側：デザイン領域 -->
+    <div class="canvas-section">
+      <div class="side-tabs">
+        <button class="side-tab-btn active" id="sideTabFront" data-side="front" onclick="switchSide('front')">表面</button>
+        <button class="side-tab-btn" id="sideTabBack" data-side="back" onclick="switchSide('back')">裏面</button>
+      </div>
+      <p id="sideNotice" class="side-notice">表面をデザイン中（必須）</p>
+      <div class="bleed-notice">✏️ 塗り足しライン（赤枠）までデザインしてください</div>
+      <div class="canvas-wrapper">
+        <canvas id="designCanvas" width="400" height="400"></canvas>
+      </div>
+      <div id="dpiWarning" class="dpi-warning">⚠️ 一部画像の解像度が低いです（推奨300DPI以上）</div>
+    </div>
+
+    <!-- 中央：ツールボタン＋テンプレート一覧 -->
+    <div class="center-col">
     <div class="toolbar">
       <div class="tool-item" style="position:relative;">
         <button class="tool-btn btn-color" style="width:100%;" onclick="toggleColorPalette(event)">ベースカラー</button>
@@ -481,48 +503,35 @@
       </button>
     </div>
 
-    <!-- 中央：デザイン領域 -->
-    <div class="canvas-section">
-      <div class="side-tabs">
-        <button class="side-tab-btn active" id="sideTabFront" data-side="front" onclick="switchSide('front')">表面</button>
-        <button class="side-tab-btn" id="sideTabBack" data-side="back" onclick="switchSide('back')">裏面</button>
-      </div>
-      <p id="sideNotice" class="side-notice">表面をデザイン中（必須）</p>
-      <div class="bleed-notice">✏️ 塗り足しライン（赤枠）までデザインしてください</div>
-      <div class="canvas-wrapper">
-        <canvas id="designCanvas" width="400" height="400"></canvas>
-      </div>
-      <div id="dpiWarning" class="dpi-warning">⚠️ 一部画像の解像度が低いです（推奨300DPI以上）</div>
+    <!-- テンプレート一覧（一般公開用） -->
+    <div class="template-strip-wrap public-only">
+      <p class="template-strip-label">テンプレート一覧</p>
+      <div id="templateStrip" class="template-strip"></div>
+      <p id="templateEmptyNote" class="template-empty-note" style="display:none;"></p>
     </div>
-
-    <!-- 右側：使い方の説明 -->
-    <div class="usage-panel">
-      <div class="usage-guide">
-        <h3>使い方ガイド</h3>
-        <ol>
-          <li><b>ベースカラー</b>：色のボタンをおすと、好きな色を選べます。プレートの下地の色になります。</li>
-          <li><b>メッセージ追加</b>：文字を入れられます。入れたあと、文字をクリックすると自由に書きかえられます。</li>
-          <li><b>写真追加</b>：自分のスマホやパソコンにある写真(JPG・PNG・GIF・WEBP・BMP)をはりつけられます。</li>
-          <li><b>スタンプ</b>：用意されているイラストをえらんで、はりつけられます。</li>
-          <li><b>描画ツール</b>：ペンで自由に線を書いたり、四角・円・線を書いたりできます。色や太さも変えられます。</li>
-          <li>写真・文字・スタンプ・図形は、青い枠の角をつかむと<b>大きさ</b>を変えられます。上のクルッとしたマークをつかむと<b>回転</b>できます。まん中をドラッグすると<b>移動</b>できます。</li>
-          <li>いらなくなったら、クリックして選んでから「選択した要素を削除」ボタン、またはキーボードの<b>Deleteキー</b>で消せます。</li>
-          <li>「前面へ」「背面へ」ボタンで、写真と文字のどちらを上に見せるか変えられます。</li>
-          <li><b>表面／裏面</b>のタブで、プレートの表と裏、それぞれ別のデザインを作れます(裏はデザインしなくてもOKです)。</li>
-          <li><b>赤い点線</b>は「塗り足し線」です。デザインはこの線まで、はみ出すつもりで作ってください。<b>青い線</b>が、実際にできあがる形の線です。</li>
-          <li>「3D プレビュー」ボタンで、できあがりのイメージを立体で確認できます。ドラッグすると回転します。</li>
-          <li>デザインができたら、「確定/購入」ボタンで画像を保存できます。イラストレーターなどで編集したい場合は「SVGで保存」を使ってください。</li>
-        </ol>
-      </div>
     </div>
 
   </div>
 
-  <!-- 下部：テンプレート一覧（一般公開用） -->
-  <div class="template-strip-wrap public-only">
-    <p class="template-strip-label">テンプレート一覧</p>
-    <div id="templateStrip" class="template-strip"></div>
-    <p id="templateEmptyNote" class="template-empty-note" style="display:none;"></p>
+  <!-- 下部：使い方の説明（キャンバス＋ツールの幅いっぱいに表示） -->
+  <div class="usage-panel">
+    <div class="usage-guide">
+      <h3>使い方ガイド</h3>
+      <ol>
+        <li><b>ベースカラー</b>：色のボタンをおすと、好きな色を選べます。プレートの下地の色になります。</li>
+        <li><b>メッセージ追加</b>：文字を入れられます。入れたあと、文字をクリックすると自由に書きかえられます。</li>
+        <li><b>写真追加</b>：自分のスマホやパソコンにある写真(JPG・PNG・GIF・WEBP・BMP)をはりつけられます。</li>
+        <li><b>スタンプ</b>：用意されているイラストをえらんで、はりつけられます。</li>
+        <li><b>描画ツール</b>：ペンで自由に線を書いたり、四角・円・線を書いたりできます。色や太さも変えられます。</li>
+        <li>写真・文字・スタンプ・図形は、青い枠の角をつかむと<b>大きさ</b>を変えられます。上のクルッとしたマークをつかむと<b>回転</b>できます。まん中をドラッグすると<b>移動</b>できます。</li>
+        <li>いらなくなったら、クリックして選んでから「選択した要素を削除」ボタン、またはキーボードの<b>Deleteキー</b>で消せます。</li>
+        <li>「前面へ」「背面へ」ボタンで、写真と文字のどちらを上に見せるか変えられます。</li>
+        <li><b>表面／裏面</b>のタブで、プレートの表と裏、それぞれ別のデザインを作れます(裏はデザインしなくてもOKです)。</li>
+        <li><b>赤い点線</b>は「塗り足し線」です。デザインはこの線まで、はみ出すつもりで作ってください。<b>青い線</b>が、実際にできあがる形の線です。</li>
+        <li>「3D プレビュー」ボタンで、できあがりのイメージを立体で確認できます。ドラッグすると回転します。</li>
+        <li>デザインができたら、「確定/購入」ボタンで画像を保存できます。イラストレーターなどで編集したい場合は「SVGで保存」を使ってください。</li>
+      </ol>
+    </div>
   </div>
 
   <p id="templateStatus" style="text-align:center; font-size:11px; color:#666; margin:8px auto 0; max-width:600px;"></p>
@@ -537,6 +546,16 @@
   </div>
 
 <script>
+  // ── 0. 必須ライブラリの読み込みチェック ────────────────────────────
+  // CDNの読み込みに失敗すると、この後の初期化がすべて途中で止まってしまい、
+  // 「ベースカラー」「スタンプ」などのボタンを押しても反応しない（エラーメッセージも
+  // コンソールにしか出ない）という分かりにくい状態になる。ここで先に検知して、
+  // 画面上にはっきりしたエラー表示を出す。
+  if (typeof fabric === 'undefined' || typeof THREE === 'undefined') {
+    document.getElementById('libLoadError').style.display = 'block';
+    throw new Error('必須ライブラリ(fabric.js / three.js)の読み込みに失敗しました。');
+  }
+
   // ── 1. 基本定数・Fabric.jsの初期化 ────────────────────────────
   const ITEM_REAL_SIZE_MM = 60; // 原寸サイズ（60mm）
 
@@ -561,6 +580,18 @@
     else openPopover(panelEl);
   }
   popoverBackdropEl.addEventListener('click', closeAllPopovers);
+  // fabric.jsが何らかの理由（ネット接続、広告ブロッカー、セキュリティソフトなどでCDNがブロックされた場合など）
+  // で読み込めていないと、この後の処理がすべて動かなくなり、「画面が少し暗くなるが何も選べない」
+  // といった分かりにくい壊れ方をする。読み込めていない場合は、ここで分かりやすく知らせる。
+  if (typeof fabric === 'undefined') {
+    document.body.insertAdjacentHTML('afterbegin',
+      '<div style="position:fixed;top:0;left:0;right:0;z-index:9999;background:#dc2626;color:#fff;' +
+      'padding:14px 20px;font-size:13px;font-weight:bold;text-align:center;">' +
+      '⚠️ 編集に必要な部品(fabric.js)が読み込めませんでした。インターネット接続や、広告ブロッカー・' +
+      'セキュリティソフトの設定をご確認のうえ、ページを再読み込みしてください。' +
+      '直らない場合は、別のネットワーク環境やブラウザでお試しください。</div>');
+  }
+
   fabric.Object.prototype.hasBorders = false; // 画像・テキスト選択時の枠線を非表示にする（角のハンドルは残す）
   const canvas = new fabric.Canvas('designCanvas', {
     preserveObjectStacking: true
@@ -792,6 +823,45 @@
     }
   }
   loadTemplateGallery();
+
+  // ── ページ全体の背景（HTMLと同じ場所の「background」フォルダを見て自動設定） ──
+  // パターン1: background/background.jpg（またはpng）があれば、PC・スマホどちらも画面いっぱいの
+  //            一枚の背景画像として表示する。
+  // パターン2: パターン1のファイルがなく、background/pattern.png があれば、指定した背景色の上に
+  //            そのPNGロゴを等間隔で並べて模様のように表示する（間隔・背景色は下の定数で調整可）。
+  const BACKGROUND_PATTERN_COLOR = '#f1f3f6'; // パターン2で使う下地の色（お好みで変更してください）
+  const BACKGROUND_PATTERN_TILE_SIZE = 90;    // パターン2のロゴ同士の間隔（px、大きいほど間隔が空く）
+
+  function trySetFullScreenBackground(url, onFail) {
+    const img = new Image();
+    img.onload = function() {
+      document.body.style.backgroundImage = "url('" + url + "')";
+      document.body.style.backgroundSize = 'cover';
+      document.body.style.backgroundPosition = 'center';
+      document.body.style.backgroundAttachment = 'fixed';
+      document.body.style.backgroundRepeat = 'no-repeat';
+    };
+    img.onerror = onFail || function() {};
+    img.src = url;
+  }
+
+  function trySetPatternBackground(url) {
+    const img = new Image();
+    img.onload = function() {
+      document.body.style.backgroundColor = BACKGROUND_PATTERN_COLOR;
+      document.body.style.backgroundImage = "url('" + url + "')";
+      document.body.style.backgroundRepeat = 'repeat';
+      document.body.style.backgroundSize = BACKGROUND_PATTERN_TILE_SIZE + 'px ' + BACKGROUND_PATTERN_TILE_SIZE + 'px';
+      document.body.style.backgroundAttachment = 'fixed';
+    };
+    img.src = url; // 見つからなければ何も起きず、既定の背景色のまま
+  }
+
+  trySetFullScreenBackground('background/background.jpg', function() {
+    trySetFullScreenBackground('background/background.png', function() {
+      trySetPatternBackground('background/pattern.png');
+    });
+  });
 
   // ── 管理者モード / 一般公開モードの切り替え（Ctrl+D の隠しコマンド） ──
   window.addEventListener('keydown', function(e) {
@@ -1694,6 +1764,10 @@
   let is3DInitialized = false;
 
   function init3D() {
+    if (typeof THREE === 'undefined' || typeof THREE.OrbitControls === 'undefined') {
+      alert('⚠️ 3Dプレビューに必要な部品(three.js)が読み込めませんでした。インターネット接続や、広告ブロッカー・セキュリティソフトの設定をご確認のうえ、ページを再読み込みしてください。');
+      return;
+    }
     const container = document.getElementById('threejs-container');
     
     // シーン作成
