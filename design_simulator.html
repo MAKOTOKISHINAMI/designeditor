@@ -97,8 +97,8 @@
       background: #fef3c7; color: #92400e; padding: 8px 14px;
       border-radius: 8px; font-size: 12.5px; margin-bottom: 12px; font-weight: 700;
     }
-    .canvas-wrapper { border: 1px dashed #ccc; position: relative; width: 100%; max-width: 860px; }
-    #designCanvas { width: 100%; height: auto; display: block; touch-action: none; }
+    .canvas-wrapper { border: 1px dashed #ccc; position: relative; width: 100%; max-width: 860px; aspect-ratio: 1 / 1; margin: 0 auto; }
+    #designCanvas { width: 100%; height: 100%; display: block; touch-action: none; }
 
     /* 使い方ガイドの中身：最大2段のグリッドで折り返し、縦を短くする */
     .usage-guide {
@@ -1180,7 +1180,11 @@ python -m http.server 8000</pre>
     // 3Dプレビューが起動済みなら、側面・裏面の色も即座に反映（表面は常に白のまま、テクスチャ専用）
     if (is3DInitialized && plateMesh) {
       plateMesh.material.color.set(currentBaseColor); // 本体（側面＋内部キャップ相当）
-      if (plateMesh.userData.backCapMesh) plateMesh.userData.backCapMesh.material.color.set(currentBaseColor);
+      // 裏面は、デザイン（テクスチャ）が貼られている場合は白のまま維持し、ベースカラーで
+      // 色味が変わらないようにする。無地（テクスチャ無し）の場合だけベースカラーを反映する。
+      if (plateMesh.userData.backCapMesh && !plateMesh.userData.backCapMesh.material.map) {
+        plateMesh.userData.backCapMesh.material.color.set(currentBaseColor);
+      }
     }
   }
 
@@ -2302,8 +2306,10 @@ python -m http.server 8000</pre>
         const backTexture = new THREE.CanvasTexture(flippedBack);
         backTexture.needsUpdate = true;
         plateMesh.userData.backCapMesh.material.map = backTexture;
+        plateMesh.userData.backCapMesh.material.color.set(0xffffff); // テクスチャがある時は白のまま（ベースカラーで色味が変わらないように）
       } else {
         plateMesh.userData.backCapMesh.material.map = null;
+        plateMesh.userData.backCapMesh.material.color.set(currentBaseColor); // 無地の時だけベースカラーを反映
       }
       plateMesh.userData.backCapMesh.material.needsUpdate = true;
     }
