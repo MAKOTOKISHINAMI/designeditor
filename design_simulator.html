@@ -725,14 +725,20 @@ python -m http.server 8000</pre>
   function resizeCanvasDisplay() {
     const wrapper = document.querySelector('.canvas-wrapper');
     if (!wrapper) return;
-    const size = wrapper.clientWidth; // 正方形なのでwidth=heightとして扱う
+    const size = wrapper.clientWidth; // 横幅を基準に、縦もJSで同じ値に固定する（正方形を保証）
     if (size > 0) {
+      wrapper.style.height = size + 'px'; // CSSのaspect-ratioに頼らず、確実に正方形にする
       canvas.setDimensions({ width: size, height: size }, { cssOnly: true });
     }
   }
   window.addEventListener('resize', resizeCanvasDisplay);
   window.addEventListener('load', resizeCanvasDisplay);
   setTimeout(resizeCanvasDisplay, 0);
+  setTimeout(resizeCanvasDisplay, 300); // レイアウト確定後にもう一度、念のため実行
+  if (typeof ResizeObserver !== 'undefined') {
+    const canvasSectionEl = document.querySelector('.canvas-section');
+    if (canvasSectionEl) new ResizeObserver(resizeCanvasDisplay).observe(canvasSectionEl);
+  }
 
   let baseBackground;   // 塗り足しライン内側の下地（常に最背面。ユーザー写真の下に敷かれる背景色そのもの）
   let guideLines = [];  // 常に最前面に出したい「線」だけ（仕上がり線・ストラップ穴）
