@@ -726,15 +726,31 @@ python -m http.server 8000</pre>
     const wrapper = document.querySelector('.canvas-wrapper');
     if (!wrapper) return;
     const size = wrapper.clientWidth; // 横幅を基準に、縦もJSで同じ値に固定する（正方形を保証）
-    if (size > 0) {
-      wrapper.style.height = size + 'px'; // CSSのaspect-ratioに頼らず、確実に正方形にする
-      canvas.setDimensions({ width: size, height: size }, { cssOnly: true });
+    if (size <= 0) return;
+
+    wrapper.style.height = size + 'px'; // CSSのaspect-ratioに頼らず、確実に正方形にする
+    canvas.setDimensions({ width: size + 'px', height: size + 'px' }, { cssOnly: true }); // cssOnly指定時は単位付き文字列が必須（数値のままだと無効な値として無視される）
+
+    // setDimensions(cssOnly)だけでは反映しきれない環境があるため、
+    // Fabric.jsが内部で作る要素（コンテナ・上下2枚のcanvas）にも直接サイズを強制する。
+    const containerEl = wrapper.querySelector('.canvas-container');
+    if (containerEl) {
+      containerEl.style.width = size + 'px';
+      containerEl.style.height = size + 'px';
     }
+    [canvas.lowerCanvasEl, canvas.upperCanvasEl].forEach(function(el) {
+      if (!el) return;
+      el.style.width = size + 'px';
+      el.style.height = size + 'px';
+    });
+    canvas.calcOffset();
+    canvas.renderAll();
   }
   window.addEventListener('resize', resizeCanvasDisplay);
   window.addEventListener('load', resizeCanvasDisplay);
   setTimeout(resizeCanvasDisplay, 0);
   setTimeout(resizeCanvasDisplay, 300); // レイアウト確定後にもう一度、念のため実行
+  setTimeout(resizeCanvasDisplay, 1000); // フォント読み込み等でさらに遅れる場合の保険
   if (typeof ResizeObserver !== 'undefined') {
     const canvasSectionEl = document.querySelector('.canvas-section');
     if (canvasSectionEl) new ResizeObserver(resizeCanvasDisplay).observe(canvasSectionEl);
