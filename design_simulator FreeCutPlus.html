@@ -703,7 +703,7 @@ python -m http.server 8000</pre>
         <ul>
           <li>カスタムSVGテンプレートの3D表現では、表と裏で別デザインを貼れるが、側面(押し出しの壁)の質感は表裏共通。</li>
           <li>スタンプ・テンプレートの番号は欠番があっても問題ない(その番号だけ無いものとして次を試すだけ)。</li>
-          <li>フリーカット機能(<code>extractAlphaOutline</code> / <code>generateFreeCutTemplate</code>)は、PNGの透明部分をもとに輪郭をトレースするが、<b>最も大きなひとつながりのかたまりだけ</b>を輪郭として使う(離れた複数の絵柄には非対応。穴(内側の透明部分)も考慮しない)。輪郭のオフセット(<code>offsetPolygon</code>)は自前実装の簡易版で、極端に複雑な形状では多少形が崩れる場合がある。</li>
+          <li>フリーカット機能(<code>extractFreeCutContours</code> / <code>generateFreeCutTemplate</code>)は、PNGの透明部分をもとに輪郭をラスターマスクの<b>距離変換による膨張(モルフォロジー)</b>でオフセットする。<b>最も大きなひとつながりのかたまりだけ</b>を対象とする(離れた複数の絵柄には非対応。穴(内側の透明部分)も考慮しない)。オフセット半径より小さい凹み・隙間(アンチエイリアスや薄い色による切れ込みなど)は自動的に橋渡しされるが、半径より大きい深い切れ込みはそのまま残る。</li>
         </ul>
       </div>
     </div>
@@ -1149,7 +1149,7 @@ python -m http.server 8000</pre>
     return out;
   }
 
-  // Chaikinの角丸めを軽く1回だけかけ、ドット絵的なカクつきを滑らかにする
+  // Chaikinの角丸めをかけ、ピクセル境界特有のカクつきを滑らかにする（iterationsで強さを指定）
   function chaikinSmooth(points, iterations) {
     let pts = points;
     for (let it = 0; it < iterations; it++) {
@@ -1165,78 +1165,142 @@ python -m http.server 8000</pre>
     return pts;
   }
 
-  // 閉じた多角形を外側にdistanceだけオフセットする。
-  // 各辺の法線は「多角形の重心から遠ざかる向き」を外向きとして選ぶことで、
-  // 頂点の並び順(時計回り/反時計回り)を気にせず凸・凹どちらの形状にも対応する。
-  // 鋭く尖った凹角でオフセット線の交点が遠くに飛びすぎる場合は、ベベル(平取り)に切り替えて破綻を防ぐ。
-  function offsetPolygon(points, distance) {
-    const n = points.length;
-    if (n < 3 || !distance) return points;
-    let cx = 0, cy = 0;
-    points.forEach(p => { cx += p.x; cy += p.y; });
-    cx /= n; cy /= n;
+  // 【改良】閉じた多角形の頂点をそれぞれオフセットするベクター方式(旧offsetPolygon)は、
+  // 輪郭がギザギザ・凹みが深い場合に自己交差してしまい、「薄い色の部分でカットラインが
+  // デザインに食い込む」不具合の原因になっていた。
+  // そこで、ラスターマスクを直接「距離変換(distance transform)」で外側に膨張させる方式に変更する。
+  // この方式は数学的に自己交差が起こり得ず、オフセット半径より小さい凹み・隙間（アンチエイリアス
+  // や薄い色による小さな切れ込みなど）は自動的に橋渡しされてなだらかになる。
 
-    const edges = [];
-    for (let i = 0; i < n; i++) {
-      const p1 = points[i], p2 = points[(i + 1) % n];
-      let dx = p2.x - p1.x, dy = p2.y - p1.y;
-      const len = Math.hypot(dx, dy) || 1;
-      dx /= len; dy /= len;
-      let nx = dy, ny = -dx;
-      const midx = (p1.x + p2.x) / 2, midy = (p1.y + p2.y) / 2;
-      if (nx * (midx - cx) + ny * (midy - cy) < 0) { nx = -nx; ny = -ny; }
-      edges.push({ nx, ny, p1, p2 });
-    }
-
-    function lineIntersect(a1, a2, b1, b2, fallback) {
-      const d1x = a2.x - a1.x, d1y = a2.y - a1.y;
-      const d2x = b2.x - b1.x, d2y = b2.y - b1.y;
-      const denom = d1x * d2y - d1y * d2x;
-      if (Math.abs(denom) < 1e-9) return fallback;
-      const t = ((b1.x - a1.x) * d2y - (b1.y - a1.y) * d2x) / denom;
-      return { x: a1.x + d1x * t, y: a1.y + d1y * t };
-    }
-
-    const miterLimit = Math.abs(distance) * 4;
-    const result = [];
-    for (let i = 0; i < n; i++) {
-      const prev = edges[(i - 1 + n) % n];
-      const cur = edges[i];
-      const p = points[i];
-      const a1 = { x: prev.p1.x + prev.nx * distance, y: prev.p1.y + prev.ny * distance };
-      const a2 = { x: prev.p2.x + prev.nx * distance, y: prev.p2.y + prev.ny * distance };
-      const b1 = { x: cur.p1.x + cur.nx * distance, y: cur.p1.y + cur.ny * distance };
-      const b2 = { x: cur.p2.x + cur.nx * distance, y: cur.p2.y + cur.ny * distance };
-      const fallback = { x: p.x + ((prev.nx + cur.nx) / 2) * distance, y: p.y + ((prev.ny + cur.ny) / 2) * distance };
-      const it = lineIntersect(a1, a2, b1, b2, fallback);
-      if (Math.hypot(it.x - p.x, it.y - p.y) > miterLimit) {
-        result.push(a2, b1); // ベベル
-      } else {
-        result.push(it);
+  // 2パスのチャンファー距離変換：各画素から、最も近い前景(mask=1)画素までのおおよそのユークリッド距離を求める。
+  function chamferDistanceTransform(mask, w, h) {
+    const INF = 1e9;
+    const dist = new Float32Array(w * h);
+    for (let i = 0; i < w * h; i++) dist[i] = mask[i] ? 0 : INF;
+    const D1 = 1, D2 = Math.SQRT2;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const idx = y * w + x;
+        let d = dist[idx];
+        if (x > 0) d = Math.min(d, dist[idx - 1] + D1);
+        if (y > 0) d = Math.min(d, dist[idx - w] + D1);
+        if (x > 0 && y > 0) d = Math.min(d, dist[idx - w - 1] + D2);
+        if (x < w - 1 && y > 0) d = Math.min(d, dist[idx - w + 1] + D2);
+        dist[idx] = d;
       }
     }
-    return result;
+    for (let y = h - 1; y >= 0; y--) {
+      for (let x = w - 1; x >= 0; x--) {
+        const idx = y * w + x;
+        let d = dist[idx];
+        if (x < w - 1) d = Math.min(d, dist[idx + 1] + D1);
+        if (y < h - 1) d = Math.min(d, dist[idx + w] + D1);
+        if (x < w - 1 && y < h - 1) d = Math.min(d, dist[idx + w + 1] + D2);
+        if (x > 0 && y < h - 1) d = Math.min(d, dist[idx + w - 1] + D2);
+        dist[idx] = d;
+      }
+    }
+    return dist;
   }
 
-  // アップロードされたPNG(Imageオブジェクト)から、元画像のピクセル座標系での輪郭点列を得る。
-  // 処理負荷を抑えるため、輪郭トレース自体は縮小した作業用キャンバスで行い、
-  // 得られた点列を元画像の解像度に引き伸ばして返す（これにより、あとで元画像を
-  // そのままの解像度でキャンバスに貼り付けても輪郭とぴったり重なる）。
-  function extractAlphaOutline(imgEl) {
+  // 距離が radius 以下の画素をすべて前景とみなす＝マスクを外側に radius だけ膨張させる
+  function dilateMaskByDistance(dist, w, h, radius) {
+    const out = new Uint8Array(w * h);
+    for (let i = 0; i < w * h; i++) out[i] = dist[i] <= radius ? 1 : 0;
+    return out;
+  }
+  function dilateOnce(mask, w, h) {
+    const out = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const idx = y * w + x;
+      if (mask[idx]) { out[idx] = 1; continue; }
+      let hit = 0;
+      for (let dy = -1; dy <= 1 && !hit; dy++) for (let dx = -1; dx <= 1 && !hit; dx++) {
+        const nx = x + dx, ny = y + dy;
+        if (nx >= 0 && nx < w && ny >= 0 && ny < h && mask[ny * w + nx]) hit = 1;
+      }
+      out[idx] = hit;
+    }
+    return out;
+  }
+  function erodeOnce(mask, w, h) {
+    const out = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const idx = y * w + x;
+      if (!mask[idx]) { out[idx] = 0; continue; }
+      let allSet = 1;
+      for (let dy = -1; dy <= 1 && allSet; dy++) for (let dx = -1; dx <= 1 && allSet; dx++) {
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || nx >= w || ny < 0 || ny >= h || !mask[ny * w + nx]) allSet = 0;
+      }
+      out[idx] = allSet;
+    }
+    return out;
+  }
+  // 簡易クロージング（軽い膨張→同量の収縮）：アンチエイリアスの縁や1px程度のノイズの穴を除去する。
+  // オフセット量(mm)とは無関係な、輪郭を読み取る前のノイズ除去専用の下処理。
+  function morphologyClose(mask, w, h, radius) {
+    if (radius <= 0) return mask;
+    let m = mask;
+    for (let it = 0; it < radius; it++) m = dilateOnce(m, w, h);
+    for (let it = 0; it < radius; it++) m = erodeOnce(m, w, h);
+    return m;
+  }
+  const FREECUT_CLOSE_RADIUS_WORK_PX = 2; // ノイズ除去用クロージングの半径（作業用縮小キャンバス上のpx）
+
+  // マスクの中から最大の連結成分(ひとつながりのかたまり)だけを取り出したマスクを返す
+  function extractLargestComponentMask(mask, w, h) {
+    const visited = new Uint8Array(w * h);
+    let bestSize = 0, bestPixels = null;
+    for (let start = 0; start < w * h; start++) {
+      if (!mask[start] || visited[start]) continue;
+      const compPixels = [];
+      const stack = [start];
+      visited[start] = 1;
+      while (stack.length) {
+        const cur = stack.pop();
+        compPixels.push(cur);
+        const cx = cur % w, cy = (cur / w) | 0;
+        const neigh = [[cx - 1, cy], [cx + 1, cy], [cx, cy - 1], [cx, cy + 1]];
+        for (const nb of neigh) {
+          const nx = nb[0], ny = nb[1];
+          if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+            const nidx = ny * w + nx;
+            if (mask[nidx] && !visited[nidx]) { visited[nidx] = 1; stack.push(nidx); }
+          }
+        }
+      }
+      if (compPixels.length > bestSize) { bestSize = compPixels.length; bestPixels = compPixels; }
+    }
+    if (!bestPixels) return null;
+    const compMask = new Uint8Array(w * h);
+    let minX = w, minY = h, maxX = 0, maxY = 0;
+    for (const idx of bestPixels) {
+      compMask[idx] = 1;
+      const x = idx % w, y = (idx / w) | 0;
+      if (x < minX) minX = x; if (x > maxX) maxX = x;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
+    }
+    return { compMask, count: bestPixels.length, minX, minY, maxX, maxY, width: maxX - minX + 1, height: maxY - minY + 1 };
+  }
+
+  // アップロードされたPNG(Imageオブジェクト)から、輪郭を「距離変換による膨張」でオフセットして、
+  // カットライン(仕上がり線)用・塗り足し線用の2つの点列(元画像のピクセル座標系)を得る。
+  // sizeMm: ユーザーが入力した実寸(mm) / axis: 'width'(横幅基準) または 'height'(縦幅基準)
+  function extractFreeCutContours(imgEl, sizeMm, axis) {
     const naturalW = imgEl.naturalWidth || imgEl.width;
     const naturalH = imgEl.naturalHeight || imgEl.height;
     if (!naturalW || !naturalH) throw new Error('画像のサイズを取得できませんでした');
 
+    // 1. 縮小した作業用キャンバスに描画してアルファマスクを作る（重い処理を避けるため）
     const scale = Math.min(1, FREECUT_TRACE_MAX_DIM / Math.max(naturalW, naturalH));
     const workW = Math.max(1, Math.round(naturalW * scale));
     const workH = Math.max(1, Math.round(naturalH * scale));
-
     const workCanvas = document.createElement('canvas');
     workCanvas.width = workW;
     workCanvas.height = workH;
     const ctx = workCanvas.getContext('2d');
     ctx.drawImage(imgEl, 0, 0, workW, workH);
-
     let imageData;
     try {
       imageData = ctx.getImageData(0, 0, workW, workH);
@@ -1244,38 +1308,55 @@ python -m http.server 8000</pre>
       throw new Error('画像データを読み取れませんでした（ブラウザのセキュリティ制限の可能性があります）');
     }
     const data = imageData.data;
-    const mask = new Uint8Array(workW * workH);
+    let mask = new Uint8Array(workW * workH);
     for (let i = 0; i < workW * workH; i++) {
       mask[i] = data[i * 4 + 3] >= FREECUT_ALPHA_THRESHOLD ? 1 : 0;
     }
 
-    const rawContour = traceLargestContour(mask, workW, workH);
-    if (!rawContour) throw new Error('画像から不透明な部分（絵柄）を検出できませんでした。背景が透明で、絵柄部分が含まれるPNG画像を選んでください。');
+    // 2. 軽くクロージングしてアンチエイリアスのノイズや1px程度の小さな穴を除去
+    mask = morphologyClose(mask, workW, workH, FREECUT_CLOSE_RADIUS_WORK_PX);
 
-    const simplified = simplifyPolyline(rawContour, 1.2);
-    const smoothed = chaikinSmooth(simplified, 1);
-    if (smoothed.length < 3) throw new Error('画像の輪郭をうまく認識できませんでした。別の画像でお試しください。');
+    // 3. 最大のひとつながりのかたまりだけを対象にする
+    const comp = extractLargestComponentMask(mask, workW, workH);
+    if (!comp) throw new Error('画像から不透明な部分（絵柄）を検出できませんでした。背景が透明で、絵柄部分が含まれるPNG画像を選んでください。');
 
-    // 作業用キャンバスの縮小分を元に戻し、元画像のピクセル座標系に揃える
-    const toOriginal = smoothed.map(p => ({ x: p.x / scale, y: p.y / scale }));
-    return { points: toOriginal, naturalW, naturalH };
+    // 4. ユーザー入力の実寸(mm)から、作業用キャンバス上でのmm/px換算と、
+    //    カットライン・塗り足し線それぞれのオフセット半径(作業用px)を求める
+    const axisPxWork = axis === 'height' ? comp.height : comp.width;
+    if (!isFinite(axisPxWork) || axisPxWork <= 0) throw new Error('輪郭のサイズを認識できませんでした。');
+    const cutRadiusWork = Math.max(0.5, FREECUT_CUT_OFFSET_MM * axisPxWork / sizeMm);
+    const bleedRadiusWork = Math.max(cutRadiusWork + 0.5, (FREECUT_CUT_OFFSET_MM + FREECUT_BLEED_EXTRA_MM) * axisPxWork / sizeMm);
+
+    // 5. 距離変換は1回計算すれば、カットライン用・塗り足し線用どちらの半径にも使い回せる
+    const dist = chamferDistanceTransform(comp.compMask, workW, workH);
+    const cutMask = dilateMaskByDistance(dist, workW, workH, cutRadiusWork);
+    const bleedMask = dilateMaskByDistance(dist, workW, workH, bleedRadiusWork);
+
+    const finishContour = traceLargestContour(cutMask, workW, workH);
+    const bleedContour = traceLargestContour(bleedMask, workW, workH);
+    if (!finishContour || !bleedContour) throw new Error('カットラインの生成に失敗しました。別の画像でお試しください。');
+
+    // 6. 単純化＋角丸めで、なめらかでシンプルな線にする（距離変換による膨張ですでに大半のギザギザは解消済み）
+    const finishSmoothed = chaikinSmooth(simplifyPolyline(finishContour, 1.5), 2);
+    const bleedSmoothed = chaikinSmooth(simplifyPolyline(bleedContour, 1.5), 2);
+    if (finishSmoothed.length < 3 || bleedSmoothed.length < 3) throw new Error('画像の輪郭をうまく認識できませんでした。別の画像でお試しください。');
+
+    // 7. 作業用キャンバスの縮小分を元に戻し、元画像のピクセル座標系に揃える
+    //    （これにより、あとで元画像をそのままの解像度でキャンバスに貼り付けても輪郭とぴったり重なる）
+    const toOriginal = pts => pts.map(p => ({ x: p.x / scale, y: p.y / scale }));
+    const axisPxOriginal = axisPxWork / scale;
+    const mmPerPx = sizeMm / axisPxOriginal;
+
+    return {
+      finishRaw: toOriginal(finishSmoothed),
+      bleedRaw: toOriginal(bleedSmoothed),
+      mmPerPx, naturalW, naturalH
+    };
   }
 
   // 輪郭抽出〜テンプレート生成〜画像配置までをまとめて行う。
-  // sizeMm: ユーザーが入力した実寸(mm) / axis: 'width'(横幅基準) または 'height'(縦幅基準)
   function generateFreeCutTemplate(imgEl, sizeMm, axis) {
-    const { points: outlinePts } = extractAlphaOutline(imgEl);
-
-    const outlineBBox = getBBox(outlinePts);
-    const axisPx = axis === 'height' ? outlineBBox.height : outlineBBox.width;
-    if (!isFinite(axisPx) || axisPx <= 0) throw new Error('輪郭のサイズを認識できませんでした。');
-
-    const mmPerPx = sizeMm / axisPx;
-    const cutOffsetPx = FREECUT_CUT_OFFSET_MM / mmPerPx;
-    const bleedOffsetPx = (FREECUT_CUT_OFFSET_MM + FREECUT_BLEED_EXTRA_MM) / mmPerPx;
-
-    const finishRaw = offsetPolygon(outlinePts, cutOffsetPx);
-    const bleedRaw = offsetPolygon(outlinePts, bleedOffsetPx);
+    const { finishRaw, bleedRaw, mmPerPx } = extractFreeCutContours(imgEl, sizeMm, axis);
 
     // 仕上がり線(finishRaw)のbboxを基準に、SVGテンプレート読込と同じ考え方でキャンバス座標(0-400、最大辺340)へフィットさせる
     const fbbox = getBBox(finishRaw);
