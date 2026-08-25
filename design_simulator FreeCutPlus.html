@@ -1018,7 +1018,22 @@ python -m http.server 8000</pre>
       // 一般公開の「テンプレート選択」に表示されるようにするには、templateフォルダに
       // template◯.svg という名前でこのファイルを置く必要がある（自動アップロードはできないため、
       // 正しい連番の名前を付けた状態でダウンロードし、それをGitHub等に手動で追加してもらう）。
-      const nextNum = foundTemplateNumbers.length ? Math.max.apply(null, foundTemplateNumbers) + 1 : 1;
+      // 番号は「現在templateフォルダに実際に存在すると確認できた最大番号+1」を自動提案するが、
+      // ローカルファイルとして開いている等の理由で検出に失敗している可能性もあるため、
+      // ダウンロード前に管理者が番号を確認・修正できるようにする。
+      const autoNextNum = foundTemplateNumbers.length ? Math.max.apply(null, foundTemplateNumbers) + 1 : 1;
+      const inputNum = prompt(
+        '保存するファイル名の番号を確認してください（現在検出できているテンプレート: '
+        + (foundTemplateNumbers.length ? foundTemplateNumbers.slice().sort(function(a,b){return a-b;}).join(', ') : 'なし')
+        + ' ／ 提案する次の番号: ' + autoNextNum + '）',
+        String(autoNextNum)
+      );
+      if (inputNum === null) { return; } // キャンセル
+      const nextNum = parseInt(inputNum, 10);
+      if (!Number.isInteger(nextNum) || nextNum <= 0) {
+        alert('⚠️ 番号は1以上の整数で入力してください。');
+        return;
+      }
       const suggestedName = 'template' + nextNum + '.svg';
       const blob = new Blob([text], { type: 'image/svg+xml' });
       const url = URL.createObjectURL(blob);
@@ -1954,7 +1969,19 @@ python -m http.server 8000</pre>
         alert('⚠️ PNG形式の画像を選んでください。');
         return;
       }
-      const nextNum = foundStampNumbers.length ? Math.max.apply(null, foundStampNumbers) + 1 : 1;
+      const autoNextNum = foundStampNumbers.length ? Math.max.apply(null, foundStampNumbers) + 1 : 1;
+      const inputNum = prompt(
+        '保存するファイル名の番号を確認してください（現在検出できているスタンプ: '
+        + (foundStampNumbers.length ? foundStampNumbers.slice().sort(function(a,b){return a-b;}).join(', ') : 'なし')
+        + ' ／ 提案する次の番号: ' + autoNextNum + '）',
+        String(autoNextNum)
+      );
+      if (inputNum === null) { return; } // キャンセル
+      const nextNum = parseInt(inputNum, 10);
+      if (!Number.isInteger(nextNum) || nextNum <= 0) {
+        alert('⚠️ 番号は1以上の整数で入力してください。');
+        return;
+      }
       const suggestedName = 'stamp' + nextNum + '.png';
       const url = URL.createObjectURL(file);
       const link = document.createElement('a');
