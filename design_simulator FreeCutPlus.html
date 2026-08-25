@@ -1048,6 +1048,8 @@ python -m http.server 8000</pre>
   const FREECUT_BLEED_EXTRA_MM = 2;  // カットライン → 塗り足し線までの、さらに追加の余白
   const FREECUT_ALPHA_THRESHOLD = 16; // これ以上のアルファ値を「不透明(絵柄あり)」とみなす
   const FREECUT_TRACE_MAX_DIM = 700;  // 輪郭トレース処理を行う作業用キャンバスの最大辺(px、重い処理を避けるため縮小して解析する)
+  const FREECUT_SIMPLIFY_TOLERANCE_WORK_PX = 2.2; // 単純化(間引き)の強さ。大きいほど点数が減りカクつきの元が減る
+  const FREECUT_SMOOTH_ITERATIONS = 4; // Chaikin角丸めの回数。多いほど曲線がなめらかになる(1回ごとに点数は倍増)
 
   // 二値マスク(1=不透明)から、最大の連結成分(ひとつながりのかたまり)の輪郭だけを
   // Moore-Neighbor Tracing（8近傍・時計回り）でたどって点列にする。
@@ -1337,8 +1339,22 @@ python -m http.server 8000</pre>
     if (!finishContour || !bleedContour) throw new Error('カットラインの生成に失敗しました。別の画像でお試しください。');
 
     // 6. 単純化＋角丸めで、なめらかでシンプルな線にする（距離変換による膨張ですでに大半のギザギザは解消済み）
-    const finishSmoothed = chaikinSmooth(simplifyPolyline(finishContour, 1.5), 2);
-    const bleedSmoothed = chaikinSmooth(simplifyPolyline(bleedContour, 1.5), 2);
+    //    Chaikinの角丸めを複数回繰り返すことで、多角形が滑らかな曲線に近づいていく。
+    function smoothContour(contour) {
+      const simplified = simplifyPolyline(contour, FREECUT_SIMPLIFY_TOLERANCE_WORK_PX);
+      const smoothed = chaikinSmooth(simplified, FREECUT_SMOOTH_ITERATIONS);
+      // 角丸めで増えた点のうち、ほぼ同じ位置に並ぶものだけを軽く間引いて点数を抑える（滑らかさはほぼ変わらない）
+      let result = simplifyPolyline(smoothed, 0.4);
+      // 絵柄が複雑で点数が多くなりすぎた場合の安全策（SVG書き出し・3D表示が重くなるのを防ぐ）
+      let tol = 0.4;
+      while (result.length > 700 && tol < 5) {
+        tol += 0.3;
+        result = simplifyPolyline(smoothed, tol);
+      }
+      return result;
+    }
+    const finishSmoothed = smoothContour(finishContour);
+    const bleedSmoothed = smoothContour(bleedContour);
     if (finishSmoothed.length < 3 || bleedSmoothed.length < 3) throw new Error('画像の輪郭をうまく認識できませんでした。別の画像でお試しください。');
 
     // 7. 作業用キャンバスの縮小分を元に戻し、元画像のピクセル座標系に揃える
