@@ -357,6 +357,23 @@
     .btn-freecut-generate:hover:not(:disabled) { background: #155e75; }
     #freecutStatus { font-size: 11.5px; margin-top: 10px; text-align: center; min-height: 14px; }
 
+    /* フリーカット：写真/スタンプ/テキストを配置した後にカットラインを確定する操作バー */
+    .freecut-action-bar {
+      background: #ecfeff; border: 1.5px solid #67e8f9; border-radius: 10px;
+      padding: 12px 14px; margin-bottom: 12px;
+    }
+    .freecut-action-hint { font-size: 11px; color: #155e75; line-height: 1.6; margin: 0 0 10px; }
+    .freecut-action-buttons { display: flex; flex-direction: column; gap: 8px; }
+    .btn-freecut-outline, .btn-freecut-editpoints {
+      width: 100%; padding: 10px 12px; border-radius: 8px; font-weight: 700; font-size: 12.5px; cursor: pointer;
+    }
+    .btn-freecut-outline { background: #0e7490; color: #fff; border: none; }
+    .btn-freecut-outline:hover { background: #155e75; }
+    .btn-freecut-editpoints { background: #fff; color: #0e7490; border: 1.5px solid #0e7490; }
+    .btn-freecut-editpoints:hover { background: #f0fdff; }
+    .btn-freecut-editpoints.is-active { background: #0e7490; color: #fff; }
+    .freecut-action-status { font-size: 11.5px; margin: 8px 0 0; text-align: center; min-height: 14px; color: #16a34a; }
+
     /* ── スマホ対応 ── */
     @media (max-width: 860px) {
       header { padding: 10px 14px; }
@@ -442,6 +459,14 @@
 
     <!-- 中央：ツールボタン＋テンプレート一覧 -->
     <div class="center-col">
+    <div id="freecutActionBar" class="freecut-action-bar" style="display:none;">
+      <p class="freecut-action-hint">✂️ フリーカットモード：写真・スタンプ・テキストを自由に配置してから、下のボタンでカットラインを確定してください（何度でもやり直せます）。</p>
+      <div class="freecut-action-buttons">
+        <button type="button" class="btn-freecut-outline" onclick="regenerateFreeCutOutlineFromCanvas()">✂️ 自動アウトライン化（カットライン確定）</button>
+        <button type="button" id="btnOutlineEditToggle" class="btn-freecut-editpoints" onclick="toggleOutlineEditMode()">📍 カットラインの頂点を編集</button>
+      </div>
+      <p id="freecutActionStatus" class="freecut-action-status"></p>
+    </div>
     <div class="toolbar">
       <div class="tool-item" style="position:relative;">
         <button class="tool-btn btn-color" style="width:100%;" onclick="toggleColorPalette(event)">ベースカラー</button>
@@ -703,7 +728,16 @@ python -m http.server 8000</pre>
         <ul>
           <li>カスタムSVGテンプレートの3D表現では、表と裏で別デザインを貼れるが、側面(押し出しの壁)の質感は表裏共通。</li>
           <li>スタンプ・テンプレートの番号は欠番があっても問題ない(その番号だけ無いものとして次を試すだけ)。</li>
-          <li>フリーカット機能(<code>extractFreeCutContours</code> / <code>generateFreeCutTemplate</code>)は、PNGの透明部分をもとに輪郭をラスターマスクの<b>距離変換による膨張(モルフォロジー)</b>でオフセットする。<b>最も大きなひとつながりのかたまりだけ</b>を対象とする(離れた複数の絵柄には非対応。穴(内側の透明部分)も考慮しない)。オフセット半径より小さい凹み・隙間(アンチエイリアスや薄い色による切れ込みなど)は自動的に橋渡しされるが、半径より大きい深い切れ込みはそのまま残る。</li>
+          <li>
+            フリーカット機能は3段階の流れになっている：①<code>generateFreeCutPlaceholder</code>でPNG画像1枚を配置し実寸(mm)を確定
+            → ②スタンプ・テキスト・追加のPNG画像などを自由に配置 → ③<code>regenerateFreeCutOutlineFromCanvas</code>で、その時点の
+            キャンバス全体(下地・ガイド線を除く)を高解像度描画し、そのアルファ(不透明部分)から輪郭をラスターマスクの
+            <b>距離変換による膨張(モルフォロジー)</b>でオフセットしてカットライン・塗り足し線を作る。③は何度でもやり直せる。
+            <b>最も大きなひとつながりのかたまりだけ</b>を対象とする(離れた複数の絵柄には非対応。穴(内側の透明部分)も考慮しない)。
+            オフセット半径より小さい凹み・隙間(アンチエイリアスや薄い色による切れ込みなど)は自動的に橋渡しされるが、半径より大きい深い切れ込みはそのまま残る。
+            生成後は「📍 カットラインの頂点を編集」(<code>toggleOutlineEditMode</code>)で、仕上がり線の各頂点を丸印のドラッグでつまんで個別に微調整できる
+            (塗り足し線は独立してトレースされたものなので追従しない。ズレが気になる場合は③でまとめて作り直すと解消する)。
+          </li>
         </ul>
       </div>
     </div>
@@ -726,9 +760,11 @@ python -m http.server 8000</pre>
       <button class="close-btn" onclick="closeFreeCutModal()">&times;</button>
       <h3>フリーカットで作成</h3>
       <p class="freecut-note">
-        背景が透明なPNG画像を読み込むと、絵柄の輪郭から自動でカットライン（仕上がり線）を作ります。
+        背景が透明なPNG画像を読み込むと、その画像をキャンバスに配置します。
         テンプレートを使わないため、縦か横どちらかのサイズ（実寸・mm）を入力してください。
-        画像が複数のかたまりに分かれている場合は、最も大きいひとつだけが輪郭として使われます。
+        <b>この時点ではまだカットラインは確定しません。</b>配置後にスタンプやテキスト、追加のPNG画像などを自由に配置してから、
+        画面上に表示される「✂️ 自動アウトライン化」ボタンを押すと、その時点でキャンバスに乗っているすべてのデザインの輪郭に沿って、
+        カットライン（仕上がり線）が自動生成されます。
       </p>
 
       <div class="freecut-row">
@@ -756,7 +792,7 @@ python -m http.server 8000</pre>
       </div>
 
       <button type="button" class="btn-freecut-generate" id="freecutGenerateBtn" onclick="handleFreeCutGenerate()" disabled>
-        この画像でカットラインを作成する
+        この画像を配置して編集を始める
       </button>
       <p id="freecutStatus"></p>
     </div>
@@ -1301,8 +1337,39 @@ python -m http.server 8000</pre>
     return { compMask, count: bestPixels.length, minX, minY, maxX, maxY, width: maxX - minX + 1, height: maxY - minY + 1 };
   }
 
-  // アップロードされたPNG(Imageオブジェクト)から、輪郭を「距離変換による膨張」でオフセットして、
+  // Douglas-Peucker単純化 → Chaikin角丸め → 軽い再単純化(点数抑制) をまとめた共通処理。
+  // extractFreeCutContours（PNG単体から）・regenerateFreeCutOutlineFromCanvas（キャンバス全体から）の
+  // どちらからも同じ考え方で呼び出す。
+  function smoothFreeCutContour(contour, tolerance) {
+    const tol = tolerance || FREECUT_SIMPLIFY_TOLERANCE_WORK_PX;
+    const simplified = simplifyPolyline(contour, tol);
+    const smoothed = chaikinSmooth(simplified, FREECUT_SMOOTH_ITERATIONS);
+    let result = simplifyPolyline(smoothed, 0.4);
+    let t = 0.4;
+    while (result.length > 700 && t < 5) {
+      t += 0.3;
+      result = simplifyPolyline(smoothed, t);
+    }
+    return result;
+  }
+
+  // 最大連結成分のマスク(compMask)から、距離変換→2種類の半径(px)で膨張→輪郭トレース→単純化/角丸め、をまとめて行う。
+  function traceOffsetContours(compMask, w, h, cutRadiusPx, bleedRadiusPx, simplifyTol) {
+    const dist = chamferDistanceTransform(compMask, w, h);
+    const cutMask = dilateMaskByDistance(dist, w, h, cutRadiusPx);
+    const bleedMask = dilateMaskByDistance(dist, w, h, bleedRadiusPx);
+    const finishContour = traceLargestContour(cutMask, w, h);
+    const bleedContour = traceLargestContour(bleedMask, w, h);
+    if (!finishContour || !bleedContour) throw new Error('カットラインの生成に失敗しました。別の画像・デザインでお試しください。');
+    const finishSmoothed = smoothFreeCutContour(finishContour, simplifyTol);
+    const bleedSmoothed = smoothFreeCutContour(bleedContour, simplifyTol);
+    if (finishSmoothed.length < 3 || bleedSmoothed.length < 3) throw new Error('輪郭をうまく認識できませんでした。別の画像・デザインでお試しください。');
+    return { finishSmoothed, bleedSmoothed };
+  }
+
+  // アップロードされたPNG(Imageオブジェクト)単体から、輪郭を「距離変換による膨張」でオフセットして、
   // カットライン(仕上がり線)用・塗り足し線用の2つの点列(元画像のピクセル座標系)を得る。
+  // ※ 現在のフローでは使わないが、PNG単体だけを対象にした輪郭抽出として汎用的に使えるよう残してある。
   // sizeMm: ユーザーが入力した実寸(mm) / axis: 'width'(横幅基準) または 'height'(縦幅基準)
   function extractFreeCutContours(imgEl, sizeMm, axis) {
     const naturalW = imgEl.naturalWidth || imgEl.width;
@@ -1344,36 +1411,10 @@ python -m http.server 8000</pre>
     const cutRadiusWork = Math.max(0.5, FREECUT_CUT_OFFSET_MM * axisPxWork / sizeMm);
     const bleedRadiusWork = Math.max(cutRadiusWork + 0.5, (FREECUT_CUT_OFFSET_MM + FREECUT_BLEED_EXTRA_MM) * axisPxWork / sizeMm);
 
-    // 5. 距離変換は1回計算すれば、カットライン用・塗り足し線用どちらの半径にも使い回せる
-    const dist = chamferDistanceTransform(comp.compMask, workW, workH);
-    const cutMask = dilateMaskByDistance(dist, workW, workH, cutRadiusWork);
-    const bleedMask = dilateMaskByDistance(dist, workW, workH, bleedRadiusWork);
-
-    const finishContour = traceLargestContour(cutMask, workW, workH);
-    const bleedContour = traceLargestContour(bleedMask, workW, workH);
-    if (!finishContour || !bleedContour) throw new Error('カットラインの生成に失敗しました。別の画像でお試しください。');
-
-    // 6. 単純化＋角丸めで、なめらかでシンプルな線にする（距離変換による膨張ですでに大半のギザギザは解消済み）
-    //    Chaikinの角丸めを複数回繰り返すことで、多角形が滑らかな曲線に近づいていく。
-    function smoothContour(contour) {
-      const simplified = simplifyPolyline(contour, FREECUT_SIMPLIFY_TOLERANCE_WORK_PX);
-      const smoothed = chaikinSmooth(simplified, FREECUT_SMOOTH_ITERATIONS);
-      // 角丸めで増えた点のうち、ほぼ同じ位置に並ぶものだけを軽く間引いて点数を抑える（滑らかさはほぼ変わらない）
-      let result = simplifyPolyline(smoothed, 0.4);
-      // 絵柄が複雑で点数が多くなりすぎた場合の安全策（SVG書き出し・3D表示が重くなるのを防ぐ）
-      let tol = 0.4;
-      while (result.length > 700 && tol < 5) {
-        tol += 0.3;
-        result = simplifyPolyline(smoothed, tol);
-      }
-      return result;
-    }
-    const finishSmoothed = smoothContour(finishContour);
-    const bleedSmoothed = smoothContour(bleedContour);
-    if (finishSmoothed.length < 3 || bleedSmoothed.length < 3) throw new Error('画像の輪郭をうまく認識できませんでした。別の画像でお試しください。');
+    // 5-6. 距離変換→膨張→輪郭トレース→単純化/角丸め
+    const { finishSmoothed, bleedSmoothed } = traceOffsetContours(comp.compMask, workW, workH, cutRadiusWork, bleedRadiusWork);
 
     // 7. 作業用キャンバスの縮小分を元に戻し、元画像のピクセル座標系に揃える
-    //    （これにより、あとで元画像をそのままの解像度でキャンバスに貼り付けても輪郭とぴったり重なる）
     const toOriginal = pts => pts.map(p => ({ x: p.x / scale, y: p.y / scale }));
     const axisPxOriginal = axisPxWork / scale;
     const mmPerPx = sizeMm / axisPxOriginal;
@@ -1385,36 +1426,208 @@ python -m http.server 8000</pre>
     };
   }
 
-  // 輪郭抽出〜テンプレート生成〜画像配置までをまとめて行う。
-  function generateFreeCutTemplate(imgEl, sizeMm, axis) {
-    const { finishRaw, bleedRaw, mmPerPx } = extractFreeCutContours(imgEl, sizeMm, axis);
+  // ★フリーカットの新しい流れ★
+  // ① PNGを読み込み・実寸(mm)を入力 → まだ厳密な輪郭は取らず、画像の外形(四角形)を仮のカットラインとして
+  //    配置するだけにとどめる(generateFreeCutPlaceholder)。
+  // ② スタンプ・テキスト・追加のPNG画像などを自由に配置する(通常の編集操作そのまま)。
+  // ③ 「✂️ 自動アウトライン化」ボタン(regenerateFreeCutOutlineFromCanvas)を押すと、その時点でキャンバスに
+  //    乗っているすべてのデザインの見た目(アルファ)をもとに、カットライン・塗り足し線を作り直す。
+  //    何度でもやり直せる。
+  let freeCutModeActive = false; // フリーカットの編集中（①のPNG配置は終わったが、③はまだ何回でもできる状態）
 
-    // 仕上がり線(finishRaw)のbboxを基準に、SVGテンプレート読込と同じ考え方でキャンバス座標(0-400、最大辺340)へフィットさせる
-    const fbbox = getBBox(finishRaw);
-    const maxDim = Math.max(fbbox.width, fbbox.height);
-    if (!isFinite(maxDim) || maxDim <= 0) throw new Error('カットラインの生成に失敗しました。');
+  // ①：画像の外形をそのまま「仮のカットライン」として使い、キャンバス座標系(実寸換算)を確定させる。
+  // ここで確定したキャンバス座標⇔実寸(mm)の対応関係は、③で輪郭を作り直したあとも変えない
+  // (すでに配置した画像・テキスト・スタンプの位置や大きさがズレないようにするため)。
+  function generateFreeCutPlaceholder(imgEl, sizeMm, axis) {
+    const naturalW = imgEl.naturalWidth || imgEl.width;
+    const naturalH = imgEl.naturalHeight || imgEl.height;
+    if (!naturalW || !naturalH) throw new Error('画像のサイズを取得できませんでした');
+    const axisPx = axis === 'height' ? naturalH : naturalW;
+    if (!axisPx) throw new Error('画像のサイズを認識できませんでした。');
+    const mmPerPx = sizeMm / axisPx;
+    const bleedOffsetPx = (FREECUT_CUT_OFFSET_MM + FREECUT_BLEED_EXTRA_MM) / mmPerPx;
+
+    const rectRaw = [{ x: 0, y: 0 }, { x: naturalW, y: 0 }, { x: naturalW, y: naturalH }, { x: 0, y: naturalH }];
+    const bleedRectRaw = [
+      { x: -bleedOffsetPx, y: -bleedOffsetPx }, { x: naturalW + bleedOffsetPx, y: -bleedOffsetPx },
+      { x: naturalW + bleedOffsetPx, y: naturalH + bleedOffsetPx }, { x: -bleedOffsetPx, y: naturalH + bleedOffsetPx }
+    ];
+
+    const maxDim = Math.max(naturalW, naturalH);
     const fitScale = 340 / maxDim;
-    const cx0 = fbbox.minX + fbbox.width / 2;
-    const cy0 = fbbox.minY + fbbox.height / 2;
+    const cx0 = naturalW / 2, cy0 = naturalH / 2;
     const fit = pts => pts.map(p => ({ x: 200 + (p.x - cx0) * fitScale, y: 200 + (p.y - cy0) * fitScale }));
 
-    template = {
-      finishPoints: fit(finishRaw),
-      bleedPoints: fit(bleedRaw)
-    };
+    template = { finishPoints: fit(rectRaw), bleedPoints: fit(bleedRectRaw) };
     usingCustomTemplate = true;
-    // 仕上がり線bboxの最大辺(=キャンバス上340px)が実際に何mmかを、今回の入力から逆算して更新する。
-    // これにより、以後のDPI判定やSVG書き出しの実寸(mm)がこのフリーカット形状の実際のサイズに合う。
     currentRealSizeMM = maxDim * mmPerPx;
 
     initProductGuide();
     rebuildPlateGeometry();
 
-    return {
-      fitScale, cx0, cy0,
-      finishWidthMM: fbbox.width * mmPerPx,
-      finishHeightMM: fbbox.height * mmPerPx
-    };
+    return { fitScale, cx0, cy0 };
+  }
+
+  // ③：現在キャンバスに乗っている「デザイン(下地・ガイド線・オーバーレイを除く)」を、①で確定した
+  // 実寸(currentRealSizeMM)のままの座標系で高解像度描画し、そのアルファ(不透明部分)から
+  // カットライン・塗り足し線を作り直す。座標系を変えないので、既存オブジェクトの位置は動かない。
+  const FREECUT_CANVAS_SUPERSAMPLE = 3; // キャンバス(400×400)を何倍に拡大して解析するか
+  function regenerateFreeCutOutlineFromCanvas() {
+    const statusEl = document.getElementById('freecutActionStatus');
+    if (!freeCutModeActive) {
+      statusEl.style.color = '#dc2626';
+      statusEl.textContent = '⚠️ 先に「フリーカットで作成」からPNG画像を読み込んでください。';
+      return;
+    }
+    if (outlineEditMode) exitOutlineEditMode(); // 編集用の丸印ハンドルが輪郭に写り込まないよう先に終了する
+
+    statusEl.style.color = '#666';
+    statusEl.textContent = '現在のデザインからカットラインを解析しています…';
+
+    setTimeout(function() {
+      const wasOverlayVisible = semiTransparentOverlay.visible;
+      const wasGuideVisible = guideLines.map(function(l) { return l.visible; });
+      const wasBgVisible = baseBackground.visible;
+      // 下地(ベースカラー)・仕上がり線・塗り足し線・半透明オーバーレイを一時的に隠し、
+      // 「実際に配置したデザイン(写真・スタンプ・テキスト等)」だけが見える状態にしてから読み取る
+      baseBackground.visible = false;
+      guideLines.forEach(function(line) { line.visible = false; });
+      semiTransparentOverlay.visible = false;
+      canvas.renderAll();
+
+      try {
+        const designCanvasEl = document.getElementById('designCanvas');
+        const S = FREECUT_CANVAS_SUPERSAMPLE;
+        const W = CANVAS_SIZE * S, H = CANVAS_SIZE * S;
+        const offscreen = document.createElement('canvas');
+        offscreen.width = W; offscreen.height = H;
+        const octx = offscreen.getContext('2d');
+        octx.drawImage(designCanvasEl, 0, 0, designCanvasEl.width, designCanvasEl.height, 0, 0, W, H);
+
+        let imageData;
+        try {
+          imageData = octx.getImageData(0, 0, W, H);
+        } catch (err) {
+          throw new Error('キャンバスの読み取りに失敗しました。');
+        }
+        const data = imageData.data;
+        let mask = new Uint8Array(W * H);
+        for (let i = 0; i < W * H; i++) mask[i] = data[i * 4 + 3] >= FREECUT_ALPHA_THRESHOLD ? 1 : 0;
+        mask = morphologyClose(mask, W, H, 3);
+
+        const comp = extractLargestComponentMask(mask, W, H);
+        if (!comp) throw new Error('デザインが見つかりませんでした。写真・スタンプ・テキストなどを配置してから実行してください。');
+
+        // ①で確定した実寸(currentRealSizeMM)をそのまま使うので、mm換算を作り直す必要はない
+        const pxPerMM = (340 / currentRealSizeMM) * S;
+        const cutRadiusPx = FREECUT_CUT_OFFSET_MM * pxPerMM;
+        const bleedRadiusPx = (FREECUT_CUT_OFFSET_MM + FREECUT_BLEED_EXTRA_MM) * pxPerMM;
+        const simplifyTol = FREECUT_SIMPLIFY_TOLERANCE_WORK_PX * (S / 3);
+
+        const { finishSmoothed, bleedSmoothed } = traceOffsetContours(comp.compMask, W, H, cutRadiusPx, bleedRadiusPx, simplifyTol);
+
+        const toCanvasCoord = pts => pts.map(function(p) { return { x: p.x / S, y: p.y / S }; });
+        template.finishPoints = toCanvasCoord(finishSmoothed);
+        template.bleedPoints = toCanvasCoord(bleedSmoothed);
+
+        initProductGuide();
+        rebuildPlateGeometry();
+
+        statusEl.style.color = '#16a34a';
+        statusEl.textContent = '✅ 現在のデザインをもとにカットラインを更新しました。';
+        const mainStatusEl = document.getElementById('templateStatus');
+        if (mainStatusEl) {
+          mainStatusEl.textContent = '✅ フリーカットで作成したカットラインを使用中（「カットラインの頂点を編集」で微調整できます）';
+          mainStatusEl.style.color = '#16a34a';
+        }
+      } catch (err) {
+        console.error(err);
+        // 失敗した場合は解析用に隠していた表示を元に戻す(initProductGuideが呼ばれていないため)
+        baseBackground.visible = wasBgVisible;
+        guideLines.forEach(function(line, i) { line.visible = wasGuideVisible[i]; });
+        semiTransparentOverlay.visible = wasOverlayVisible;
+        canvas.renderAll();
+        statusEl.style.color = '#dc2626';
+        statusEl.textContent = '⚠️ ' + err.message;
+      }
+    }, 30);
+  }
+
+  // ── カットライン(仕上がり線)の頂点を、丸印をドラッグしてつまんで動かす編集モード ──
+  // ※ 仕上がり線(finishPoints)だけを編集対象とする。塗り足し線(bleedPoints)は独立して
+  //   トレースされたもので点の対応関係が無いため、追従はさせていない
+  //   (見た目のズレが気になる場合は「自動アウトライン化」でまとめて作り直すのがおすすめ)。
+  let outlineEditMode = false;
+  let outlineHandles = [];
+  let outlineHandleRAFPending = false;
+
+  function toggleOutlineEditMode() {
+    if (outlineEditMode) exitOutlineEditMode(); else enterOutlineEditMode();
+  }
+
+  function enterOutlineEditMode() {
+    if (!freeCutModeActive || !template || !template.finishPoints || template.finishPoints.length < 3) {
+      alert('先に「自動アウトライン化」でカットラインを生成してください。');
+      return;
+    }
+    outlineEditMode = true;
+    const btn = document.getElementById('btnOutlineEditToggle');
+    if (btn) { btn.classList.add('is-active'); btn.textContent = '📍 編集を終了する'; }
+    rebuildOutlineHandles();
+    const statusEl = document.getElementById('freecutActionStatus');
+    statusEl.style.color = '#666';
+    statusEl.textContent = '青い丸印をドラッグすると、その部分のカットラインを動かせます。';
+  }
+
+  function exitOutlineEditMode() {
+    outlineHandles.forEach(function(h) { canvas.remove(h); });
+    outlineHandles = [];
+    outlineEditMode = false;
+    const btn = document.getElementById('btnOutlineEditToggle');
+    if (btn) { btn.classList.remove('is-active'); btn.textContent = '📍 カットラインの頂点を編集'; }
+    rebuildPlateGeometry();
+    canvas.renderAll();
+  }
+
+  function rebuildOutlineHandles() {
+    outlineHandles.forEach(function(h) { canvas.remove(h); });
+    outlineHandles = [];
+    template.finishPoints.forEach(function(p, i) {
+      const handle = new fabric.Circle({
+        left: p.x, top: p.y, radius: 6, originX: 'center', originY: 'center',
+        fill: '#ffffff', stroke: '#0000ff', strokeWidth: 2,
+        hasControls: false, hasBorders: false, hoverCursor: 'move',
+        selectable: true, evented: true
+      });
+      handle._outlinePtIndex = i;
+      handle.on('moving', function() {
+        template.finishPoints[i] = { x: handle.left, y: handle.top };
+        scheduleOutlineGuideRebuild();
+      });
+      handle.on('modified', function() {
+        rebuildPlateGeometry();
+      });
+      canvas.add(handle);
+      outlineHandles.push(handle);
+    });
+    bringOutlineHandlesToFront();
+    canvas.renderAll();
+  }
+
+  function bringOutlineHandlesToFront() {
+    outlineHandles.forEach(function(h) { canvas.bringToFront(h); });
+  }
+
+  // ドラッグ中の連続イベントで毎回initProductGuide()を呼ぶと重いので、1フレームに1回にまとめる
+  function scheduleOutlineGuideRebuild() {
+    if (outlineHandleRAFPending) return;
+    outlineHandleRAFPending = true;
+    requestAnimationFrame(function() {
+      outlineHandleRAFPending = false;
+      initProductGuide();
+      bringOutlineHandlesToFront();
+      canvas.renderAll();
+    });
   }
 
   // ── フリーカット モーダルのUI制御 ──
@@ -1455,6 +1668,8 @@ python -m http.server 8000</pre>
     reader.readAsDataURL(file);
   }
 
+  // モーダルの「この画像を配置して編集を始める」ボタン：①の工程（画像配置＋実寸確定）だけを行う。
+  // カットラインの本生成は行わず、あとで③(regenerateFreeCutOutlineFromCanvas)にまとめて任せる。
   function handleFreeCutGenerate() {
     const statusEl = document.getElementById('freecutStatus');
     const genBtn = document.getElementById('freecutGenerateBtn');
@@ -1475,15 +1690,14 @@ python -m http.server 8000</pre>
     }
 
     genBtn.disabled = true;
-    statusEl.textContent = '輪郭を解析しています…';
+    statusEl.textContent = '画像を配置しています…';
 
-    // 重い処理なので、ボタン無効化とメッセージ表示を先に描画させてから実行する
     setTimeout(function() {
       try {
         const imgEl = freecutSelectedImg;
-        const result = generateFreeCutTemplate(imgEl, sizeMm, axis);
+        const result = generateFreeCutPlaceholder(imgEl, sizeMm, axis);
 
-        // 生成した輪郭と同じ座標系(元画像のピクセル座標)で画像自体もキャンバスに配置する
+        // 実寸換算を確定させた座標系で、画像自体もキャンバスに配置する
         const fabricImg = new fabric.Image(imgEl);
         fabricImg.set({
           left: 200 + (0 - result.cx0) * result.fitScale,
@@ -1498,12 +1712,19 @@ python -m http.server 8000</pre>
         canvas.renderAll();
         checkDPI(fabricImg, imgEl.naturalWidth);
 
-        const wMM = result.finishWidthMM.toFixed(1);
-        const hMM = result.finishHeightMM.toFixed(1);
+        freeCutModeActive = true;
+        const actionBar = document.getElementById('freecutActionBar');
+        if (actionBar) actionBar.style.display = 'block';
+        const actionStatusEl = document.getElementById('freecutActionStatus');
+        if (actionStatusEl) {
+          actionStatusEl.style.color = '#666';
+          actionStatusEl.textContent = 'スタンプやテキスト、追加のPNG画像などを配置してから「自動アウトライン化」を押してください。';
+        }
+
         statusEl.style.color = '#16a34a';
-        statusEl.textContent = '✅ カットラインを作成しました（仕上がり目安: 横' + wMM + 'mm × 縦' + hMM + 'mm）';
-        document.getElementById('templateStatus').textContent = '✅ フリーカットで作成したカットラインを使用中（仕上がり目安: 横' + wMM + 'mm × 縦' + hMM + 'mm）';
-        document.getElementById('templateStatus').style.color = '#16a34a';
+        statusEl.textContent = '✅ 画像を配置しました。続けてスタンプやテキストを配置できます。';
+        document.getElementById('templateStatus').textContent = '✂️ フリーカットモード中（まだカットラインは未確定です）';
+        document.getElementById('templateStatus').style.color = '#0e7490';
 
         setTimeout(closeFreeCutModal, 900);
       } catch (err) {
@@ -1719,6 +1940,11 @@ python -m http.server 8000</pre>
     guideLines = holeCircle ? [finishShape, holeCircle] : [finishShape];
 
     canvas.add(baseBackground, ...guideLines);
+    // initProductGuide()は最初の1回だけでなく、フリーカットのカットライン再生成時など
+    // 「すでに写真やスタンプが配置された後」にも呼ばれる。canvas.add()は常にキャンバスの
+    // 最前面に追加されるため、そのままだと下地(baseBackground)が既存デザインの上に
+    // 覆いかぶさってしまう。ここで明示的に最背面へ送り、常にデザインの下に敷かれるようにする。
+    canvas.sendToBack(baseBackground);
 
     // ★ 仕上がり線の外側だけを30%透過（不透明度0.3の白）にするドーナツ型パス ★
     // 全体の四角形 - 仕上がり形状（evenodd） で「外側だけ」を表現する
@@ -1743,10 +1969,14 @@ python -m http.server 8000</pre>
 
   // デザインが操作されるたびに「線（仕上がり線・穴）」と半透明オーバーレイだけを常に最前面へ。
   // 下地（baseBackground）はここには含めないので、追加した写真の上に覆いかぶさることはない。
+  // カットライン編集モード中は、頂点の丸印ハンドルもオーバーレイの上に来るよう常に最前面へ。
   canvas.on('after:render', function() {
     if (semiTransparentOverlay) {
       canvas.bringToFront(semiTransparentOverlay);
       guideLines.forEach(line => canvas.bringToFront(line));
+    }
+    if (outlineEditMode && outlineHandles.length) {
+      outlineHandles.forEach(function(h) { canvas.bringToFront(h); });
     }
   });
 
