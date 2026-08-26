@@ -1376,6 +1376,50 @@ python -m http.server 8000</pre>
   const FREECUT_CLOSE_RADIUS_WORK_PX = 2; // ノイズ除去用クロージングの半径（作業用縮小キャンバス上のpx）
 
   // マスクの中から最大の連結成分(ひとつながりのかたまり)だけを取り出したマスクを返す
+  // マスク中の「すべての」連結成分(ひとつながりのかたまり)を、それぞれ輪郭トレースして返す。
+  // extractLargestComponentMask()は最大のかたまり1つしか見ないため、デザイン本体から離れた
+  // 場所にあるテキストやカット穴などは無視されてしまっていた。この関数はノイズ除去のための
+  // 最小面積(minAreaPx)未満の小さなかたまりだけを無視し、それ以外は全て輪郭として拾う。
+  function traceAllContours(mask, w, h, minAreaPx) {
+    const visited = new Uint8Array(w * h);
+    const loops = [];
+    for (let start = 0; start < w * h; start++) {
+      if (!mask[start] || visited[start]) continue;
+      const compPixels = [];
+      const stack = [start];
+      visited[start] = 1;
+      while (stack.length) {
+        const cur = stack.pop();
+        compPixels.push(cur);
+        const cx = cur % w, cy = (cur / w) | 0;
+        const neigh = [[cx - 1, cy], [cx + 1, cy], [cx, cy - 1], [cx, cy + 1]];
+        for (const nb of neigh) {
+          const nx = nb[0], ny = nb[1];
+          if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+            const nidx = ny * w + nx;
+            if (mask[nidx] && !visited[nidx]) { visited[nidx] = 1; stack.push(nidx); }
+          }
+        }
+      }
+      if (compPixels.length < minAreaPx) continue; // ノイズとして無視
+      const compMask = new Uint8Array(w * h);
+      for (const idx of compPixels) compMask[idx] = 1;
+      const contour = traceLargestContour(compMask, w, h); // このマスクには1成分しか無いので「最大」＝自分自身
+      if (contour) loops.push(contour);
+    }
+    return loops;
+  }
+
+  // 多角形の面積(符号なし、シューレース公式)。ループを大きい順に並べる際の判定に使う。
+  function polygonAreaAbs(points) {
+    let area = 0;
+    for (let i = 0; i < points.length; i++) {
+      const p1 = points[i], p2 = points[(i + 1) % points.length];
+      area += p1.x * p2.y - p2.x * p1.y;
+    }
+    return Math.abs(area / 2);
+  }
+
   function extractLargestComponentMask(mask, w, h) {
     const visited = new Uint8Array(w * h);
     let bestSize = 0, bestPixels = null;
@@ -1427,18 +1471,41 @@ python -m http.server 8000</pre>
     return result;
   }
 
-  // 最大連結成分のマスク(compMask)から、距離変換→2種類の半径(px)で膨張→輪郭トレース→単純化/角丸め、をまとめて行う。
-  function traceOffsetContours(compMask, w, h, cutRadiusPx, bleedRadiusPx, simplifyTol) {
-    const dist = chamferDistanceTransform(compMask, w, h);
+  // マスク全体(最大成分だけに絞らない)から、距離変換→2種類の半径(px)で膨張→各成分ごとに輪郭トレース
+  // →単純化/角丸め、をまとめて行う。膨張の結果、近くにある要素どうし(例: キャラクターと、その真上の
+  // カット穴)は自然につながって1つのループになる。一方、大きく離れた要素(例: 下の方に置いた独立した
+  // メッセージ)はつながらず、それぞれ独立したループとして残る。最大のループを「メイン」、それ以外を
+  // 「追加ループ(extraFinishLoops/extraBleedLoops)」として返す。
+  function traceOffsetContours(fullMask, w, h, cutRadiusPx, bleedRadiusPx, simplifyTol) {
+    const dist = chamferDistanceTransform(fullMask, w, h);
     const cutMask = dilateMaskByDistance(dist, w, h, cutRadiusPx);
     const bleedMask = dilateMaskByDistance(dist, w, h, bleedRadiusPx);
-    const finishContour = traceLargestContour(cutMask, w, h);
-    const bleedContour = traceLargestContour(bleedMask, w, h);
-    if (!finishContour || !bleedContour) throw new Error('カットラインの生成に失敗しました。別の画像・デザインでお試しください。');
-    const finishSmoothed = smoothFreeCutContour(finishContour, simplifyTol);
-    const bleedSmoothed = smoothFreeCutContour(bleedContour, simplifyTol);
-    if (finishSmoothed.length < 3 || bleedSmoothed.length < 3) throw new Error('輪郭をうまく認識できませんでした。別の画像・デザインでお試しください。');
-    return { finishSmoothed, bleedSmoothed };
+
+    // ごく小さいノイズ(アンチエイリアスの残りかすなど)を成分として拾わないための最小面積
+    const minAreaPx = Math.max(4, cutRadiusPx * cutRadiusPx * 0.5);
+
+    const finishContours = traceAllContours(cutMask, w, h, minAreaPx);
+    const bleedContours = traceAllContours(bleedMask, w, h, minAreaPx);
+    if (!finishContours.length || !bleedContours.length) {
+      throw new Error('カットラインの生成に失敗しました。別の画像・デザインでお試しください。');
+    }
+
+    const finishLoops = finishContours.map(function(c) { return smoothFreeCutContour(c, simplifyTol); }).filter(function(l) { return l.length >= 3; });
+    const bleedLoops = bleedContours.map(function(c) { return smoothFreeCutContour(c, simplifyTol); }).filter(function(l) { return l.length >= 3; });
+    if (!finishLoops.length || !bleedLoops.length) {
+      throw new Error('輪郭をうまく認識できませんでした。別の画像・デザインでお試しください。');
+    }
+
+    // 面積が大きい順に並べ、一番大きいものを「メイン」の仕上がり線／塗り足し線とする
+    finishLoops.sort(function(a, b) { return polygonAreaAbs(b) - polygonAreaAbs(a); });
+    bleedLoops.sort(function(a, b) { return polygonAreaAbs(b) - polygonAreaAbs(a); });
+
+    return {
+      finishSmoothed: finishLoops[0],
+      bleedSmoothed: bleedLoops[0],
+      extraFinishLoops: finishLoops.slice(1),
+      extraBleedLoops: bleedLoops.slice(1)
+    };
   }
 
   // アップロードされたPNG(Imageオブジェクト)単体から、輪郭を「距離変換による膨張」でオフセットして、
@@ -1631,46 +1698,57 @@ python -m http.server 8000</pre>
         // ①で確定した実寸(currentRealSizeMM)をそのまま使うので、mm換算を作り直す必要はない
         const pxPerMM = (340 / currentRealSizeMM) * S;
 
-        // カット穴は解析対象(デザイン)からは除外しているが、そのままだとキャラクター本体から
-        // 離れた場所に置いた穴が「材料の外」に浮いてしまい、周りにカットラインが生成されない。
-        // そこで、穴の位置に「穴の半径＋周囲に残したい余白」分の塗りつぶし円をマスクへ加えてから
-        // 輪郭トレースすることで、穴の周りにも必ず材料が残るようにカットラインが自動的に伸びるようにする。
-        const FREECUT_HOLE_MARGIN_MM = 3; // 穴の縁からカットライン(仕上がり線)までの最低限の材料の幅
+        // カット穴は解析対象(デザイン)からは除外しているが、そのままだと穴の場所には何も
+        // 描かれていないことになり、輪郭が生成されない。そこで、穴の実際の大きさ(余分な余白なし)
+        // ぶんの塗りつぶし円をマスクに加えてから輪郭トレースする。これにより、キャラクター本体などの
+        // 通常のデザインとまったく同じ「2mmオフセット」のカットラインが、穴の周りにも生成される
+        // （デザインから離れていれば独立したループに、近ければ自然につながった1つのループになる）。
         holeObjs.forEach(function(h) {
           const rasterCx = h.x * S, rasterCy = h.y * S;
-          const paddedR = (h.r * S) + FREECUT_HOLE_MARGIN_MM * pxPerMM;
-          const minX = Math.max(0, Math.floor(rasterCx - paddedR));
-          const maxX = Math.min(W - 1, Math.ceil(rasterCx + paddedR));
-          const minY = Math.max(0, Math.floor(rasterCy - paddedR));
-          const maxY = Math.min(H - 1, Math.ceil(rasterCy + paddedR));
-          const paddedR2 = paddedR * paddedR;
+          const r = h.r * S;
+          const minX = Math.max(0, Math.floor(rasterCx - r));
+          const maxX = Math.min(W - 1, Math.ceil(rasterCx + r));
+          const minY = Math.max(0, Math.floor(rasterCy - r));
+          const maxY = Math.min(H - 1, Math.ceil(rasterCy + r));
+          const r2 = r * r;
           for (let y = minY; y <= maxY; y++) {
             for (let x = minX; x <= maxX; x++) {
               const dx = x - rasterCx, dy = y - rasterCy;
-              if (dx * dx + dy * dy <= paddedR2) mask[y * W + x] = 1;
+              if (dx * dx + dy * dy <= r2) mask[y * W + x] = 1;
             }
           }
         });
 
-        const comp = extractLargestComponentMask(mask, W, H);
-        if (!comp) throw new Error('デザインが見つかりませんでした。写真・スタンプ・テキストなどを配置してから実行してください。');
+        if (!mask.some(function(v) { return v; })) {
+          throw new Error('デザインが見つかりませんでした。写真・スタンプ・テキストなどを配置してから実行してください。');
+        }
 
         const cutRadiusPx = FREECUT_CUT_OFFSET_MM * pxPerMM;
         const bleedRadiusPx = (FREECUT_CUT_OFFSET_MM + FREECUT_BLEED_EXTRA_MM) * pxPerMM;
         const simplifyTol = FREECUT_SIMPLIFY_TOLERANCE_WORK_PX * (S / 3);
 
-        const { finishSmoothed, bleedSmoothed } = traceOffsetContours(comp.compMask, W, H, cutRadiusPx, bleedRadiusPx, simplifyTol);
+        // ※ ここでは最大成分だけに絞り込まない。デザイン本体から離れた場所にあるテキストや
+        //   カット穴などは、大きく離れていれば「独立した追加ループ(extraFinishLoops)」として、
+        //   十分近ければオフセットの膨張で自然につながった「1つのループ」として、どちらも
+        //   ちゃんとカットラインに反映される。
+        const { finishSmoothed, bleedSmoothed, extraFinishLoops, extraBleedLoops } =
+          traceOffsetContours(mask, W, H, cutRadiusPx, bleedRadiusPx, simplifyTol);
 
         const toCanvasCoord = pts => pts.map(function(p) { return { x: p.x / S, y: p.y / S }; });
         template.finishPoints = toCanvasCoord(finishSmoothed);
         template.bleedPoints = toCanvasCoord(bleedSmoothed);
+        template.extraFinishLoops = extraFinishLoops.map(toCanvasCoord);
+        template.extraBleedLoops = extraBleedLoops.map(toCanvasCoord);
 
         holeObjs.forEach(function(h, i) { h.obj.visible = wasHoleVisible[i]; });
         initProductGuide();
         rebuildPlateGeometry();
 
+        const extraNote = template.extraFinishLoops.length
+          ? '（本体から離れた要素は' + template.extraFinishLoops.length + '個の独立したループとして生成されました）'
+          : '';
         statusEl.style.color = '#16a34a';
-        statusEl.textContent = '✅ 現在のデザインをもとにカットラインを更新しました。';
+        statusEl.textContent = '✅ 現在のデザインをもとにカットラインを更新しました。' + extraNote;
         const mainStatusEl = document.getElementById('templateStatus');
         if (mainStatusEl) {
           mainStatusEl.textContent = '✅ フリーカットで作成したカットラインを使用中（「カットラインの頂点を編集」で微調整できます）';
@@ -2129,12 +2207,33 @@ python -m http.server 8000</pre>
     baseBackground = bleedShape;
     guideLines = holeCircle ? [finishShape, holeCircle] : [finishShape];
 
-    canvas.add(baseBackground, ...guideLines);
+    // デザイン本体から離れていて1つのループにつながらなかった要素(独立したテキストやカット穴など)は
+    // extraFinishLoops/extraBleedLoops として別ループで渡ってくる。それぞれも仕上がり線・塗り足し線として
+    // 同じ見た目で追加描画する（3D側は rebuildPlateGeometry 側で別途対応）。
+    const extraFinishShapes = (template.extraFinishLoops || []).map(function(pts) {
+      return new fabric.Polygon(pts, {
+        fill: 'transparent', stroke: '#0000ff', strokeWidth: 2,
+        selectable: false, evented: false, objectCaching: false
+      });
+    });
+    const extraBleedShapes = (template.extraBleedLoops || []).map(function(pts) {
+      return new fabric.Polygon(pts, {
+        fill: currentBaseColor || '#ffffff',
+        stroke: '#ff4d4d', strokeWidth: 1.5, strokeDashArray: [4, 4],
+        selectable: false, evented: false, objectCaching: false
+      });
+    });
+    guideLines = guideLines.concat(extraFinishShapes);
+
+    canvas.add(baseBackground, ...extraBleedShapes, ...guideLines);
     // initProductGuide()は最初の1回だけでなく、フリーカットのカットライン再生成時など
     // 「すでに写真やスタンプが配置された後」にも呼ばれる。canvas.add()は常にキャンバスの
     // 最前面に追加されるため、そのままだと下地(baseBackground)が既存デザインの上に
     // 覆いかぶさってしまう。ここで明示的に最背面へ送り、常にデザインの下に敷かれるようにする。
     canvas.sendToBack(baseBackground);
+    // 追加の塗り足し(下地)も、通常の下地と同じくデザインより下に来るようにする
+    extraBleedShapes.forEach(function(s) { canvas.sendToBack(s); });
+    if (baseBackground) canvas.sendToBack(baseBackground);
 
     if (semiTransparentOverlay) canvas.remove(semiTransparentOverlay);
     semiTransparentOverlay = new fabric.Path(buildOverlayMaskPath(), {
@@ -2164,6 +2263,16 @@ python -m http.server 8000</pre>
       maskPath += `L ${template.finishPoints[i].x} ${template.finishPoints[i].y} `;
     }
     maskPath += 'Z ';
+    // 本体から独立した追加ループ(離れた場所のテキストやカット穴など)も、同じ考え方で
+    // 「ここは仕上がり範囲の内側です(白オーバーレイをかけない)」という穴として加える
+    (template.extraFinishLoops || []).forEach(function(loop) {
+      if (!loop.length) return;
+      maskPath += `M ${loop[0].x} ${loop[0].y} `;
+      for (let i = 1; i < loop.length; i++) {
+        maskPath += `L ${loop[i].x} ${loop[i].y} `;
+      }
+      maskPath += 'Z ';
+    });
     getCutHoleObjects().forEach(function(h) {
       // 円は2つの半円弧(A)で表現する
       maskPath += `M ${h.x + h.r} ${h.y} `
@@ -3388,6 +3497,19 @@ python -m http.server 8000</pre>
     if (mesh.material) mesh.material.dispose();
   }
 
+  // 点(pt)が多角形(poly)の内側にあるかを判定する（レイキャスティング法）。
+  // カット穴がどのループ(本体 or 独立ループ)に属するかを3D生成時に振り分けるために使う。
+  function pointInPolygon(pt, poly) {
+    let inside = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const xi = poly[i].x, yi = poly[i].y, xj = poly[j].x, yj = poly[j].y;
+      const intersect = ((yi > pt.y) !== (yj > pt.y)) &&
+        (pt.x < (xj - xi) * (pt.y - yi) / (yj - yi) + xi);
+      if (intersect) inside = !inside;
+    }
+    return inside;
+  }
+
   function rebuildPlateGeometry() {
     if (!plateMesh) return;
     plateMesh.geometry.dispose();
@@ -3421,6 +3543,20 @@ python -m http.server 8000</pre>
     });
     shape.closePath();
 
+    // デザイン本体から離れていて1つのループにつながらなかった要素(独立したテキストなど)は、
+    // 物理的にも別々の破片になるため、それぞれ独立したTHREE.Shapeとして押し出し対象に加える。
+    const extraShapes = (template.extraFinishLoops || []).map(function(loop) {
+      const s = new THREE.Shape();
+      loop.forEach(function(p, i) {
+        const w = toWorld(p.x, p.y);
+        trackBounds(w);
+        if (i === 0) s.moveTo(w.x, w.y); else s.lineTo(w.x, w.y);
+      });
+      s.closePath();
+      return s;
+    });
+    const allShapes = [shape].concat(extraShapes);
+
     if (template.hole) {
       const holePath = new THREE.Path();
       const segments = 32;
@@ -3434,7 +3570,10 @@ python -m http.server 8000</pre>
       shape.holes.push(holePath);
     }
 
-    // ユーザーが自由配置した「カット穴」も、それぞれ独立した穴として3D形状に反映する
+    // ユーザーが自由配置した「カット穴」も、それぞれ独立した穴として3D形状に反映する。
+    // 穴が本体から離れて独立ループ(extraShapes)になっている場合は、そのループ自身の
+    // holesに追加しないと「リング状ではなくただの円盤」になってしまうため、
+    // 穴の中心点がどのループの内側にあるかを判定してから正しいshapeに追加する。
     getCutHoleObjects().forEach(function(h) {
       const holePath = new THREE.Path();
       const segments = 24;
@@ -3445,12 +3584,17 @@ python -m http.server 8000</pre>
         const w = toWorld(hx, hy);
         if (i === 0) holePath.moveTo(w.x, w.y); else holePath.lineTo(w.x, w.y);
       }
-      shape.holes.push(holePath);
+      let targetShape = shape;
+      const extraLoops = template.extraFinishLoops || [];
+      for (let i = 0; i < extraLoops.length; i++) {
+        if (pointInPolygon({ x: h.x, y: h.y }, extraLoops[i])) { targetShape = extraShapes[i]; break; }
+      }
+      targetShape.holes.push(holePath);
     });
 
     // 押し出し本体：側面＋キャップをまとめて単一の無地マテリアルにする
     // （どうせ上に専用の表・裏の板を重ねるので、本体側のキャップの見た目は使わない）
-    plateMesh.geometry = new THREE.ExtrudeGeometry(shape, { depth: PLATE_DEPTH, bevelEnabled: false });
+    plateMesh.geometry = new THREE.ExtrudeGeometry(allShapes, { depth: PLATE_DEPTH, bevelEnabled: false });
     plateMesh.material = new THREE.MeshStandardMaterial({ color: currentBaseColor });
     plateMesh.geometry.computeBoundingBox();
     const bodyBB = plateMesh.geometry.boundingBox;
@@ -3474,7 +3618,7 @@ python -m http.server 8000</pre>
         return [new THREE.Vector2(0, 0), new THREE.Vector2(1, 0), new THREE.Vector2(1, 1), new THREE.Vector2(0, 1)];
       }
     };
-    const capGeometry = new THREE.ExtrudeGeometry(shape, { depth: 0.001, bevelEnabled: false, UVGenerator: flatUVGenerator });
+    const capGeometry = new THREE.ExtrudeGeometry(allShapes, { depth: 0.001, bevelEnabled: false, UVGenerator: flatUVGenerator });
 
     // 表面用の板（テクスチャ用・常に白のまま）：本体の手前側にごくわずかに重ねる
     const frontCapMesh = new THREE.Mesh(capGeometry.clone(), new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.FrontSide }));
