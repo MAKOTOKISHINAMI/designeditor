@@ -231,6 +231,29 @@
       background: #fff; font-size: 12px; font-weight: bold; cursor: pointer;
     }
     .draw-tool-btn.active { background: #1a3a5c; color: #fff; border-color: #1a3a5c; }
+
+    .btn-reset { background-color: #fecaca; }
+    .draw-size-panel { border-top: 1px dashed #ccc; margin-top: 10px; padding-top: 10px; }
+    .draw-size-title { font-size: 11.5px; font-weight: 700; color: #333; margin: 0 0 6px; }
+    .draw-size-panel select { padding: 4px 6px; border: 1px solid #ccc; border-radius: 6px; font-size: 12px; }
+    .draw-size-panel input[type="number"] { padding: 4px 6px; border: 1px solid #ccc; border-radius: 6px; font-size: 12px; }
+    .btn-shape-add {
+      width: 100%; background: #1a3a5c; color: #fff; border: none; padding: 9px;
+      border-radius: 8px; font-weight: 700; font-size: 12px; cursor: pointer; margin-top: 4px;
+    }
+    .btn-shape-add:hover { background: #12293f; }
+
+    .outline-zoom-controls {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+      background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 8px 10px; margin-top: 8px; font-size: 12px;
+    }
+    .outline-zoom-controls button {
+      border: 1px solid #ccc; background: #f5f5f5; border-radius: 6px; padding: 4px 10px; font-size: 13px; cursor: pointer;
+    }
+    .outline-zoom-controls button:hover { background: #e5e5e5; }
+    .outline-zoom-label { font-weight: 700; }
+    #outlineZoomLabel { min-width: 40px; text-align: center; display: inline-block; font-weight: 700; }
+    .outline-zoom-hint { color: #888; font-size: 10.5px; }
     .draw-option-row { font-size: 12px; font-weight: bold; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .draw-option-row input[type="color"] { width: 36px; height: 30px; border: none; padding: 0; cursor: pointer; }
     .draw-option-row input[type="range"] { vertical-align: middle; }
@@ -466,6 +489,14 @@
         <button type="button" id="btnOutlineEditToggle" class="btn-freecut-editpoints" onclick="toggleOutlineEditMode()">📍 カットラインの頂点を編集</button>
       </div>
       <p id="freecutActionStatus" class="freecut-action-status"></p>
+      <div id="outlineZoomControls" class="outline-zoom-controls" style="display:none;">
+        <span class="outline-zoom-label">🔍 拡大表示:</span>
+        <button type="button" onclick="outlineZoomOut()">－</button>
+        <span id="outlineZoomLabel">100%</span>
+        <button type="button" onclick="outlineZoomIn()">＋</button>
+        <button type="button" onclick="outlineZoomResetView()">全体表示に戻す</button>
+        <span class="outline-zoom-hint">(マウスホイールでも拡大縮小できます)</span>
+      </div>
     </div>
     <div class="toolbar">
       <div class="tool-item" style="position:relative;">
@@ -480,6 +511,7 @@
       </div>
 
       <button class="tool-btn btn-text" onclick="addText()">メッセージ追加</button>
+      <button class="tool-btn btn-reset" onclick="resetDesign()">🗑️ リセット<br><span style="font-size:9px;">(現在の面を白紙に)</span></button>
       
       <!-- 写真追加（隠しinputファイル選択） -->
       <input type="file" id="fileInput" accept="image/jpeg,image/png,image/gif,image/webp,image/bmp" style="display:none;" onchange="handleFileUpload(event)">
@@ -511,6 +543,7 @@
             <button class="draw-tool-btn" data-tool="line" onclick="setDrawTool('line')">線/多角形</button>
             <button class="draw-tool-btn" data-tool="rect" onclick="setDrawTool('rect')">四角</button>
             <button class="draw-tool-btn" data-tool="circle" onclick="setDrawTool('circle')">円</button>
+            <button class="draw-tool-btn" data-tool="triangle" onclick="setDrawTool('triangle')">三角</button>
           </div>
           <div class="draw-option-row">
             <label>線の色 <input type="color" id="drawStrokeColor" value="#333333"></label>
@@ -522,7 +555,33 @@
           <div class="draw-option-row">
             <label>線の太さ <input type="range" id="drawStrokeWidth" min="1" max="30" value="4"><span id="drawStrokeWidthLabel">4px</span></label>
           </div>
-          <p class="draw-panel-note">四角・円はドラッグして描きます。「線/多角形」はクリックで点を打っていく方式です（2点で線、3点以上で自動的に閉じた多角形になります）。ダブルクリックかEnterで確定、Escapeで途中キャンセルできます。描いたあとは通常の画像・テキストと同じように移動や削除ができます。</p>
+          <p class="draw-panel-note">四角・円・三角はドラッグして描きます。「線/多角形」はクリックで点を打っていく方式です（2点で線、3点以上で自動的に閉じた多角形になります）。ダブルクリックかEnterで確定、Escapeで途中キャンセルできます。描いたあとは通常の画像・テキストと同じように移動や削除ができます。</p>
+
+          <div class="draw-size-panel">
+            <p class="draw-size-title">📐 サイズを指定して追加（ドラッグせずキャンバス中央に配置）</p>
+            <div class="draw-option-row">
+              <label>形状
+                <select id="shapeSizeType" onchange="updateShapeSizeFieldsVisibility()">
+                  <option value="circle">円</option>
+                  <option value="rect">四角</option>
+                  <option value="triangle">三角</option>
+                  <option value="polygon">多角形（正N角形）</option>
+                </select>
+              </label>
+            </div>
+            <div class="draw-option-row" id="shapeSizeDiameterRow">
+              <label>直径(px) <input type="number" id="shapeSizeDiameter" value="100" min="1" style="width:70px;"></label>
+            </div>
+            <div class="draw-option-row" id="shapeSizeWHRow" style="display:none;">
+              <label>幅(px) <input type="number" id="shapeSizeWidth" value="120" min="1" style="width:70px;"></label>
+              <label>高さ(px) <input type="number" id="shapeSizeHeight" value="90" min="1" style="width:70px;"></label>
+            </div>
+            <div class="draw-option-row" id="shapeSizeSidesRow" style="display:none;">
+              <label>頂点の数 <input type="number" id="shapeSizeSides" value="5" min="3" max="20" style="width:60px;"></label>
+              <label>外接円の直径(px) <input type="number" id="shapeSizeSidesDiameter" value="100" min="1" style="width:70px;"></label>
+            </div>
+            <button type="button" class="btn-shape-add" onclick="addShapeWithSize()">この形状をキャンバス中央に追加</button>
+          </div>
         </div>
       </div>
 
@@ -1462,10 +1521,35 @@ python -m http.server 8000</pre>
     usingCustomTemplate = true;
     currentRealSizeMM = maxDim * mmPerPx;
 
-    initProductGuide();
+    // ※ ここではまだ「本物のカットライン」ではない（画像の四角い範囲をもとにした仮の枠）ため、
+    //   initProductGuide()を呼んで青い仕上がり線・赤い塗り足し線を表示すると、それが実際の
+    //   カットラインだと誤解されてしまう。そのため、ここでは下地色だけの単純な四角(線なし)を
+    //   表示するに留め、本物のガイド線は「自動アウトライン化」実行後(initProductGuide)にのみ表示する。
+    showFreeCutWorkArea();
     rebuildPlateGeometry();
 
     return { fitScale, cx0, cy0 };
+  }
+
+  // フリーカットの「①画像配置直後～③自動アウトライン化前」の間だけ使う、下地色のみの単純な四角形。
+  // 本物のガイド線(initProductGuide)と違い、枠線(ストローク)を持たせないことで
+  // 「これが仕上がりのカットラインだ」と誤解されないようにしている。
+  function showFreeCutWorkArea() {
+    if (baseBackground) canvas.remove(baseBackground);
+    guideLines.forEach(function(line) { canvas.remove(line); });
+    if (semiTransparentOverlay) canvas.remove(semiTransparentOverlay);
+    guideLines = [];
+    semiTransparentOverlay = null;
+
+    const bbox = getBBox(template.finishPoints);
+    baseBackground = new fabric.Rect({
+      left: bbox.minX, top: bbox.minY, width: bbox.width, height: bbox.height,
+      fill: currentBaseColor || '#ffffff',
+      selectable: false, evented: false, objectCaching: false
+    });
+    canvas.add(baseBackground);
+    canvas.sendToBack(baseBackground);
+    canvas.renderAll();
   }
 
   // ③：現在キャンバスに乗っている「デザイン(下地・ガイド線・オーバーレイを除く)」を、①で確定した
@@ -1485,14 +1569,15 @@ python -m http.server 8000</pre>
     statusEl.textContent = '現在のデザインからカットラインを解析しています…';
 
     setTimeout(function() {
-      const wasOverlayVisible = semiTransparentOverlay.visible;
+      const wasOverlayVisible = semiTransparentOverlay ? semiTransparentOverlay.visible : null;
       const wasGuideVisible = guideLines.map(function(l) { return l.visible; });
-      const wasBgVisible = baseBackground.visible;
+      const wasBgVisible = baseBackground ? baseBackground.visible : null;
       // 下地(ベースカラー)・仕上がり線・塗り足し線・半透明オーバーレイを一時的に隠し、
       // 「実際に配置したデザイン(写真・スタンプ・テキスト等)」だけが見える状態にしてから読み取る
-      baseBackground.visible = false;
+      // (①のプレースホルダー段階では、これらはまだ簡易な四角(showFreeCutWorkArea)しか無い場合もあるため、null許容にしてある)
+      if (baseBackground) baseBackground.visible = false;
       guideLines.forEach(function(line) { line.visible = false; });
-      semiTransparentOverlay.visible = false;
+      if (semiTransparentOverlay) semiTransparentOverlay.visible = false;
       canvas.renderAll();
 
       try {
@@ -1543,9 +1628,9 @@ python -m http.server 8000</pre>
       } catch (err) {
         console.error(err);
         // 失敗した場合は解析用に隠していた表示を元に戻す(initProductGuideが呼ばれていないため)
-        baseBackground.visible = wasBgVisible;
+        if (baseBackground) baseBackground.visible = wasBgVisible;
         guideLines.forEach(function(line, i) { line.visible = wasGuideVisible[i]; });
-        semiTransparentOverlay.visible = wasOverlayVisible;
+        if (semiTransparentOverlay) semiTransparentOverlay.visible = wasOverlayVisible;
         canvas.renderAll();
         statusEl.style.color = '#dc2626';
         statusEl.textContent = '⚠️ ' + err.message;
@@ -1560,6 +1645,7 @@ python -m http.server 8000</pre>
   let outlineEditMode = false;
   let outlineHandles = [];
   let outlineHandleRAFPending = false;
+  let outlineZoomLevel = 1;
 
   function toggleOutlineEditMode() {
     if (outlineEditMode) exitOutlineEditMode(); else enterOutlineEditMode();
@@ -1577,6 +1663,8 @@ python -m http.server 8000</pre>
     const statusEl = document.getElementById('freecutActionStatus');
     statusEl.style.color = '#666';
     statusEl.textContent = '青い丸印をドラッグすると、その部分のカットラインを動かせます。';
+    const zoomControls = document.getElementById('outlineZoomControls');
+    if (zoomControls) zoomControls.style.display = 'flex';
   }
 
   function exitOutlineEditMode() {
@@ -1585,9 +1673,59 @@ python -m http.server 8000</pre>
     outlineEditMode = false;
     const btn = document.getElementById('btnOutlineEditToggle');
     if (btn) { btn.classList.remove('is-active'); btn.textContent = '📍 カットラインの頂点を編集'; }
+    outlineZoomResetView();
+    const zoomControls = document.getElementById('outlineZoomControls');
+    if (zoomControls) zoomControls.style.display = 'none';
     rebuildPlateGeometry();
     canvas.renderAll();
   }
+
+  // ── 拡大表示（虫眼鏡）：細かい部分のカットライン調整をしやすくする ──
+  // 選択中のハンドルがあればそこを中心に、無ければ現在表示中の中心を保ったまま拡大縮小する。
+  function getOutlineZoomCenterPoint() {
+    const active = canvas.getActiveObject();
+    if (active && outlineHandles.indexOf(active) !== -1) {
+      return new fabric.Point(active.left, active.top);
+    }
+    const vpt = canvas.viewportTransform;
+    return fabric.util.transformPoint(
+      new fabric.Point(canvas.getWidth() / 2, canvas.getHeight() / 2),
+      fabric.util.invertTransform(vpt)
+    );
+  }
+  function updateOutlineZoomLabel() {
+    const label = document.getElementById('outlineZoomLabel');
+    if (label) label.textContent = Math.round(outlineZoomLevel * 100) + '%';
+  }
+  function setOutlineZoom(zoom, centerPoint) {
+    outlineZoomLevel = Math.max(1, Math.min(8, zoom));
+    canvas.zoomToPoint(centerPoint || getOutlineZoomCenterPoint(), outlineZoomLevel);
+    canvas.renderAll();
+    updateOutlineZoomLabel();
+  }
+  function outlineZoomIn() { setOutlineZoom(outlineZoomLevel + 0.5); }
+  function outlineZoomOut() { setOutlineZoom(outlineZoomLevel - 0.5); }
+  function outlineZoomResetView() {
+    canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+    outlineZoomLevel = 1;
+    updateOutlineZoomLabel();
+  }
+  // マウスホイールでの拡大縮小（編集モード中のみ有効。カーソル位置を中心にズームする）
+  // ※ このキャンバスはCSSで表示サイズを可変にしている(内部座標系は常に400×400)ため、
+  //   生の opt.e.offsetX/offsetY をそのまま使うとズームの中心がずれる。
+  //   canvas.getPointer(e, true) で「表示スケールを補正した、内部座標系でのポインタ位置」を取得する。
+  canvas.on('mouse:wheel', function(opt) {
+    if (!outlineEditMode) return;
+    const delta = opt.e.deltaY;
+    let zoom = canvas.getZoom() * (0.999 ** delta);
+    zoom = Math.max(1, Math.min(8, zoom));
+    const pointer = canvas.getPointer(opt.e, true);
+    canvas.zoomToPoint({ x: pointer.x, y: pointer.y }, zoom);
+    outlineZoomLevel = zoom;
+    updateOutlineZoomLabel();
+    opt.e.preventDefault();
+    opt.e.stopPropagation();
+  });
 
   function rebuildOutlineHandles() {
     outlineHandles.forEach(function(h) { canvas.remove(h); });
@@ -2371,6 +2509,62 @@ python -m http.server 8000</pre>
     canvas.renderAll();
   }
 
+  // ── サイズを指定してキャンバス中央に図形を追加（ドラッグが苦手な場合や、正確なサイズが欲しい場合用）──
+  function updateShapeSizeFieldsVisibility() {
+    const type = document.getElementById('shapeSizeType').value;
+    document.getElementById('shapeSizeDiameterRow').style.display = (type === 'circle') ? 'flex' : 'none';
+    document.getElementById('shapeSizeWHRow').style.display = (type === 'rect' || type === 'triangle') ? 'flex' : 'none';
+    document.getElementById('shapeSizeSidesRow').style.display = (type === 'polygon') ? 'flex' : 'none';
+  }
+
+  // 正N角形の頂点座標(中心原点、半径r)を返す。先端が真上に来るように-90度から開始。
+  function regularPolygonPoints(sides, r) {
+    const pts = [];
+    for (let i = 0; i < sides; i++) {
+      const angle = (i / sides) * Math.PI * 2 - Math.PI / 2;
+      pts.push({ x: r * Math.cos(angle), y: r * Math.sin(angle) });
+    }
+    return pts;
+  }
+
+  function addShapeWithSize() {
+    const type = document.getElementById('shapeSizeType').value;
+    const strokeColor = drawStrokeColorEl.value;
+    const strokeWidth = parseInt(drawStrokeWidthEl.value, 10) || 1;
+    const fillColor = drawFillEnabledEl.checked ? drawFillColorEl.value : 'transparent';
+    const common = {
+      left: 200, top: 200, originX: 'center', originY: 'center',
+      stroke: strokeColor, strokeWidth: strokeWidth, fill: fillColor,
+      selectable: true, evented: true
+    };
+    let shape = null;
+
+    if (type === 'circle') {
+      const diameter = Math.max(1, parseFloat(document.getElementById('shapeSizeDiameter').value) || 100);
+      shape = new fabric.Ellipse(Object.assign({}, common, { rx: diameter / 2, ry: diameter / 2 }));
+    } else if (type === 'rect') {
+      const w = Math.max(1, parseFloat(document.getElementById('shapeSizeWidth').value) || 120);
+      const h = Math.max(1, parseFloat(document.getElementById('shapeSizeHeight').value) || 90);
+      shape = new fabric.Rect(Object.assign({}, common, { width: w, height: h }));
+    } else if (type === 'triangle') {
+      const w = Math.max(1, parseFloat(document.getElementById('shapeSizeWidth').value) || 120);
+      const h = Math.max(1, parseFloat(document.getElementById('shapeSizeHeight').value) || 90);
+      shape = new fabric.Triangle(Object.assign({}, common, { width: w, height: h }));
+    } else if (type === 'polygon') {
+      const sides = Math.max(3, Math.min(20, parseInt(document.getElementById('shapeSizeSides').value, 10) || 5));
+      const diameter = Math.max(1, parseFloat(document.getElementById('shapeSizeSidesDiameter').value) || 100);
+      const pts = regularPolygonPoints(sides, diameter / 2);
+      shape = new fabric.Polygon(pts, common);
+    }
+    if (!shape) return;
+
+    canvas.add(shape);
+    canvas.setActiveObject(shape);
+    canvas.renderAll();
+    // 選択状態にして、そのまま移動・拡大縮小などの通常操作に移れるようにする
+    setDrawTool('select');
+  }
+
   function setDrawTool(tool) {
     if (polyIsDrawing && tool !== 'line') polyFinish(); // 他のツールに切り替えたら描いている途中の線は確定する
     currentDrawTool = tool;
@@ -2422,6 +2616,12 @@ python -m http.server 8000</pre>
         stroke: strokeColor, strokeWidth: strokeWidth, fill: fillColor,
         selectable: false, evented: false
       });
+    } else if (currentDrawTool === 'triangle') {
+      drawingShape = new fabric.Triangle({
+        left: pointer.x, top: pointer.y, width: 1, height: 1,
+        stroke: strokeColor, strokeWidth: strokeWidth, fill: fillColor,
+        selectable: false, evented: false
+      });
     }
     if (drawingShape) canvas.add(drawingShape);
   });
@@ -2454,6 +2654,13 @@ python -m http.server 8000</pre>
         top: Math.min(drawStartPoint.y, pointer.y),
         rx: Math.abs(pointer.x - drawStartPoint.x) / 2,
         ry: Math.abs(pointer.y - drawStartPoint.y) / 2
+      });
+    } else if (currentDrawTool === 'triangle') {
+      drawingShape.set({
+        left: Math.min(drawStartPoint.x, pointer.x),
+        top: Math.min(drawStartPoint.y, pointer.y),
+        width: Math.abs(pointer.x - drawStartPoint.x),
+        height: Math.abs(pointer.y - drawStartPoint.y)
       });
     }
     canvas.renderAll();
@@ -2572,6 +2779,29 @@ python -m http.server 8000</pre>
     backwardBtn.disabled = !enabled;
     updateShapePropsPanel();
     updateTextPropsPanel();
+  }
+
+  // ── デザインをリセット（表示中の面だけを白紙に戻す。ガイド線・下地・カットラインは残す）──
+  function resetDesign() {
+    const sideLabel = currentSide === 'front' ? '表面' : '裏面';
+    const objCount = getUserObjects().length;
+    if (objCount === 0) {
+      alert('現在（' + sideLabel + '）のデザインはすでに空です。');
+      return;
+    }
+    if (!confirm('現在表示中の「' + sideLabel + '」のデザイン(写真・スタンプ・テキスト・図形など全' + objCount + '個)を削除して白紙に戻します。この操作は元に戻せません。よろしいですか？')) {
+      return;
+    }
+    if (outlineEditMode) exitOutlineEditMode();
+    clearUserObjectsFromCanvas();
+    canvas.discardActiveObject();
+    canvas.renderAll();
+    updateDeleteButtonState();
+    const statusEl = document.getElementById('templateStatus');
+    if (statusEl) {
+      statusEl.textContent = '🗑️ ' + sideLabel + 'のデザインをリセットしました。';
+      statusEl.style.color = '#666';
+    }
   }
 
   // ── 選択中の文字（テキスト）のフォント・サイズ・色・縁取りを、あとから変更できるパネル ──
