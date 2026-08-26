@@ -231,8 +231,15 @@
       background: #fff; font-size: 12px; font-weight: bold; cursor: pointer;
     }
     .draw-tool-btn.active { background: #1a3a5c; color: #fff; border-color: #1a3a5c; }
+    .draw-panel-close {
+      position: absolute; top: 6px; right: 8px; width: 24px; height: 24px; line-height: 22px;
+      border: none; background: #f1f1f1; border-radius: 50%; font-size: 15px; font-weight: 700;
+      color: #555; cursor: pointer; padding: 0; text-align: center;
+    }
+    .draw-panel-close:hover { background: #e2e2e2; color: #111; }
 
     .btn-reset { background-color: #fecaca; }
+    .btn-hole { background-color: #ddeeff; }
     .draw-size-panel { border-top: 1px dashed #ccc; margin-top: 10px; padding-top: 10px; }
     .draw-size-title { font-size: 11.5px; font-weight: 700; color: #333; margin: 0 0 6px; }
     .draw-size-panel select { padding: 4px 6px; border: 1px solid #ccc; border-radius: 6px; font-size: 12px; }
@@ -511,6 +518,7 @@
       </div>
 
       <button class="tool-btn btn-text" onclick="addText()">メッセージ追加</button>
+      <button class="tool-btn btn-hole" onclick="addCutHole()">🕳️ カット穴を追加<br><span style="font-size:9px;">(自由に配置できます)</span></button>
       <button class="tool-btn btn-reset" onclick="resetDesign()">🗑️ リセット<br><span style="font-size:9px;">(現在の面を白紙に)</span></button>
       
       <!-- 写真追加（隠しinputファイル選択） -->
@@ -537,6 +545,7 @@
       <div class="tool-item" style="position:relative;">
         <button class="tool-btn btn-draw" style="width:100%;" onclick="toggleDrawPanel(event)">描画ツール</button>
         <div id="drawPanel" class="draw-panel">
+          <button type="button" class="draw-panel-close" onclick="closeDrawPanel(event)" aria-label="描画パネルを閉じる">×</button>
           <div class="draw-tool-row">
             <button class="draw-tool-btn" data-tool="select" onclick="setDrawTool('select')">選択</button>
             <button class="draw-tool-btn" data-tool="pen" onclick="setDrawTool('pen')">ペン</button>
@@ -988,6 +997,11 @@ python -m http.server 8000</pre>
   let template = {
     finishPoints: circlePoints(200, 200, 170, 128),
     bleedPoints: circlePoints(200, 200, 180, 128)
+  };
+  // 「リセット」で完全に初期状態(丸型テンプレート)へ戻せるように、最初の形をディープコピーで保持しておく
+  const DEFAULT_TEMPLATE = {
+    finishPoints: template.finishPoints.map(function(p) { return { x: p.x, y: p.y }; }),
+    bleedPoints: template.bleedPoints.map(function(p) { return { x: p.x, y: p.y }; })
   };
   let currentBaseColor = '#ffffff'; // initProductGuide()がベースカラーとして参照するため、呼び出しより前に定義しておく必要がある
 
@@ -1513,7 +1527,14 @@ python -m http.server 8000</pre>
     ];
 
     const maxDim = Math.max(naturalW, naturalH);
-    const fitScale = 340 / maxDim;
+    // ※ 340(=キャンバス400のうち85%)ではなく、あえてもう少し小さめに収める。
+    //   自動アウトライン化は「キャンバス上に実際に描かれているピクセル」を解析するため、
+    //   画像に加えて上下左右にテキストやスタンプを足していくと、340ぴったりだと簡単に
+    //   キャンバスの端(400×400)にはみ出してしまい、その部分だけ輪郭が平らに切れてしまう。
+    //   最初から一回り小さく(約270=画像そのものはさらに10%ほど小さく)配置しておくことで、
+    //   あとから周囲に要素を足す余白を確保する。
+    const FREECUT_INITIAL_FIT_SIZE = 270;
+    const fitScale = FREECUT_INITIAL_FIT_SIZE / maxDim;
     const cx0 = naturalW / 2, cy0 = naturalH / 2;
     const fit = pts => pts.map(p => ({ x: 200 + (p.x - cx0) * fitScale, y: 200 + (p.y - cy0) * fitScale }));
 
@@ -1572,12 +1593,18 @@ python -m http.server 8000</pre>
       const wasOverlayVisible = semiTransparentOverlay ? semiTransparentOverlay.visible : null;
       const wasGuideVisible = guideLines.map(function(l) { return l.visible; });
       const wasBgVisible = baseBackground ? baseBackground.visible : null;
-      // 下地(ベースカラー)・仕上がり線・塗り足し線・半透明オーバーレイを一時的に隠し、
+      const holeObjs = getCutHoleObjects();
+      const wasHoleVisible = holeObjs.map(function(h) { return h.obj.visible; });
+      // 下地(ベースカラー)・仕上がり線・塗り足し線・半透明オーバーレイ・カット穴のハンドルを一時的に隠し、
       // 「実際に配置したデザイン(写真・スタンプ・テキスト等)」だけが見える状態にしてから読み取る
       // (①のプレースホルダー段階では、これらはまだ簡易な四角(showFreeCutWorkArea)しか無い場合もあるため、null許容にしてある)
+      // ※ カット穴はここでは「デザインの一部」として解析させない（穴の丸自体を輪郭に含めたくないため）。
+      //   穴の位置・大きさ自体は fabric オブジェクトとして維持されるので、新しいカットラインが
+      //   確定した後もそのまま同じ場所に残り、あらためて3D形状にも反映される。
       if (baseBackground) baseBackground.visible = false;
       guideLines.forEach(function(line) { line.visible = false; });
       if (semiTransparentOverlay) semiTransparentOverlay.visible = false;
+      holeObjs.forEach(function(h) { h.obj.visible = false; });
       canvas.renderAll();
 
       try {
@@ -1615,6 +1642,7 @@ python -m http.server 8000</pre>
         template.finishPoints = toCanvasCoord(finishSmoothed);
         template.bleedPoints = toCanvasCoord(bleedSmoothed);
 
+        holeObjs.forEach(function(h, i) { h.obj.visible = wasHoleVisible[i]; });
         initProductGuide();
         rebuildPlateGeometry();
 
@@ -1631,6 +1659,7 @@ python -m http.server 8000</pre>
         if (baseBackground) baseBackground.visible = wasBgVisible;
         guideLines.forEach(function(line, i) { line.visible = wasGuideVisible[i]; });
         if (semiTransparentOverlay) semiTransparentOverlay.visible = wasOverlayVisible;
+        holeObjs.forEach(function(h, i) { h.obj.visible = wasHoleVisible[i]; });
         canvas.renderAll();
         statusEl.style.color = '#dc2626';
         statusEl.textContent = '⚠️ ' + err.message;
@@ -2084,26 +2113,106 @@ python -m http.server 8000</pre>
     // 覆いかぶさってしまう。ここで明示的に最背面へ送り、常にデザインの下に敷かれるようにする。
     canvas.sendToBack(baseBackground);
 
-    // ★ 仕上がり線の外側だけを30%透過（不透明度0.3の白）にするドーナツ型パス ★
-    // 全体の四角形 - 仕上がり形状（evenodd） で「外側だけ」を表現する
-    let maskPath = `M 0 0 H ${CANVAS_SIZE} V ${CANVAS_SIZE} H 0 Z `;
-    maskPath += `M ${template.finishPoints[0].x} ${template.finishPoints[0].y} `;
-    for (let i = 1; i < template.finishPoints.length; i++) {
-      maskPath += `L ${template.finishPoints[i].x} ${template.finishPoints[i].y} `;
-    }
-    maskPath += 'Z';
-
-    semiTransparentOverlay = new fabric.Path(maskPath, {
+    if (semiTransparentOverlay) canvas.remove(semiTransparentOverlay);
+    semiTransparentOverlay = new fabric.Path(buildOverlayMaskPath(), {
       fill: 'rgba(255, 255, 255, 0.6)',
       fillRule: 'evenodd',
       selectable: false,
       evented: false
     });
-
     canvas.add(semiTransparentOverlay);
+
+    // 追加済みの「カット穴」ハンドルは常に最前面に来るよう、ここで最後にもう一度足しておく
+    // （initProductGuide()呼び出しでオーバーレイ・ガイド線が上書きされても、穴のドラッグ用ハンドルは消さない）
+    getCutHoleObjects().forEach(function(h) { canvas.bringToFront(h.obj); });
+
     canvas.renderAll();
   }
   initProductGuide();
+
+  // ★ 仕上がり線の外側だけを30%透過（不透明度0.3の白）にするドーナツ型パス ★
+  // 全体の四角形 - 仕上がり形状（evenodd）で「外側だけ」を表現する。
+  // これに「カット穴」の円もサブパスとして加えると、evenoddの交差カウントが奇数になり、
+  // 穴の内側も同じ半透明の白で「ここは無くなる部分です」と分かるように表示できる。
+  function buildOverlayMaskPath() {
+    let maskPath = `M 0 0 H ${CANVAS_SIZE} V ${CANVAS_SIZE} H 0 Z `;
+    maskPath += `M ${template.finishPoints[0].x} ${template.finishPoints[0].y} `;
+    for (let i = 1; i < template.finishPoints.length; i++) {
+      maskPath += `L ${template.finishPoints[i].x} ${template.finishPoints[i].y} `;
+    }
+    maskPath += 'Z ';
+    getCutHoleObjects().forEach(function(h) {
+      // 円は2つの半円弧(A)で表現する
+      maskPath += `M ${h.x + h.r} ${h.y} `
+        + `A ${h.r} ${h.r} 0 1 0 ${h.x - h.r} ${h.y} `
+        + `A ${h.r} ${h.r} 0 1 0 ${h.x + h.r} ${h.y} Z `;
+    });
+    return maskPath;
+  }
+
+  // 穴をドラッグしている最中など、テンプレート全体を作り直すほどではない軽い更新用。
+  // オーバーレイ(白い抜き)だけを、現在の穴の位置に合わせて素早く描き直す。
+  function refreshOverlayForHoles() {
+    if (!semiTransparentOverlay) return;
+    canvas.remove(semiTransparentOverlay);
+    semiTransparentOverlay = new fabric.Path(buildOverlayMaskPath(), {
+      fill: 'rgba(255, 255, 255, 0.6)',
+      fillRule: 'evenodd',
+      selectable: false,
+      evented: false
+    });
+    canvas.add(semiTransparentOverlay);
+    getCutHoleObjects().forEach(function(h) { canvas.bringToFront(h.obj); });
+    canvas.requestRenderAll();
+  }
+
+  // ── カット穴（丸穴）機能 ──
+  // 「全長(=currentRealSizeMM、いまの実寸換算の基準になっている最大寸法)」が50mm未満なら直径2mm、
+  // 50mm以上なら直径3mmの丸穴を、キャンバス上の好きな場所にドラッグで自由に配置できる。
+  // 実体はただの fabric.Circle だが、_isCutHole フラグを立てて「穴」として扱う。
+  function getCutHoleObjects() {
+    return canvas.getObjects()
+      .filter(function(o) { return o._isCutHole; })
+      .map(function(o) {
+        return { x: o.left, y: o.top, r: o.radius * (o.scaleX || 1), obj: o };
+      });
+  }
+  function getCutHoleDiameterMM() {
+    return (currentRealSizeMM < 50) ? 2 : 3;
+  }
+  function addCutHole() {
+    const diameterMM = getCutHoleDiameterMM();
+    const mmPerCanvasUnit = currentRealSizeMM / 340;
+    const r = (diameterMM / 2) / mmPerCanvasUnit;
+    const bbox = getBBox(template.finishPoints);
+    // 初期位置は仕上がり範囲の中心。重なって配置し直した場合に分かりやすいよう少しずつずらす。
+    const existingCount = getCutHoleObjects().length;
+    const cx = bbox.minX + bbox.width / 2 + (existingCount % 5) * (r * 2 + 4);
+    const cy = bbox.minY + bbox.height / 2;
+
+    const holeMarker = new fabric.Circle({
+      left: cx, top: cy, radius: r,
+      originX: 'center', originY: 'center',
+      fill: 'rgba(255,255,255,0.9)', stroke: '#0000ff', strokeWidth: 1.5, strokeDashArray: [3, 2],
+      selectable: true, evented: true, hasControls: false, hasBorders: false,
+      hoverCursor: 'move', objectCaching: false
+    });
+    holeMarker._isCutHole = true;
+    holeMarker._holeDiameterMM = diameterMM;
+    holeMarker.on('moving', refreshOverlayForHoles);
+    holeMarker.on('modified', function() { rebuildPlateGeometry(); });
+
+    canvas.add(holeMarker);
+    canvas.setActiveObject(holeMarker);
+    refreshOverlayForHoles();
+    rebuildPlateGeometry();
+
+    const statusEl = document.getElementById('templateStatus');
+    if (statusEl) {
+      statusEl.textContent = '🕳️ 直径' + diameterMM + 'mmのカット穴を追加しました。ドラッグで好きな位置に動かせます。';
+      statusEl.style.color = '#0e7490';
+    }
+  }
 
   // デザインが操作されるたびに「線（仕上がり線・穴）」と半透明オーバーレイだけを常に最前面へ。
   // 下地（baseBackground）はここには含めないので、追加した写真の上に覆いかぶさることはない。
@@ -2113,6 +2222,7 @@ python -m http.server 8000</pre>
       canvas.bringToFront(semiTransparentOverlay);
       guideLines.forEach(line => canvas.bringToFront(line));
     }
+    getCutHoleObjects().forEach(function(h) { canvas.bringToFront(h.obj); });
     if (outlineEditMode && outlineHandles.length) {
       outlineHandles.forEach(function(h) { canvas.bringToFront(h); });
     }
@@ -2435,6 +2545,13 @@ python -m http.server 8000</pre>
   function toggleDrawPanel(e) {
     if (e) e.stopPropagation();
     document.getElementById('drawPanel').classList.toggle('open');
+  }
+  function closeDrawPanel(e) {
+    if (e) e.stopPropagation();
+    document.getElementById('drawPanel').classList.remove('open');
+    // パネルを閉じるついでに、描いている途中の線/多角形があれば確定せずキャンセルする
+    if (typeof polyCancel === 'function') polyCancel();
+    setDrawTool('select');
   }
 
   // 線（多角形）ツール：ドラッグではなく「クリックで点を打つ」方式。
@@ -2785,21 +2902,37 @@ python -m http.server 8000</pre>
   function resetDesign() {
     const sideLabel = currentSide === 'front' ? '表面' : '裏面';
     const objCount = getUserObjects().length;
-    if (objCount === 0) {
+    const hasCustomOutline = usingCustomTemplate || freeCutModeActive;
+    if (objCount === 0 && !hasCustomOutline) {
       alert('現在（' + sideLabel + '）のデザインはすでに空です。');
       return;
     }
-    if (!confirm('現在表示中の「' + sideLabel + '」のデザイン(写真・スタンプ・テキスト・図形など全' + objCount + '個)を削除して白紙に戻します。この操作は元に戻せません。よろしいですか？')) {
+    const outlineNote = hasCustomOutline ? '\n作成済みのカットライン（フリーカット／カスタムテンプレート）も、標準の丸型に戻ります。' : '';
+    if (!confirm('現在表示中の「' + sideLabel + '」のデザイン(写真・スタンプ・テキスト・図形・穴など全' + objCount + '個)を削除して白紙に戻します。' + outlineNote + '\nこの操作は元に戻せません。よろしいですか？')) {
       return;
     }
     if (outlineEditMode) exitOutlineEditMode();
     clearUserObjectsFromCanvas();
     canvas.discardActiveObject();
+
+    // カットライン(テンプレート)も標準の丸型へ完全リセットする
+    template = {
+      finishPoints: DEFAULT_TEMPLATE.finishPoints.map(function(p) { return { x: p.x, y: p.y }; }),
+      bleedPoints: DEFAULT_TEMPLATE.bleedPoints.map(function(p) { return { x: p.x, y: p.y }; })
+    };
+    usingCustomTemplate = false;
+    freeCutModeActive = false;
+    currentRealSizeMM = ITEM_REAL_SIZE_MM;
+    const actionBar = document.getElementById('freecutActionBar');
+    if (actionBar) actionBar.style.display = 'none';
+    initProductGuide();
+    rebuildPlateGeometry();
+
     canvas.renderAll();
     updateDeleteButtonState();
     const statusEl = document.getElementById('templateStatus');
     if (statusEl) {
-      statusEl.textContent = '🗑️ ' + sideLabel + 'のデザインをリセットしました。';
+      statusEl.textContent = '🗑️ ' + sideLabel + 'のデザインとカットラインをリセットしました。';
       statusEl.style.color = '#666';
     }
   }
@@ -3267,6 +3400,20 @@ python -m http.server 8000</pre>
       }
       shape.holes.push(holePath);
     }
+
+    // ユーザーが自由配置した「カット穴」も、それぞれ独立した穴として3D形状に反映する
+    getCutHoleObjects().forEach(function(h) {
+      const holePath = new THREE.Path();
+      const segments = 24;
+      for (let i = 0; i <= segments; i++) {
+        const angle = (i / segments) * Math.PI * 2;
+        const hx = h.x + Math.cos(angle) * h.r;
+        const hy = h.y + Math.sin(angle) * h.r;
+        const w = toWorld(hx, hy);
+        if (i === 0) holePath.moveTo(w.x, w.y); else holePath.lineTo(w.x, w.y);
+      }
+      shape.holes.push(holePath);
+    });
 
     // 押し出し本体：側面＋キャップをまとめて単一の無地マテリアルにする
     // （どうせ上に専用の表・裏の板を重ねるので、本体側のキャップの見た目は使わない）
