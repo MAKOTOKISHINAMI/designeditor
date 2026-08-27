@@ -1455,6 +1455,83 @@ python -m http.server 8000</pre>
     return { compMask, count: bestPixels.length, minX, minY, maxX, maxY, width: maxX - minX + 1, height: maxY - minY + 1 };
   }
 
+  // マスク内の全ての連結成分(重心・ピクセル数)を列挙する。ブリッジ結合の判定に使う。
+  function findAllComponentCentroids(mask, w, h) {
+    const visited = new Uint8Array(w * h);
+    const comps = [];
+    for (let start = 0; start < w * h; start++) {
+      if (!mask[start] || visited[start]) continue;
+      const stack = [start];
+      visited[start] = 1;
+      let count = 0, sumX = 0, sumY = 0;
+      while (stack.length) {
+        const cur = stack.pop();
+        count++;
+        const cx = cur % w, cy = (cur / w) | 0;
+        sumX += cx; sumY += cy;
+        const neigh = [[cx - 1, cy], [cx + 1, cy], [cx, cy - 1], [cx, cy + 1]];
+        for (const nb of neigh) {
+          const nx = nb[0], ny = nb[1];
+          if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+            const nidx = ny * w + nx;
+            if (mask[nidx] && !visited[nidx]) { visited[nidx] = 1; stack.push(nidx); }
+          }
+        }
+      }
+      comps.push({ count, cx: sumX / count, cy: sumY / count });
+    }
+    return comps;
+  }
+
+  // 線分(x1,y1)-(x2,y2)を中心に、太さthicknessの帯をマスクに塗りつぶす（連結の橋渡し用）
+  function drawThickLineOnMask(mask, w, h, x1, y1, x2, y2, thickness) {
+    const minX = Math.max(0, Math.floor(Math.min(x1, x2) - thickness));
+    const maxX = Math.min(w - 1, Math.ceil(Math.max(x1, x2) + thickness));
+    const minY = Math.max(0, Math.floor(Math.min(y1, y2) - thickness));
+    const maxY = Math.min(h - 1, Math.ceil(Math.max(y1, y2) + thickness));
+    const dx = x2 - x1, dy = y2 - y1;
+    const lenSq = dx * dx + dy * dy || 1;
+    const halfT2 = (thickness / 2) * (thickness / 2);
+    for (let y = minY; y <= maxY; y++) {
+      for (let x = minX; x <= maxX; x++) {
+        let t = ((x - x1) * dx + (y - y1) * dy) / lenSq;
+        t = Math.max(0, Math.min(1, t));
+        const px = x1 + t * dx, py = y1 + t * dy;
+        const ddx = x - px, ddy = y - py;
+        if (ddx * ddx + ddy * ddy <= halfT2) mask[y * w + x] = 1;
+      }
+    }
+  }
+
+  // デザイン全体を「1枚の一体化したプレート」として切り出せるように、マスク内で離れて
+  // 存在している複数のかたまり(本体から離れたテキストやカット穴など)を、細い橋(帯)で
+  // つないで1つの連結領域にまとめる。既に一体化に十分近い部分は普段の膨張(オフセット)だけで
+  // 自然につながるので、ここでは「そのままでは離れたまま」になる組み合わせだけをつなぐ。
+  // ノイズのような極小の点(4px未満)はブリッジ対象から除外する。
+  function bridgeDisconnectedComponents(mask, w, h, thicknessPx) {
+    let comps = findAllComponentCentroids(mask, w, h).filter(function(c) { return c.count >= 4; });
+    if (comps.length <= 1) return mask;
+    comps.sort(function(a, b) { return b.count - a.count; });
+
+    const used = [comps[0]];
+    const remaining = comps.slice(1);
+    while (remaining.length) {
+      let bestI = -1, bestJ = -1, bestDist = Infinity;
+      for (let i = 0; i < used.length; i++) {
+        for (let j = 0; j < remaining.length; j++) {
+          const dx = used[i].cx - remaining[j].cx, dy = used[i].cy - remaining[j].cy;
+          const d = dx * dx + dy * dy;
+          if (d < bestDist) { bestDist = d; bestI = i; bestJ = j; }
+        }
+      }
+      const a = used[bestI], b = remaining[bestJ];
+      drawThickLineOnMask(mask, w, h, a.cx, a.cy, b.cx, b.cy, thicknessPx);
+      used.push(b);
+      remaining.splice(bestJ, 1);
+    }
+    return mask;
+  }
+
   // Douglas-Peucker単純化 → Chaikin角丸め → 軽い再単純化(点数抑制) をまとめた共通処理。
   // extractFreeCutContours（PNG単体から）・regenerateFreeCutOutlineFromCanvas（キャンバス全体から）の
   // どちらからも同じ考え方で呼び出す。
@@ -1653,6 +1730,10 @@ python -m http.server 8000</pre>
       return;
     }
     if (outlineEditMode) exitOutlineEditMode(); // 編集用の丸印ハンドルが輪郭に写り込まないよう先に終了する
+    // 選択中のオブジェクトがあると、その選択枠(青い□のハンドル)まで一緒にラスター化されてしまい、
+    // それ自体が「デザイン」として誤ってカットラインになってしまう。解析前に必ず選択解除する。
+    canvas.discardActiveObject();
+    canvas.renderAll();
 
     statusEl.style.color = '#666';
     statusEl.textContent = '現在のデザインからカットラインを解析しています…';
@@ -1727,10 +1808,14 @@ python -m http.server 8000</pre>
         const bleedRadiusPx = (FREECUT_CUT_OFFSET_MM + FREECUT_BLEED_EXTRA_MM) * pxPerMM;
         const simplifyTol = FREECUT_SIMPLIFY_TOLERANCE_WORK_PX * (S / 3);
 
-        // ※ ここでは最大成分だけに絞り込まない。デザイン本体から離れた場所にあるテキストや
-        //   カット穴などは、大きく離れていれば「独立した追加ループ(extraFinishLoops)」として、
-        //   十分近ければオフセットの膨張で自然につながった「1つのループ」として、どちらも
-        //   ちゃんとカットラインに反映される。
+        // 「カットラインは一体化した1枚のプレートにしてほしい」というご要望に対応するため、
+        // 本体から離れた場所にあるテキストやカット穴などは、細い橋(帯)でつないで
+        // すべてを1つの連結領域にまとめてから輪郭を取る（バラバラの破片にはしない）。
+        // 橋の太さは3mm相当（このあとの通常の2mmオフセットが加わるため、実際の見た目の
+        // つなぎ目はもう少し太くなる＝ちぎれない強度を確保できる）。
+        const bridgeThicknessPx = 3 * pxPerMM;
+        mask = bridgeDisconnectedComponents(mask, W, H, bridgeThicknessPx);
+
         const { finishSmoothed, bleedSmoothed, extraFinishLoops, extraBleedLoops } =
           traceOffsetContours(mask, W, H, cutRadiusPx, bleedRadiusPx, simplifyTol);
 
@@ -1745,7 +1830,7 @@ python -m http.server 8000</pre>
         rebuildPlateGeometry();
 
         const extraNote = template.extraFinishLoops.length
-          ? '（本体から離れた要素は' + template.extraFinishLoops.length + '個の独立したループとして生成されました）'
+          ? '（橋渡しできなかった要素が' + template.extraFinishLoops.length + '個、独立したループとして残っています。デザインの間隔を近づけると1枚のプレートに統合されます）'
           : '';
         statusEl.style.color = '#16a34a';
         statusEl.textContent = '✅ 現在のデザインをもとにカットラインを更新しました。' + extraNote;
@@ -3247,14 +3332,14 @@ python -m http.server 8000</pre>
   // 前面／背面を調整していた場合、画像とテキストの細かい前後関係はSVG側では
   // その順序に変わる（テンプレートは常に一番奥、テキストは常に一番手前になる）。
   function buildLayeredSVGString() {
-    const wasOverlayVisible = semiTransparentOverlay.visible;
-    semiTransparentOverlay.visible = false;
+    const wasOverlayVisible = semiTransparentOverlay ? semiTransparentOverlay.visible : null;
+    if (semiTransparentOverlay) semiTransparentOverlay.visible = false;
     canvas.renderAll();
 
     const objects = canvas.getObjects();
     const svgString = canvas.toSVG();
 
-    semiTransparentOverlay.visible = wasOverlayVisible;
+    if (semiTransparentOverlay) semiTransparentOverlay.visible = wasOverlayVisible;
     canvas.renderAll();
 
     const svgDoc = new DOMParser().parseFromString(svgString, 'image/svg+xml');
@@ -3365,22 +3450,22 @@ python -m http.server 8000</pre>
 
     if (currentSide !== 'front') await switchSide('front');
     guideLines.forEach(line => line.visible = false);
-    semiTransparentOverlay.visible = false;
+    if (semiTransparentOverlay) semiTransparentOverlay.visible = false;
     canvas.renderAll();
     const frontDataURL = canvas.toDataURL({ format: 'png', multiplier: 4 });
     guideLines.forEach(line => line.visible = true);
-    semiTransparentOverlay.visible = true;
+    if (semiTransparentOverlay) semiTransparentOverlay.visible = true;
     canvas.renderAll();
 
     let backDataURL = null;
     if (backHasContent) {
       await switchSide('back');
       guideLines.forEach(line => line.visible = false);
-      semiTransparentOverlay.visible = false;
+      if (semiTransparentOverlay) semiTransparentOverlay.visible = false;
       canvas.renderAll();
       backDataURL = canvas.toDataURL({ format: 'png', multiplier: 4 });
       guideLines.forEach(line => line.visible = true);
-      semiTransparentOverlay.visible = true;
+      if (semiTransparentOverlay) semiTransparentOverlay.visible = true;
       canvas.renderAll();
     }
 
@@ -3671,9 +3756,9 @@ python -m http.server 8000</pre>
   // 「今キャンバスに表示されている面」の内容をそのまま切り抜くだけの関数なので、
   // 表面・裏面どちらを表示している時でもそのまま使い回せる。
   function buildCropCanvas() {
-    const wasOverlayVisible = semiTransparentOverlay.visible;
+    const wasOverlayVisible = semiTransparentOverlay ? semiTransparentOverlay.visible : null;
     guideLines.forEach(line => line.visible = false);
-    semiTransparentOverlay.visible = false;
+    if (semiTransparentOverlay) semiTransparentOverlay.visible = false;
     canvas.renderAll();
 
     const designCanvasEl = document.getElementById('designCanvas');
@@ -3708,7 +3793,7 @@ python -m http.server 8000</pre>
     cropCtx.restore();
 
     guideLines.forEach(line => line.visible = true);
-    semiTransparentOverlay.visible = wasOverlayVisible;
+    if (semiTransparentOverlay) semiTransparentOverlay.visible = wasOverlayVisible;
     canvas.renderAll();
 
     return cropCanvas;
