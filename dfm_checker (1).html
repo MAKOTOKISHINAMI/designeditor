@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>再現性チェッカー — 樹脂・金属・PVC加工の最小幅シミュレーター</title>
+<style>
+  :root {
+    --ink: #1b1f23; --ink-soft: #55606b; --line: #d8dde2; --line-soft: #ecf0f3;
+    --paper: #ffffff; --bg: #f2f4f6; --accent: #0f6e56; --accent-soft: #e1f5ee;
+    --warn: #b23b1d; --warn-soft: #fbe7e0; --info: #7a5a00; --info-soft: #fdf3d8;
+    --roi: #1a56db; --roi-soft: #e4ecfd;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif; background: var(--bg); color: var(--ink); line-height: 1.6; }
+  header { background: var(--paper); border-bottom: 1px solid var(--line); padding: 22px 28px; }
+  header h1 { margin: 0 0 4px; font-size: 19px; font-weight: 700; }
+  header p { margin: 0; font-size: 13px; color: var(--ink-soft); max-width: 820px; }
+
+  .layout { display: grid; grid-template-columns: 380px 1fr; gap: 20px; padding: 20px; align-items: start; }
+  @media (max-width: 940px) { .layout { grid-template-columns: 1fr; } }
+
+  .card { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 18px; }
+  .card + .card { margin-top: 16px; }
+  .card h2 { font-size: 13px; font-weight: 700; margin: 0 0 12px; color: var(--ink); }
+  .field { margin-bottom: 14px; }
+  .field:last-child { margin-bottom: 0; }
+  .field label { display: block; font-size: 12px; font-weight: 700; margin-bottom: 6px; color: var(--ink-soft); }
+  .field .hint { font-size: 11px; color: var(--ink-soft); margin-top: 4px; }
+
+  input[type="number"], input[type="text"], select {
+    width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px;
+    font-size: 13px; background: var(--paper); color: var(--ink);
+  }
+  input[type="range"] { width: 100%; }
+
+  .radio-row { display: flex; gap: 8px; }
+  .radio-row label { flex: 1; display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; font-size: 12px; font-weight: 700; color: var(--ink-soft); cursor: pointer; }
+  .radio-row label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+  .radio-row input { margin: 0; }
+
+  .btn { padding: 10px; border: none; border-radius: 7px; font-size: 13px; font-weight: 700; cursor: pointer; }
+  .btn-block { width: 100%; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:disabled { opacity: .45; cursor: not-allowed; }
+  .btn-outline { background: var(--paper); color: var(--ink); border: 1px solid var(--line); }
+  .btn-outline.active { border-color: var(--roi); color: var(--roi); background: var(--roi-soft); }
+  .btn-outline.picking { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .btn-sm { padding: 6px 10px; font-size: 11.5px; }
+  .btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .btn-row .btn { flex: 1; }
+
+  .swatch-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+  .swatch { width: 26px; height: 26px; border-radius: 6px; border: 1px solid var(--line); flex-shrink: 0; }
+  .swatch-label { font-size: 11.5px; color: var(--ink-soft); }
+
+  .status { font-size: 12px; margin-top: 10px; min-height: 16px; }
+  .status.err { color: var(--warn); }
+  .status.ok { color: var(--accent); }
+
+  .view-row { border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+  .view-row-head { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+  .view-row-head input[type="text"] { flex: 1; font-weight: 700; }
+  .view-del-btn { border: none; background: var(--warn-soft); color: var(--warn); border-radius: 6px; width: 30px; height: 30px; cursor: pointer; font-weight: 700; flex-shrink: 0; }
+  .view-dropzone { border: 1.5px dashed var(--line); border-radius: 8px; padding: 16px 10px; text-align: center; cursor: pointer; font-size: 12px; color: var(--ink-soft); }
+  .view-dropzone:hover { border-color: var(--accent); color: var(--accent); }
+  .view-canvas-wrap {
+    background: linear-gradient(45deg, #eee 25%, transparent 25%), linear-gradient(-45deg, #eee 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #eee 75%), linear-gradient(-45deg, transparent 75%, #eee 75%);
+    background-size: 14px 14px; background-position: 0 0, 0 7px, 7px -7px, -7px 0;
+    display: flex; align-items: center; justify-content: center; padding: 8px; border-radius: 6px;
+  }
+  .view-canvas { max-width: 100%; max-height: 220px; image-rendering: pixelated; cursor: default; display: block; }
+  .view-canvas.crosshair { cursor: crosshair; }
+  .view-canvas.roi-cursor { cursor: cell; }
+  .view-size-row { display: flex; gap: 6px; margin-top: 8px; align-items: center; }
+  .view-size-row select { flex: 1; padding: 6px 8px; font-size: 12px; }
+  .view-size-row input { width: 70px; padding: 6px 8px; font-size: 12px; }
+  .view-size-row span { font-size: 11.5px; color: var(--ink-soft); white-space: nowrap; }
+  .view-file-info { font-size: 11px; color: var(--ink-soft); margin: 6px 0; word-break: break-all; }
+  .view-method-row { display: flex; gap: 6px; margin-top: 8px; }
+  .view-method-row select { flex: 1; }
+  .view-minwidth-row { display: flex; gap: 6px; margin-top: 8px; align-items: center; }
+  .view-minwidth-row input { width: 80px; }
+  .view-minwidth-row span { font-size: 11.5px; color: var(--ink-soft); }
+  .view-roi-row { margin-top: 8px; }
+  .view-roi-note { font-size: 10.5px; color: var(--roi); margin-top: 4px; }
+
+  .result-card { padding: 0; overflow: hidden; }
+  .result-card + .result-card { margin-top: 16px; }
+  .result-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--line); font-size: 12.5px; font-weight: 700; flex-wrap: wrap; gap: 6px; }
+  .result-toolbar label { display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 400; }
+  .result-canvas-wrap {
+    background: linear-gradient(45deg, #eee 25%, transparent 25%), linear-gradient(-45deg, #eee 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #eee 75%), linear-gradient(-45deg, transparent 75%, #eee 75%);
+    background-size: 16px 16px; background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+    display: flex; align-items: center; justify-content: center; padding: 16px; min-height: 200px;
+  }
+  .result-canvas { max-width: 100%; image-rendering: pixelated; }
+  .summary-bar { display: flex; gap: 10px; padding: 14px 16px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+  .summary-chip { flex: 1; min-width: 130px; border-radius: 8px; padding: 10px 12px; background: var(--line-soft); font-size: 12px; color: var(--ink-soft); }
+  .summary-chip b { display: block; font-size: 18px; color: var(--ink); font-weight: 700; margin-bottom: 2px; }
+  .summary-chip.warn { background: var(--warn-soft); }
+  .summary-chip.warn b { color: var(--warn); }
+  .summary-chip.ok { background: var(--accent-soft); }
+  .summary-chip.ok b { color: var(--accent); }
+  .report-list { list-style: none; margin: 0; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .report-item { display: flex; align-items: center; gap: 12px; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font-size: 12.5px; }
+  .report-item .badge { width: 22px; height: 22px; border-radius: 50%; background: var(--warn); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+  .report-item .desc { flex: 1; }
+  .report-item .desc b { color: var(--warn); }
+  .empty-note { padding: 16px; font-size: 12.5px; color: var(--ink-soft); }
+  .overall-summary { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  .overall-summary .summary-chip { flex: 1; min-width: 160px; }
+
+  .caveat-card { border-color: var(--info); background: var(--info-soft); }
+  .caveat-card h2 { color: var(--info); }
+  .caveat-card ul { margin: 0; padding-left: 18px; font-size: 12.5px; color: #5c4600; }
+  .caveat-card li { margin-bottom: 8px; }
+  .caveat-card li:last-child { margin-bottom: 0; }
+  .caveat-card b { color: #4a3800; }
+
+  .disclaimer { font-size: 11px; color: var(--ink-soft); padding: 14px 16px; border-top: 1px solid var(--line); background: var(--line-soft); }
+
+  .variant-row { display: grid; grid-template-columns: 1.3fr 1fr 0.7fr auto; gap: 6px; align-items: center; margin-bottom: 8px; }
+  .variant-row input, .variant-row select { padding: 6px 8px; font-size: 12px; }
+  .variant-row .del-btn { border: none; background: var(--warn-soft); color: var(--warn); border-radius: 6px; width: 26px; height: 26px; cursor: pointer; font-weight: 700; }
+  .variant-row-labels { display: grid; grid-template-columns: 1.3fr 1fr 0.7fr auto; gap: 6px; font-size: 10.5px; color: var(--ink-soft); margin-bottom: 4px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>再現性チェッカー</h1>
+  <p>
+    お客様のイメージ画像(JPEG/PNG)と実寸(mm)を入力すると、金属プレート・ダイキャスト・ソフトPVCなど、
+    加工方法ごとの「最小再現幅」を下回っている箇所を自動検出して図示します。表面・裏面など複数アングルをまとめて解析でき、
+    画像内でキーホルダー金具や指示テキストなど解析対象外の部分は範囲選択で除外できます。
+  </p>
+</header>
+
+<div class="layout">
+
+  <div>
+    <div class="card">
+      <h2>① 画像を読み込む(正面・側面・裏面など)</h2>
+      <p class="hint" style="margin-bottom:10px;">
+        1枚ごとに、製法・バリエーション・実寸・解析範囲を個別に設定できます。表面用と裏面用を別々の画像として追加すれば、1回の解析でまとめて確認できます。
+      </p>
+      <div id="viewList"></div>
+      <button type="button" class="btn btn-outline btn-block" onclick="addView()">＋ 画像を追加</button>
+    </div>
+
+    <div class="card">
+      <h2>② 色の指定(全アングル共通)</h2>
+      <div class="field">
+        <label>背景色(材料が無い部分／「材料の最小幅」判定に使用)</label>
+        <div class="swatch-row">
+          <div class="swatch" id="resinSwatch" style="background:#ffffff;"></div>
+          <span class="swatch-label" id="resinSwatchLabel">自動判定(透明 or ほぼ白)</span>
+        </div>
+        <button type="button" class="btn btn-outline btn-block" id="resinPickBtn" style="margin-top:8px;" onclick="startPicking('resin')">画像をクリックして背景色を指定</button>
+      </div>
+      <div class="field">
+        <label>仕切り線(陽線)の色／「仕切りの最小幅」判定に使用</label>
+        <div class="swatch-row">
+          <div class="swatch" id="metalSwatch" style="background:#333333;"></div>
+          <span class="swatch-label" id="metalSwatchLabel">未指定</span>
+        </div>
+        <button type="button" class="btn btn-outline btn-block" id="metalPickBtn" style="margin-top:8px;" onclick="startPicking('metal')">画像をクリックして仕切り線の色を指定</button>
+        <p class="hint">金属プレート・ダイキャストの色入れは金属色(シルバー/ゴールド)の凸、ソフトPVCの色入れは同じ位置が凹になりますが、画像上ではどちらも「仕切りの線」として同じ色で描かれているはずなので、その線の色をクリックしてください。</p>
+      </div>
+      <div class="field">
+        <label for="toleranceInput">色の許容誤差 <span id="toleranceValue">40</span></label>
+        <input type="range" id="toleranceInput" min="5" max="120" value="40" oninput="document.getElementById('toleranceValue').textContent = this.value">
+        <p class="hint">JPEGのノイズやアンチエイリアスを考慮した色の近さの範囲です。</p>
+      </div>
+    </div>
+
+    <div class="card" id="metalFinishCard" style="display:none;">
+      <h2>③ 金属プレートの側面仕上げ</h2>
+      <div class="field">
+        <select id="metalSideFinish" onchange="renderCaveats()">
+          <option value="press">プレス抜きのまま(側面に縦線が入ります)</option>
+          <option value="polished">側面磨き仕上げ(縦線が目立たなくなります)</option>
+        </select>
+        <p class="hint">プレート状に打ち抜く際、側面に抜き線が入ります。プレートが厚いほど目立ちます。磨き仕上げを選ぶと目立たなくなりますが、追加コストがかかる場合があります。</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <button type="button" class="btn btn-primary btn-block" id="analyzeBtn" onclick="runAnalysis()" disabled>すべてのアングルを解析する</button>
+      <p class="status" id="statusMsg"></p>
+    </div>
+
+    <div class="card">
+      <h2 style="cursor:pointer;" onclick="toggleMethodManager()">④ 製法を追加・管理する <span id="methodManagerToggleIcon">▸</span></h2>
+      <div id="methodManagerBody" style="display:none;">
+        <p class="hint" style="margin-bottom:12px;">
+          仕様(バリエーション)と最小サイズを入力して登録すると、各画像の製法選択にすぐ追加されます。
+          登録した製法一覧はJSONで書き出し・読み込みができるので、他のPCや同僚とも共有できます。
+        </p>
+        <div class="field">
+          <label for="newMethodName">製法名</label>
+          <input type="text" id="newMethodName" placeholder="例: UVプリント銘板">
+        </div>
+        <div class="field">
+          <label for="newMethodNote">製法のメモ(任意)</label>
+          <input type="text" id="newMethodNote" placeholder="例: アクリル板にUVインクを直接印刷">
+        </div>
+        <div id="newVariantRows"></div>
+        <button type="button" class="btn btn-outline" onclick="addVariantRow()" style="margin-bottom:10px;">＋ バリエーションを追加</button>
+        <button type="button" class="btn btn-primary btn-block" onclick="saveNewMethod()">この製法を登録する</button>
+        <div style="border-top:1px solid var(--line); margin:16px 0 12px;"></div>
+        <div class="field">
+          <label>製法一覧のバックアップ</label>
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="btn btn-outline" onclick="exportMethods()">JSONで書き出す</button>
+            <button type="button" class="btn btn-outline" onclick="document.getElementById('importMethodsInput').click()">JSONを読み込む</button>
+          </div>
+          <input type="file" id="importMethodsInput" accept=".json,application/json" style="display:none;" onchange="importMethods(event)">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="card caveat-card">
+      <h2>⚠️ このツールで分かること／分からないこと</h2>
+      <ul id="caveatList"></ul>
+    </div>
+
+    <div id="overallSummaryWrap" style="display:none;">
+      <div class="overall-summary" id="overallSummary"></div>
+    </div>
+
+    <div id="resultsArea">
+      <div class="card empty-note">まだ解析していません。①で画像を読み込み、「解析する」を押してください。</div>
+    </div>
+
+    <div class="card disclaimer" style="margin-top:16px;">
+      ※ この結果は画像の色分布から機械的に推定した目安です。実際の再現性は素材・加工機・メーカーの仕様によって変わります。
+      赤く示された箇所は「最小幅を下回っている＝実物では潰れる/太る/色が混ざる可能性がある」場所として、最終的には加工会社に確認してください。
+      解析範囲として指定していない部分(金具・指示テキストなど)は計算に含まれません。
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ══════════════════════════════════════════════════════════════
+  //  状態管理
+  // ══════════════════════════════════════════════════════════════
+  let views = [];
+  let viewIdCounter = 0;
+  let pickingMode = null;      // 'resin' | 'metal' | null
+  let resinColor = null;
+  let metalColor = null;
+  const VIEW_MAX_DIM = 900;
+
+  // ══════════════════════════════════════════════════════════════
+  //  距離変換・太さ判定・マスク生成・クラスタリング(コアアルゴリズム)
+  // ══════════════════════════════════════════════════════════════
+  function chamferDistanceTransform(mask, w, h) {
+    const INF = 1e9;
+    const dist = new Float32Array(w * h);
+    for (let i = 0; i < w * h; i++) dist[i] = mask[i] ? 0 : INF;
+    const D1 = 1, D2 = Math.SQRT2;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const idx = y * w + x; let d = dist[idx];
+      if (x > 0) d = Math.min(d, dist[idx - 1] + D1);
+      if (y > 0) d = Math.min(d, dist[idx - w] + D1);
+      if (x > 0 && y > 0) d = Math.min(d, dist[idx - w - 1] + D2);
+      if (x < w - 1 && y > 0) d = Math.min(d, dist[idx - w + 1] + D2);
+      dist[idx] = d;
+    }
+    for (let y = h - 1; y >= 0; y--) for (let x = w - 1; x >= 0; x--) {
+      const idx = y * w + x; let d = dist[idx];
+      if (x < w - 1) d = Math.min(d, dist[idx + 1] + D1);
+      if (y < h - 1) d = Math.min(d, dist[idx + w] + D1);
+      if (x < w - 1 && y < h - 1) d = Math.min(d, dist[idx + w + 1] + D2);
+      if (x > 0 && y < h - 1) d = Math.min(d, dist[idx + w - 1] + D2);
+      dist[idx] = d;
+    }
+    return dist;
+  }
+  function distToBackground(mask, w, h) {
+    const bg = new Uint8Array(w * h);
+    for (let i = 0; i < w * h; i++) bg[i] = mask[i] ? 0 : 1;
+    return chamferDistanceTransform(bg, w, h);
+  }
+  function detectThinRegions(mask, w, h, radiusPx) {
+    const distToBg = distToBackground(mask, w, h);
+    const eroded = new Uint8Array(w * h);
+    for (let i = 0; i < w * h; i++) eroded[i] = (mask[i] && distToBg[i] >= radiusPx) ? 1 : 0;
+    const distToEroded = chamferDistanceTransform(eroded, w, h);
+    const opened = new Uint8Array(w * h);
+    for (let i = 0; i < w * h; i++) opened[i] = distToEroded[i] <= radiusPx ? 1 : 0;
+    const violation = new Uint8Array(w * h);
+    for (let i = 0; i < w * h; i++) violation[i] = (mask[i] && !opened[i]) ? 1 : 0;
+    return { violation, distToBg };
+  }
+  function colorDist(r, g, b, ref) {
+    const dr = r - ref[0], dg = g - ref[1], db = b - ref[2];
+    return Math.sqrt(dr * dr + dg * dg + db * db);
+  }
+  function buildTargetMask(imageData, w, h, mode, refColor, tolerance) {
+    const data = imageData.data;
+    const mask = new Uint8Array(w * h);
+    for (let i = 0; i < w * h; i++) {
+      const r = data[i * 4], g = data[i * 4 + 1], b = data[i * 4 + 2], a = data[i * 4 + 3];
+      if (a < 16) { mask[i] = 0; continue; }
+      if (mode === 'resin') {
+        const bg = refColor || [255, 255, 255];
+        mask[i] = colorDist(r, g, b, bg) > tolerance ? 1 : 0;
+      } else {
+        mask[i] = colorDist(r, g, b, refColor) <= tolerance ? 1 : 0;
+      }
+    }
+    return mask;
+  }
+  // 指定した範囲(regions、workCanvas座標のrect配列)の外側を強制的にマスクから除外する。
+  // regionsが空の場合は画像全体をそのまま対象にする(=従来通り)。
+  function applyRegionMask(mask, w, h, regions) {
+    if (!regions || !regions.length) return mask;
+    const restricted = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        let inside = false;
+        for (const r of regions) {
+          if (x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h) { inside = true; break; }
+        }
+        if (inside) restricted[y * w + x] = mask[y * w + x];
+      }
+    }
+    return restricted;
+  }
+  function clusterViolations(flag, thickness, w, h) {
+    const visited = new Uint8Array(w * h);
+    const clusters = [];
+    for (let start = 0; start < w * h; start++) {
+      if (!flag[start] || visited[start]) continue;
+      const stack = [start]; visited[start] = 1;
+      let minX = w, maxX = 0, minY = h, maxY = 0, count = 0, minThickness = Infinity;
+      while (stack.length) {
+        const cur = stack.pop(); count++;
+        const cx = cur % w, cy = (cur / w) | 0;
+        if (cx < minX) minX = cx; if (cx > maxX) maxX = cx;
+        if (cy < minY) minY = cy; if (cy > maxY) maxY = cy;
+        if (thickness[cur] < minThickness) minThickness = thickness[cur];
+        const neigh = [[cx - 1, cy], [cx + 1, cy], [cx, cy - 1], [cx, cy + 1]];
+        for (const [nx, ny] of neigh) {
+          if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+            const nidx = ny * w + nx;
+            if (flag[nidx] && !visited[nidx]) { visited[nidx] = 1; stack.push(nidx); }
+          }
+        }
+      }
+      if (count < 3) continue;
+      clusters.push({ minX, maxX, minY, maxY, count, minThickness, cx: (minX + maxX) / 2, cy: (minY + maxY) / 2 });
+    }
+    clusters.sort((a, b) => a.minThickness - b.minThickness);
+    return clusters;
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  //  製法データ
+  // ══════════════════════════════════════════════════════════════
+  let PRODUCTION_METHODS = [
+    {
+      id: 'diecast', name: 'ダイキャスト', note: '亜鉛合金等を金型に流し込んで成形。',
+      variants: [
+        { id: 'plate', label: 'プレート成形(平面)', checkType: 'material', minWidthMm: 0.8,
+          note: '文字・細い線の最小幅の目安です。成形で形状も仕上げるため側面はきれいに仕上がりますが、型から抜きやすくするため側面にわずかな勾配がつき、断面が台形に近くなります。' },
+        { id: 'solid', label: '立体成形', checkType: 'material', minWidthMm: 1.0,
+          note: '突起・凹みの最小幅の目安です。硬い金型なのでアンダーカット(引っかかり形状)は基本的に抜けません。' }
+      ]
+    },
+    {
+      id: 'polystone', name: 'ポリストーン(シリコン型樹脂)', note: 'シリコン型に樹脂を流し込んで成形。',
+      variants: [
+        { id: 'default', label: '標準(立体成形)', checkType: 'material', minWidthMm: 1.0,
+          note: '細い線・突起の最小幅の目安です。シリコン型は多少のアンダーカットなら抜けますが、勾配が強すぎる・彫り込みが深すぎると型が裂けることがあります。' }
+      ]
+    },
+    {
+      id: 'metalplate', name: '金属プレート', note: '背景は基本的にニッケル等シルバーメッキ、または金メッキのメタルカラーになります。',
+      variants: [
+        { id: 'enamel_etch', label: '凸凹色入れ有り(エッチング加工)', checkType: 'wall', minWidthMm: 0.3,
+          note: '色と色の間の仕切り(陽線、金属色の凸)の最小幅です。型押しより細かい表現が可能ですが、凹みは浅くなります。対応素材: 真鍮・ステンレスのみ。' },
+        { id: 'enamel_press', label: '凸凹色入れ有り(型押し加工)', checkType: 'wall', minWidthMm: 0.5,
+          note: '色と色の間の仕切り(陽線、金属色の凸)の最小幅です。エッチングより凹みを深くできますが、表現できる細かさはやや劣ります。対応素材: 真鍮・ステンレス・鉄。' },
+        { id: 'plain', label: '色入れ無し(金属素地のまま)', checkType: 'material', minWidthMm: 0.5, note: '彫刻・凹凸の最小幅の目安です。' },
+        { id: 'print', label: '印刷', checkType: 'material', minWidthMm: 0.3, note: '印刷なので仕切りは不要です。印刷可能な最小の線幅の目安です。' }
+      ]
+    },
+    {
+      id: 'softpvc', name: 'ソフトPVC', note: '色を流し込む場合、色と色の間には金型側の仕切り(0.5mm)が必ず必要です。金型側が凸のため、成形品の表面ではその部分が逆に凹になります。',
+      variants: [
+        { id: 'front2d', label: '表面：平面2D(色流し込み)', checkType: 'wall', minWidthMm: 0.5, note: '色と色の間の仕切り(成形品では凹)の最小幅です。' },
+        { id: 'front3d', label: '表面：半立体3D(色流し込み)', checkType: 'wall', minWidthMm: 0.5, note: '色と色の間の仕切り(成形品では凹)の最小幅です。立体的な盛り上がり自体の最小幅は別途ご確認ください。' },
+        { id: 'back2d', label: '裏面：2D(色流し込み)', checkType: 'wall', minWidthMm: 0.5, note: '色と色の間の仕切り(成形品では凹)の最小幅です。' },
+        { id: 'back3d', label: '裏面：3D(色流し込み)', checkType: 'wall', minWidthMm: 0.5, note: '色と色の間の仕切り(成形品では凹)の最小幅です。' },
+        { id: 'frontprint', label: '表面：印刷', checkType: 'material', minWidthMm: 0.3, note: '印刷なので仕切りは不要です。' },
+        { id: 'backprint', label: '裏面：印刷', checkType: 'material', minWidthMm: 0.3, note: '印刷なので仕切りは不要です。' }
+      ]
+    }
+  ];
+
+  function populateMethodSelectEl(sel, prevMethodId) {
+    sel.innerHTML = '';
+    PRODUCTION_METHODS.forEach(function(m) {
+      const opt = document.createElement('option');
+      opt.value = m.id; opt.textContent = m.name;
+      sel.appendChild(opt);
+    });
+    if (PRODUCTION_METHODS.some(m => m.id === prevMethodId)) sel.value = prevMethodId;
+  }
+  function getMethod(id) { return PRODUCTION_METHODS.find(m => m.id === id); }
+  function getVariant(methodId, variantId) {
+    const m = getMethod(methodId);
+    if (!m) return null;
+    return m.variants.find(v => v.id === variantId) || m.variants[0];
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  //  ① 画像アップロード(複数アングル、アングルごとに製法・範囲を持つ)
+  // ══════════════════════════════════════════════════════════════
+  function addView(initialLabel) {
+    const id = 'view' + (viewIdCounter++);
+    const defaultLabels = ['表面', '裏面', '側面'];
+    const label = initialLabel || defaultLabels[views.length] || ('画像' + (views.length + 1));
+    const defaultMethod = PRODUCTION_METHODS[0];
+    const defaultVariant = defaultMethod.variants[0];
+    views.push({
+      id, label, img: null,
+      workCanvas: null, workCtx: null, workW: 0, workH: 0, scaleToOriginal: 1,
+      axis: 'width', sizeMm: 40,
+      methodId: defaultMethod.id, variantId: defaultVariant.id, minWidthMm: defaultVariant.minWidthMm,
+      regions: [], roiMode: false,
+      result: null
+    });
+    renderViewList();
+    updateAnalyzeButtonState();
+  }
+  function removeView(id) {
+    views = views.filter(v => v.id !== id);
+    renderViewList();
+    updateAnalyzeButtonState();
+    renderResults();
+  }
+  function findView(id) { return views.find(v => v.id === id); }
+
+  function renderViewList() {
+    const wrap = document.getElementById('viewList');
+    wrap.innerHTML = '';
+    views.forEach(function(v) {
+      const row = document.createElement('div');
+      row.className = 'view-row';
+
+      const head = document.createElement('div');
+      head.className = 'view-row-head';
+      const labelInput = document.createElement('input');
+      labelInput.type = 'text'; labelInput.value = v.label;
+      labelInput.addEventListener('input', function() { v.label = labelInput.value; renderResults(); });
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button'; delBtn.className = 'view-del-btn'; delBtn.textContent = '×';
+      delBtn.addEventListener('click', function() { removeView(v.id); });
+      head.appendChild(labelInput); head.appendChild(delBtn);
+      row.appendChild(head);
+
+      if (!v.img) {
+        const dz = document.createElement('div');
+        dz.className = 'view-dropzone';
+        dz.textContent = 'クリックして画像を選択(JPEG/PNG)';
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file'; fileInput.accept = 'image/*'; fileInput.style.display = 'none';
+        fileInput.addEventListener('change', function(e) { handleViewFileSelect(v.id, e); });
+        dz.addEventListener('click', function() { fileInput.click(); });
+        row.appendChild(dz); row.appendChild(fileInput);
+        wrap.appendChild(row);
+        return;
+      }
+
+      // ── プレビュー(範囲選択・スポイト対応キャンバス) ──
+      const canvasWrap = document.createElement('div');
+      canvasWrap.className = 'view-canvas-wrap';
+      const canvas = document.createElement('canvas');
+      canvas.className = 'view-canvas';
+      canvas.width = v.workW; canvas.height = v.workH;
+      canvasWrap.appendChild(canvas);
+      row.appendChild(canvasWrap);
+      drawViewPreview(v, canvas, null);
+      attachCanvasInteraction(v, canvas);
+
+      const info = document.createElement('div');
+      info.className = 'view-file-info';
+      info.textContent = v.img.naturalWidth + '×' + v.img.naturalHeight + 'px';
+      row.appendChild(info);
+
+      // ── 解析範囲(ROI)コントロール ──
+      const roiRow = document.createElement('div');
+      roiRow.className = 'view-roi-row';
+      const roiBtnRow = document.createElement('div');
+      roiBtnRow.className = 'btn-row';
+      const roiToggleBtn = document.createElement('button');
+      roiToggleBtn.type = 'button';
+      roiToggleBtn.className = 'btn btn-outline btn-sm' + (v.roiMode ? ' active' : '');
+      roiToggleBtn.textContent = v.roiMode ? '🔲 範囲指定を終了' : '🔲 解析範囲を指定';
+      roiToggleBtn.addEventListener('click', function() {
+        pickingMode = null;
+        document.querySelectorAll('.view-canvas').forEach(c => c.classList.remove('crosshair'));
+        v.roiMode = !v.roiMode;
+        renderViewList();
+      });
+      const roiClearBtn = document.createElement('button');
+      roiClearBtn.type = 'button';
+      roiClearBtn.className = 'btn btn-outline btn-sm';
+      roiClearBtn.textContent = '範囲をクリア(全体を対象に)';
+      roiClearBtn.disabled = !v.regions.length;
+      roiClearBtn.addEventListener('click', function() { v.regions = []; renderViewList(); });
+      roiBtnRow.appendChild(roiToggleBtn);
+      roiBtnRow.appendChild(roiClearBtn);
+      roiRow.appendChild(roiBtnRow);
+      const roiNote = document.createElement('p');
+      roiNote.className = 'view-roi-note';
+      roiNote.textContent = v.regions.length
+        ? ('指定済みの範囲: ' + v.regions.length + '個(この中だけを解析します。金具や指示テキストなど不要な部分は範囲の外に置いてください)')
+        : '範囲を指定しない場合は画像全体が解析対象になります。ドラッグで四角を描くと、その中だけが解析対象になります(複数可)。';
+      roiRow.appendChild(roiNote);
+      row.appendChild(roiRow);
+
+      // ── 実寸 ──
+      const sizeRow = document.createElement('div');
+      sizeRow.className = 'view-size-row';
+      const axisSel = document.createElement('select');
+      axisSel.innerHTML = '<option value="width">横幅</option><option value="height">縦幅</option>';
+      axisSel.value = v.axis;
+      axisSel.addEventListener('change', function() { v.axis = axisSel.value; });
+      const sizeInput = document.createElement('input');
+      sizeInput.type = 'number'; sizeInput.min = '1'; sizeInput.step = '0.1'; sizeInput.value = v.sizeMm;
+      sizeInput.addEventListener('input', function() { v.sizeMm = parseFloat(sizeInput.value) || 0; });
+      const mmLabel = document.createElement('span'); mmLabel.textContent = 'mm(実寸)';
+      sizeRow.appendChild(axisSel); sizeRow.appendChild(sizeInput); sizeRow.appendChild(mmLabel);
+      row.appendChild(sizeRow);
+
+      // ── このアングルの製法・バリエーション ──
+      const methodRow = document.createElement('div');
+      methodRow.className = 'view-method-row';
+      const methodSel = document.createElement('select');
+      populateMethodSelectEl(methodSel, v.methodId);
+      const variantSel = document.createElement('select');
+      function refreshVariantOptions() {
+        const m = getMethod(methodSel.value);
+        variantSel.innerHTML = '';
+        (m ? m.variants : []).forEach(function(vv) {
+          const opt = document.createElement('option');
+          opt.value = vv.id; opt.textContent = vv.label;
+          variantSel.appendChild(opt);
+        });
+        if (m && m.variants.some(vv => vv.id === v.variantId)) variantSel.value = v.variantId;
+      }
+      refreshVariantOptions();
+      methodSel.addEventListener('change', function() {
+        v.methodId = methodSel.value;
+        refreshVariantOptions();
+        v.variantId = variantSel.value;
+        const variant = getVariant(v.methodId, v.variantId);
+        v.minWidthMm = variant ? variant.minWidthMm : v.minWidthMm;
+        minWidthInputEl.value = v.minWidthMm;
+        renderCaveats();
+      });
+      variantSel.addEventListener('change', function() {
+        v.variantId = variantSel.value;
+        const variant = getVariant(v.methodId, v.variantId);
+        v.minWidthMm = variant ? variant.minWidthMm : v.minWidthMm;
+        minWidthInputEl.value = v.minWidthMm;
+        renderCaveats();
+      });
+      methodRow.appendChild(methodSel);
+      methodRow.appendChild(variantSel);
+      row.appendChild(methodRow);
+
+      const variantNote = document.createElement('p');
+      variantNote.className = 'hint';
+      const curVariant = getVariant(v.methodId, v.variantId);
+      variantNote.textContent = curVariant ? curVariant.note : '';
+      row.appendChild(variantNote);
+
+      const minWidthRow = document.createElement('div');
+      minWidthRow.className = 'view-minwidth-row';
+      const minWidthInputEl = document.createElement('input');
+      minWidthInputEl.type = 'number'; minWidthInputEl.min = '0.05'; minWidthInputEl.step = '0.05';
+      minWidthInputEl.value = v.minWidthMm;
+      minWidthInputEl.addEventListener('input', function() { v.minWidthMm = parseFloat(minWidthInputEl.value) || 0; });
+      const minWidthLabel = document.createElement('span'); minWidthLabel.textContent = 'mm(最小再現幅)';
+      minWidthRow.appendChild(minWidthInputEl); minWidthRow.appendChild(minWidthLabel);
+      row.appendChild(minWidthRow);
+
+      const changeBtn = document.createElement('button');
+      changeBtn.type = 'button'; changeBtn.className = 'btn btn-outline btn-sm'; changeBtn.style.marginTop = '10px';
+      changeBtn.textContent = '画像を変更';
+      const fileInput2 = document.createElement('input');
+      fileInput2.type = 'file'; fileInput2.accept = 'image/*'; fileInput2.style.display = 'none';
+      fileInput2.addEventListener('change', function(e) { handleViewFileSelect(v.id, e); });
+      changeBtn.addEventListener('click', function() { fileInput2.click(); });
+      row.appendChild(changeBtn); row.appendChild(fileInput2);
+
+      wrap.appendChild(row);
+    });
+    renderCaveats();
+  }
+
+  function handleViewFileSelect(viewId, e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const v = findView(viewId);
+    if (!v) return;
+    const reader = new FileReader();
+    reader.onload = function(f) {
+      const img = new Image();
+      img.onload = function() {
+        v.img = img; v.result = null; v.regions = []; v.roiMode = false;
+        prepareWorkCanvas(v);
+        renderViewList();
+        updateAnalyzeButtonState();
+        renderResults();
+      };
+      img.onerror = function() {
+        document.getElementById('statusMsg').className = 'status err';
+        document.getElementById('statusMsg').textContent = '⚠️「' + v.label + '」の画像を読み込めませんでした。別のファイルをお試しください。';
+      };
+      img.src = f.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+  function prepareWorkCanvas(v) {
+    const naturalW = v.img.naturalWidth, naturalH = v.img.naturalHeight;
+    v.scaleToOriginal = Math.min(1, VIEW_MAX_DIM / Math.max(naturalW, naturalH));
+    v.workW = Math.max(1, Math.round(naturalW * v.scaleToOriginal));
+    v.workH = Math.max(1, Math.round(naturalH * v.scaleToOriginal));
+    v.workCanvas = document.createElement('canvas');
+    v.workCanvas.width = v.workW; v.workCanvas.height = v.workH;
+    v.workCtx = v.workCanvas.getContext('2d');
+    v.workCtx.drawImage(v.img, 0, 0, v.workW, v.workH);
+  }
+
+  function updateAnalyzeButtonState() {
+    document.getElementById('analyzeBtn').disabled = !views.some(v => v.img);
+  }
+
+  // ── プレビュー描画(既存の範囲＋ドラッグ中の仮の範囲を重ねて描く) ──
+  function drawViewPreview(v, canvas, draftRect) {
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, v.workW, v.workH);
+    ctx.drawImage(v.workCanvas, 0, 0);
+    ctx.save();
+    ctx.strokeStyle = '#1a56db';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 4]);
+    ctx.fillStyle = 'rgba(26,86,219,0.08)';
+    v.regions.forEach(function(r) {
+      ctx.fillRect(r.x, r.y, r.w, r.h);
+      ctx.strokeRect(r.x, r.y, r.w, r.h);
+    });
+    if (draftRect) {
+      ctx.strokeStyle = '#e2802e';
+      ctx.fillStyle = 'rgba(226,128,46,0.10)';
+      ctx.fillRect(draftRect.x, draftRect.y, draftRect.w, draftRect.h);
+      ctx.strokeRect(draftRect.x, draftRect.y, draftRect.w, draftRect.h);
+    }
+    ctx.restore();
+  }
+
+  // ── キャンバス操作：スポイト(色指定) と 範囲選択(ROI)を1つのcanvasで両立させる ──
+  function attachCanvasInteraction(v, canvas) {
+    function toWorkCoord(e) {
+      const rect = canvas.getBoundingClientRect();
+      const cssScale = canvas.width / rect.width;
+      const x = Math.max(0, Math.min(v.workW - 1, Math.floor((e.clientX - rect.left) * cssScale)));
+      const y = Math.max(0, Math.min(v.workH - 1, Math.floor((e.clientY - rect.top) * cssScale)));
+      return { x, y };
+    }
+
+    if (v.roiMode) {
+      canvas.classList.add('roi-cursor');
+      let dragging = false, startPt = null;
+      canvas.addEventListener('mousedown', function(e) {
+        dragging = true;
+        startPt = toWorkCoord(e);
+      });
+      canvas.addEventListener('mousemove', function(e) {
+        if (!dragging) return;
+        const cur = toWorkCoord(e);
+        const rect = {
+          x: Math.min(startPt.x, cur.x), y: Math.min(startPt.y, cur.y),
+          w: Math.abs(cur.x - startPt.x), h: Math.abs(cur.y - startPt.y)
+        };
+        drawViewPreview(v, canvas, rect);
+      });
+      window.addEventListener('mouseup', function onUp(e) {
+        if (!dragging) return;
+        dragging = false;
+        const cur = toWorkCoord(e);
+        const rect = {
+          x: Math.min(startPt.x, cur.x), y: Math.min(startPt.y, cur.y),
+          w: Math.abs(cur.x - startPt.x), h: Math.abs(cur.y - startPt.y)
+        };
+        if (rect.w > 4 && rect.h > 4) {
+          v.regions.push(rect);
+          renderViewList();
+        } else {
+          drawViewPreview(v, canvas, null);
+        }
+      }, { once: false });
+      return;
+    }
+
+    canvas.addEventListener('click', function(e) {
+      if (!pickingMode) return;
+      const p = toWorkCoord(e);
+      const px = v.workCtx.getImageData(p.x, p.y, 1, 1).data;
+      const color = [px[0], px[1], px[2]];
+      const hex = '#' + [0, 1, 2].map(i => color[i].toString(16).padStart(2, '0')).join('');
+      if (pickingMode === 'resin') {
+        resinColor = color;
+        document.getElementById('resinSwatch').style.background = hex;
+        document.getElementById('resinSwatchLabel').textContent = '指定色 ' + hex;
+        document.getElementById('resinPickBtn').classList.remove('picking');
+      } else {
+        metalColor = color;
+        document.getElementById('metalSwatch').style.background = hex;
+        document.getElementById('metalSwatchLabel').textContent = '指定色 ' + hex;
+        document.getElementById('metalPickBtn').classList.remove('picking');
+      }
+      pickingMode = null;
+      document.querySelectorAll('.view-canvas').forEach(c => c.classList.remove('crosshair'));
+      document.getElementById('statusMsg').textContent = '';
+    });
+  }
+
+  function startPicking(kind) {
+    if (!views.some(v => v.img)) return;
+    views.forEach(v => { v.roiMode = false; });
+    pickingMode = kind;
+    renderViewList();
+    document.querySelectorAll('.view-canvas').forEach(c => c.classList.add('crosshair'));
+    document.getElementById(kind === 'resin' ? 'resinPickBtn' : 'metalPickBtn').classList.add('picking');
+    document.getElementById('statusMsg').className = 'status';
+    document.getElementById('statusMsg').textContent = 'いずれかの画像内の対象の色をクリックしてください。';
+  }
+
+  addView('表面');
+
+  // ══════════════════════════════════════════════════════════════
+  //  ④ 製法の追加・管理
+  // ══════════════════════════════════════════════════════════════
+  let newMethodVariants = [{ label: '', checkType: 'material', minWidthMm: 1.0, note: '' }];
+  function toggleMethodManager() {
+    const body = document.getElementById('methodManagerBody');
+    const icon = document.getElementById('methodManagerToggleIcon');
+    const open = body.style.display !== 'none';
+    body.style.display = open ? 'none' : 'block';
+    icon.textContent = open ? '▸' : '▾';
+    if (!open) renderVariantRows();
+  }
+  function addVariantRow() {
+    syncVariantRowsFromDOM();
+    newMethodVariants.push({ label: '', checkType: 'material', minWidthMm: 1.0, note: '' });
+    renderVariantRows();
+  }
+  function removeVariantRow(idx) {
+    syncVariantRowsFromDOM();
+    newMethodVariants.splice(idx, 1);
+    if (!newMethodVariants.length) newMethodVariants.push({ label: '', checkType: 'material', minWidthMm: 1.0, note: '' });
+    renderVariantRows();
+  }
+  function syncVariantRowsFromDOM() {
+    const rows = document.querySelectorAll('#newVariantRows .variant-row');
+    rows.forEach(function(row, i) {
+      if (!newMethodVariants[i]) return;
+      newMethodVariants[i].label = row.querySelector('.v-label').value;
+      newMethodVariants[i].checkType = row.querySelector('.v-checktype').value;
+      newMethodVariants[i].minWidthMm = parseFloat(row.querySelector('.v-minwidth').value) || 0;
+      newMethodVariants[i].note = row.querySelector('.v-note').value;
+    });
+  }
+  function renderVariantRows() {
+    const wrap = document.getElementById('newVariantRows');
+    wrap.innerHTML = '<div class="variant-row-labels"><span>バリエーション名</span><span>判定方式</span><span>最小幅mm</span><span></span></div>';
+    newMethodVariants.forEach(function(v, i) {
+      const row = document.createElement('div');
+      row.className = 'variant-row';
+      row.innerHTML =
+        '<input class="v-label" type="text" placeholder="例: 立体成形" value="' + (v.label || '').replace(/"/g, '&quot;') + '">'
+        + '<select class="v-checktype">'
+        + '<option value="material"' + (v.checkType === 'material' ? ' selected' : '') + '>材料の最小幅</option>'
+        + '<option value="wall"' + (v.checkType === 'wall' ? ' selected' : '') + '>仕切り線の最小幅</option>'
+        + '</select>'
+        + '<input class="v-minwidth" type="number" step="0.05" min="0.05" value="' + v.minWidthMm + '">'
+        + '<button type="button" class="del-btn" onclick="removeVariantRow(' + i + ')">×</button>'
+        + '<input class="v-note" type="text" placeholder="メモ(任意、表示ヒントになります)" style="grid-column: 1 / -1;" value="' + (v.note || '').replace(/"/g, '&quot;') + '">';
+      wrap.appendChild(row);
+    });
+  }
+  function saveNewMethod() {
+    const name = document.getElementById('newMethodName').value.trim();
+    if (!name) { alert('製法名を入力してください。'); return; }
+    syncVariantRowsFromDOM();
+    const cleanVariants = newMethodVariants.filter(v => v.label.trim() !== '');
+    if (!cleanVariants.length) { alert('バリエーション名を1つ以上入力してください。'); return; }
+    const id = 'custom_' + Date.now();
+    const note = document.getElementById('newMethodNote').value.trim();
+    PRODUCTION_METHODS.push({
+      id, name, note,
+      variants: cleanVariants.map(function(v, i) {
+        return { id: 'v' + i, label: v.label.trim(), checkType: v.checkType, minWidthMm: v.minWidthMm || 1.0, note: v.note.trim() };
+      })
+    });
+    document.getElementById('newMethodName').value = '';
+    document.getElementById('newMethodNote').value = '';
+    newMethodVariants = [{ label: '', checkType: 'material', minWidthMm: 1.0, note: '' }];
+    renderVariantRows();
+    renderViewList();
+    document.getElementById('statusMsg').className = 'status ok';
+    document.getElementById('statusMsg').textContent = '✅ 製法「' + name + '」を追加しました。各画像の製法選択で選べます。';
+  }
+  function exportMethods() {
+    const blob = new Blob([JSON.stringify(PRODUCTION_METHODS, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'production_methods.json'; a.click();
+    URL.revokeObjectURL(url);
+  }
+  function importMethods(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(f) {
+      try {
+        const data = JSON.parse(f.target.result);
+        if (!Array.isArray(data) || !data.every(m => m.id && m.name && Array.isArray(m.variants))) {
+          throw new Error('ファイルの形式が正しくありません。');
+        }
+        PRODUCTION_METHODS = data;
+        renderViewList();
+        document.getElementById('statusMsg').className = 'status ok';
+        document.getElementById('statusMsg').textContent = '✅ 製法一覧を読み込みました(' + data.length + '件)。';
+      } catch (err) {
+        alert('⚠️ 読み込みに失敗しました: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  //  注意事項(現在使われている製法をもとに動的に組み立てる)
+  // ══════════════════════════════════════════════════════════════
+  function renderCaveats() {
+    const list = document.getElementById('caveatList');
+    const usedMethodIds = new Set(views.filter(v => v.img).map(v => v.methodId));
+    if (!usedMethodIds.size) usedMethodIds.add(PRODUCTION_METHODS[0].id);
+    document.getElementById('metalFinishCard').style.display = usedMethodIds.has('metalplate') ? 'block' : 'none';
+
+    const items = [];
+    items.push('<b>できること:</b> 読み込んだ各アングル(表面・裏面・側面など)について、指定した範囲内の線や仕切りの太さが最小幅を下回っていないか、それぞれ個別に機械的にチェックします。');
+    items.push('<b>できないこと(重要):</b> 複数アングルの画像を追加しても、それは別々の2D画像であり、1つの立体データではありません。「型から抜けるか(アンダーカット)」「側面と背面の厚みの整合性」「実際の強度」は判定できません。');
+    items.push('範囲選択で除外した部分(金具などの既製部品、サイズ指示・コメントなどのテキスト、ダイカットの指示線など)は解析対象外です。範囲を指定し忘れると、それらも「細い線」として誤検出される場合があります。');
+
+    if (usedMethodIds.has('polystone')) {
+      items.push('<b>ポリストーン(シリコン型)について:</b> シリコン型は柔らかいため、多少のアンダーカットがあっても型を伸ばして抜くことができます。ただし勾配が強すぎる・彫り込みが深すぎると、抜くときに<b>型が裂けてしまう</b>ことがあります。硬い金型のように「絶対に抜けない」というより「無理をすると型が壊れる」という考え方に近いです。');
+    }
+    if (usedMethodIds.has('diecast')) {
+      items.push('<b>ダイキャストについて:</b> 立体成形はアンダーカットが基本的に抜けません。プレート成形は成形と同時に側面も仕上がりますが、型から抜きやすくするための勾配で断面がわずかに台形になります。');
+    }
+    if (usedMethodIds.has('metalplate')) {
+      const finishSel = document.getElementById('metalSideFinish');
+      const finish = finishSel ? finishSel.value : 'press';
+      items.push('<b>金属プレートについて:</b> 型押し／エッチングで凹凸をつけた後、最後に形状に打ち抜くプレス加工があり、'
+        + (finish === 'polished'
+          ? '側面磨き仕上げを選択されているので縦線は目立たなくなります(その分コストが上がる場合があります)。'
+          : 'そのままだと<b>側面に打ち抜きの縦線</b>が入ります(プレートが厚いほど目立ちます。気になる場合は側面磨き仕上げをご検討ください)。')
+        + 'エッチングは真鍮・ステンレスのみ対応、型押しは真鍮・ステンレス・鉄に対応可能です。');
+    }
+    if (usedMethodIds.has('softpvc')) {
+      items.push('<b>ソフトPVCについて:</b> 色を流し込む部分の仕切りは金型側が凸のため、成形品の表面では逆に<b>凹</b>になります(金属の色入れとは凹凸が逆です)。印刷の部分は仕切り不要です。');
+    }
+    if (views.some(v => v.img && getVariant(v.methodId, v.variantId) && getVariant(v.methodId, v.variantId).checkType === 'wall')) {
+      items.push('仕切り(壁)の判定を使っているアングルがあります。色の面積が極端に小さい(点状の)部分も色が流れ込みやすいため、仕切りの最小幅だけでなく色の面積が小さすぎないかも合わせてご確認ください。');
+    }
+    items.push('最終的な仕様の可否は、必ず加工会社・原型師にご確認ください。このツールはあくまで事前の目安・お客様への説明資料としてご利用ください。');
+
+    list.innerHTML = items.map(t => '<li>' + t + '</li>').join('');
+  }
+  renderCaveats();
+
+  // ══════════════════════════════════════════════════════════════
+  //  解析メイン(全アングルを、それぞれの製法・範囲でまとめて処理)
+  // ══════════════════════════════════════════════════════════════
+  function runAnalysis() {
+    const statusEl = document.getElementById('statusMsg');
+    const btn = document.getElementById('analyzeBtn');
+    const targets = views.filter(v => v.img);
+    if (!targets.length) return;
+
+    btn.disabled = true;
+    statusEl.className = 'status';
+    statusEl.textContent = '解析しています…';
+
+    setTimeout(function() {
+      try {
+        const tolerance = parseFloat(document.getElementById('toleranceInput').value);
+
+        targets.forEach(function(v) {
+          const variant = getVariant(v.methodId, v.variantId);
+          const method = getMethod(v.methodId);
+          if (!variant || !method) { v.result = { error: '製法が選択されていません。' }; return; }
+          if (!isFinite(v.sizeMm) || v.sizeMm <= 0) { v.result = { error: '実寸(mm)を正しく入力してください。' }; return; }
+          if (!isFinite(v.minWidthMm) || v.minWidthMm <= 0) { v.result = { error: '最小再現幅(mm)を正しく入力してください。' }; return; }
+          const checkType = variant.checkType;
+          const mode = checkType === 'wall' ? 'metal' : 'resin';
+          if (mode === 'metal' && !metalColor) { v.result = { error: '仕切り線(陽線)の色が指定されていません。②で画像をクリックして指定してください。' }; return; }
+
+          const axisPx = v.axis === 'height' ? v.img.naturalHeight : v.img.naturalWidth;
+          const mmPerPxScaled = (v.sizeMm / axisPx) / v.scaleToOriginal;
+          const minWidthWorkPx = v.minWidthMm / mmPerPxScaled;
+
+          const imageData = v.workCtx.getImageData(0, 0, v.workW, v.workH);
+          let mask = buildTargetMask(imageData, v.workW, v.workH, mode, mode === 'resin' ? resinColor : metalColor, tolerance);
+          mask = applyRegionMask(mask, v.workW, v.workH, v.regions);
+
+          const foregroundCount = mask.reduce((a, val) => a + val, 0);
+          if (foregroundCount < 10) {
+            v.result = { error: mode === 'resin'
+              ? '指定範囲内で対象となる材料部分を検出できませんでした。背景色の指定や範囲を見直してください。'
+              : '指定範囲内で仕切り色に近い画素がほとんど見つかりませんでした。仕切り線の色や範囲を見直してください。' };
+            return;
+          }
+
+          const thickness = new Float32Array(v.workW * v.workH);
+          const { violation, distToBg } = detectThinRegions(mask, v.workW, v.workH, minWidthWorkPx / 2);
+          for (let i = 0; i < v.workW * v.workH; i++) thickness[i] = distToBg[i] * 2;
+          const clusters = clusterViolations(violation, thickness, v.workW, v.workH);
+
+          v.result = {
+            flag: violation, thickness, clusters, mode, minWidthMm: v.minWidthMm, mmPerPxScaled,
+            methodName: method.name, variantLabel: variant.label, error: null
+          };
+        });
+
+        renderResults();
+        const errCount = targets.filter(v => v.result && v.result.error).length;
+        statusEl.className = errCount ? 'status err' : 'status ok';
+        statusEl.textContent = errCount
+          ? '⚠️ ' + errCount + '件のアングルでエラーが発生しました(詳細は各カードをご確認ください)。'
+          : '✅ ' + targets.length + '枚のアングルを解析しました。';
+      } catch (err) {
+        console.error(err);
+        statusEl.className = 'status err';
+        statusEl.textContent = '⚠️ ' + err.message;
+      } finally {
+        btn.disabled = false;
+      }
+    }, 30);
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  //  結果表示
+  // ══════════════════════════════════════════════════════════════
+  function renderResults() {
+    const area = document.getElementById('resultsArea');
+    const overallWrap = document.getElementById('overallSummaryWrap');
+    const withResult = views.filter(v => v.img && v.result && !v.result.error);
+
+    if (!views.some(v => v.img)) {
+      area.innerHTML = '<div class="card empty-note">まだ解析していません。①で画像を読み込み、「解析する」を押してください。</div>';
+      overallWrap.style.display = 'none';
+      return;
+    }
+    if (!views.some(v => v.result)) {
+      area.innerHTML = '<div class="card empty-note">画像を読み込みました。「解析する」を押してください。</div>';
+      overallWrap.style.display = 'none';
+      return;
+    }
+
+    if (withResult.length) {
+      const totalViolations = withResult.reduce((a, v) => a + v.result.clusters.length, 0);
+      overallWrap.style.display = 'block';
+      document.getElementById('overallSummary').innerHTML =
+        '<div class="summary-chip ' + (totalViolations ? 'warn' : 'ok') + '"><b>' + totalViolations + '件</b>全アングル合計の指摘数</div>'
+        + '<div class="summary-chip"><b>' + withResult.length + '枚</b>解析したアングル数</div>';
+    } else {
+      overallWrap.style.display = 'none';
+    }
+
+    area.innerHTML = '';
+    views.filter(v => v.img).forEach(function(v) {
+      const card = document.createElement('div');
+      card.className = 'card result-card';
+
+      if (!v.result) {
+        card.innerHTML = '<div class="empty-note">「' + v.label + '」はまだ解析されていません。</div>';
+        area.appendChild(card); return;
+      }
+      if (v.result.error) {
+        card.innerHTML = '<div class="result-toolbar"><span>' + v.label + '</span></div><div class="empty-note">⚠️ ' + v.result.error + '</div>';
+        area.appendChild(card); return;
+      }
+
+      const toolbar = document.createElement('div');
+      toolbar.className = 'result-toolbar';
+      const toggleId = 'overlay_' + v.id;
+      toolbar.innerHTML = '<span>' + v.label + '（' + v.result.methodName + ' / ' + v.result.variantLabel + '）</span>'
+        + '<label><input type="checkbox" id="' + toggleId + '" checked> 問題箇所を赤で表示</label>';
+      card.appendChild(toolbar);
+
+      const canvasWrap = document.createElement('div');
+      canvasWrap.className = 'result-canvas-wrap';
+      const canvas = document.createElement('canvas');
+      canvas.className = 'result-canvas';
+      canvas.width = v.workW; canvas.height = v.workH;
+      canvasWrap.appendChild(canvas);
+      card.appendChild(canvasWrap);
+
+      function draw() {
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(v.workCanvas, 0, 0);
+        if (v.regions.length) {
+          ctx.save();
+          ctx.strokeStyle = '#1a56db'; ctx.setLineDash([5, 4]); ctx.lineWidth = 1.5;
+          v.regions.forEach(r => ctx.strokeRect(r.x, r.y, r.w, r.h));
+          ctx.restore();
+        }
+        const showOverlay = document.getElementById(toggleId).checked;
+        if (showOverlay) {
+          const overlay = ctx.getImageData(0, 0, v.workW, v.workH);
+          const data = overlay.data;
+          for (let i = 0; i < v.workW * v.workH; i++) {
+            if (v.result.flag[i]) { data[i * 4] = 226; data[i * 4 + 1] = 46; data[i * 4 + 2] = 46; data[i * 4 + 3] = 235; }
+          }
+          ctx.putImageData(overlay, 0, 0);
+        }
+        ctx.font = 'bold 13px sans-serif';
+        v.result.clusters.forEach(function(c, i) {
+          ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#b23b1d'; ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.arc(c.cx, c.cy, 9, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = '#b23b1d'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText(String(i + 1), c.cx, c.cy + 1);
+        });
+      }
+      draw();
+      toolbar.querySelector('input[type="checkbox"]').addEventListener('change', draw);
+
+      const summary = document.createElement('div');
+      summary.className = 'summary-bar';
+      const okCount = v.result.clusters.length === 0;
+      summary.innerHTML =
+        '<div class="summary-chip ' + (okCount ? 'ok' : 'warn') + '"><b>' + v.result.clusters.length + '件</b>最小幅未満の箇所</div>'
+        + '<div class="summary-chip"><b>' + v.result.minWidthMm.toFixed(2) + 'mm</b>設定した最小再現幅</div>';
+      card.appendChild(summary);
+
+      const list = document.createElement('ul');
+      list.className = 'report-list';
+      if (!v.result.clusters.length) {
+        list.innerHTML = '<li class="empty-note">✅ 指定した最小幅を下回る箇所は見つかりませんでした。</li>';
+      } else {
+        v.result.clusters.forEach(function(c, i) {
+          const li = document.createElement('li');
+          li.className = 'report-item';
+          const xMm = (c.cx * v.result.mmPerPxScaled).toFixed(1);
+          const yMm = (c.cy * v.result.mmPerPxScaled).toFixed(1);
+          const minMm = (c.minThickness * v.result.mmPerPxScaled).toFixed(2);
+          const desc = v.result.mode === 'resin'
+            ? '最小幅 約<b>' + minMm + 'mm</b>(必要:' + v.result.minWidthMm.toFixed(2) + 'mm) — この太さに盛られる、または欠ける可能性があります。'
+            : '仕切りの最小幅 約<b>' + minMm + 'mm</b>(必要:' + v.result.minWidthMm.toFixed(2) + 'mm) — 隣接する色が混ざる可能性があります。';
+          li.innerHTML = '<span class="badge">' + (i + 1) + '</span><span class="desc">画像上のおよそ(' + xMm + 'mm, ' + yMm + 'mm)付近。' + desc + '</span>';
+          list.appendChild(li);
+        });
+      }
+      card.appendChild(list);
+      area.appendChild(card);
+    });
+  }
+</script>
+
+</body>
+</html>
