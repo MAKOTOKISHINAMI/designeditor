@@ -150,21 +150,21 @@
 
   <div>
     <div class="card">
-      <h2>① 画像を読み込む(正面・側面・裏面など)</h2>
-      <p class="hint" style="margin-bottom:10px;">
-        製法は②で1つだけ選びます(複数枚の画像はすべて同じ製法として扱われます)。各画像では、バリエーション(例:表面3D／裏面2D)・実寸・解析範囲だけを個別に設定できます。
-      </p>
-      <div id="viewList"></div>
-      <button type="button" class="btn btn-outline btn-block" onclick="addView()">＋ 画像を追加</button>
-    </div>
-
-    <div class="card">
-      <h2>② 製法</h2>
+      <h2>① 製法</h2>
       <div class="field">
         <label for="globalMethodSelect">製法(すべての画像に共通で適用されます)</label>
         <select id="globalMethodSelect" onchange="onGlobalMethodChange()"></select>
         <p class="hint" id="globalMethodNote"></p>
       </div>
+    </div>
+
+    <div class="card">
+      <h2>② 画像を読み込む(正面・側面・裏面など)</h2>
+      <p class="hint" style="margin-bottom:10px;">
+        製法は①で1つだけ選びます(複数枚の画像はすべて同じ製法として扱われます)。各画像では、バリエーション(例:表面3D／裏面2D)・実寸・解析範囲だけを個別に設定できます。
+      </p>
+      <div id="viewList"></div>
+      <button type="button" class="btn btn-outline btn-block" onclick="addView()">＋ 画像を追加</button>
     </div>
 
     <div class="card">
@@ -261,7 +261,7 @@
       <h2 style="cursor:pointer;" onclick="toggleMethodManager()">⑦ 製法を追加・管理する <span id="methodManagerToggleIcon">▸</span></h2>
       <div id="methodManagerBody" style="display:none;">
         <p class="hint" style="margin-bottom:12px;">
-          仕様(バリエーション)と最小サイズを入力して登録すると、②の製法一覧にすぐ追加されます。
+          仕様(バリエーション)と最小サイズを入力して登録すると、①の製法一覧にすぐ追加されます。
           登録した製法一覧はJSONで書き出し・読み込みができるので、他のPCや同僚とも共有できます。
         </p>
         <div class="field">
@@ -299,7 +299,7 @@
     </div>
 
     <div id="resultsArea">
-      <div class="card empty-note">まだ解析していません。①で画像を読み込み、「解析する」を押してください。</div>
+      <div class="card empty-note">まだ解析していません。②で画像を読み込み、「解析する」を押してください。</div>
     </div>
 
     <div id="wallGenResultsArea"></div>
@@ -504,7 +504,7 @@
   function findThinColorRegions(imageData, materialMask, w, h, palette, mmPerPxScaled, wallWidthMm) {
     const labels = buildPaletteLabelMap(imageData, materialMask, w, h, palette);
     const thresholdPx = (wallWidthMm * 2) / mmPerPxScaled;
-    const suggestions = [];
+    const rawSuggestions = [];
     palette.forEach(function(color, idx) {
       const colorMask = new Uint8Array(w * h);
       for (let i = 0; i < w * h; i++) colorMask[i] = (labels[i] === idx) ? 1 : 0;
@@ -512,7 +512,7 @@
       comps.forEach(function(comp) {
         if (comp.count < 5) return; // ノイズは無視
         if (comp.maxThickness < thresholdPx) {
-          suggestions.push({
+          rawSuggestions.push({
             colorHex: '#' + color.map(c => c.toString(16).padStart(2, '0')).join(''),
             cx: comp.cx, cy: comp.cy,
             maxThicknessMm: comp.maxThickness * mmPerPxScaled
@@ -520,7 +520,40 @@
         }
       });
     });
+    // 文字の1画1画・矢印の断片など、同じ意味のまとまりが大量の細切れとして出てしまうため、
+    // 近い場所にある指摘は1つにまとめる(細かすぎる結果を出さないため)。
+    const mergeRadiusPx = SUGGESTION_MERGE_MM / mmPerPxScaled;
+    const suggestions = mergeNearbySuggestions(rawSuggestions, mergeRadiusPx);
     return { labels, suggestions };
+  }
+  const SUGGESTION_MERGE_MM = 4; // この距離(mm)以内にある指摘どうしは1つにまとめる
+  // 近接する指摘を貪欲法でグルーピングし、代表点(重心)・件数・色の一覧・太さの範囲にまとめる
+  function mergeNearbySuggestions(suggestions, mergeRadiusPx) {
+    const clusters = [];
+    suggestions.forEach(function(s) {
+      let target = null;
+      for (const c of clusters) {
+        const dx = c.cx - s.cx, dy = c.cy - s.cy;
+        if (Math.sqrt(dx * dx + dy * dy) <= mergeRadiusPx) { target = c; break; }
+      }
+      if (target) {
+        target.items.push(s);
+        target.cx = target.items.reduce((a, i) => a + i.cx, 0) / target.items.length;
+        target.cy = target.items.reduce((a, i) => a + i.cy, 0) / target.items.length;
+      } else {
+        clusters.push({ cx: s.cx, cy: s.cy, items: [s] });
+      }
+    });
+    return clusters.map(function(c) {
+      const colors = [...new Set(c.items.map(i => i.colorHex))];
+      const thicknesses = c.items.map(i => i.maxThicknessMm);
+      return {
+        cx: c.cx, cy: c.cy, count: c.items.length,
+        colorHex: colors.length === 1 ? colors[0] : (colors.length + '色'),
+        minThicknessMm: Math.min.apply(null, thicknesses),
+        maxThicknessMm: Math.max.apply(null, thicknesses)
+      };
+    });
   }
 
   function clusterViolations(flag, thickness, w, h) {
@@ -611,7 +644,7 @@
     return m.variants.find(v => v.id === variantId) || m.variants[0];
   }
 
-  // ── ② 製法(全画像に共通で適用する、ただ1つの選択) ──
+  // ── ① 製法(全画像に共通で適用する、ただ1つの選択) ──
   function getCurrentGlobalMethod() {
     const sel = document.getElementById('globalMethodSelect');
     return sel ? getMethod(sel.value) : PRODUCTION_METHODS[0];
@@ -638,7 +671,7 @@
   }
 
   // ══════════════════════════════════════════════════════════════
-  //  ① 画像アップロード(複数アングル、アングルごとに製法・範囲を持つ)
+  //  ② 画像アップロード(複数アングル、アングルごとに製法・範囲を持つ)
   // ══════════════════════════════════════════════════════════════
   function addView(initialLabel) {
     const id = 'view' + (viewIdCounter++);
@@ -769,7 +802,7 @@
       variantLabelEl.textContent = 'バリエーション';
       const variantSel = document.createElement('select');
       const globalMethod = getCurrentGlobalMethod();
-      v.methodId = globalMethod.id; // ②で選ばれている製法に常に揃える
+      v.methodId = globalMethod.id; // ①で選ばれている製法に常に揃える
       (globalMethod.variants || []).forEach(function(vv) {
         const opt = document.createElement('option');
         opt.value = vv.id; opt.textContent = vv.label;
@@ -1024,7 +1057,7 @@
   addView('表面');
 
   // ══════════════════════════════════════════════════════════════
-  //  ④ 製法の追加・管理
+  //  ⑦ 製法の追加・管理
   // ══════════════════════════════════════════════════════════════
   let newMethodVariants = [{ label: '', checkType: 'material', minWidthMm: 1.0, note: '' }];
   function toggleMethodManager() {
@@ -1096,7 +1129,7 @@
     document.getElementById('globalMethodSelect').value = id;
     onGlobalMethodChange();
     document.getElementById('statusMsg').className = 'status ok';
-    document.getElementById('statusMsg').textContent = '✅ 製法「' + name + '」を追加しました。②で選択されています。';
+    document.getElementById('statusMsg').textContent = '✅ 製法「' + name + '」を追加しました。①で選択されています。';
   }
   function exportMethods() {
     const blob = new Blob([JSON.stringify(PRODUCTION_METHODS, null, 2)], { type: 'application/json' });
@@ -1193,7 +1226,7 @@
           if (!isFinite(v.minWidthMm) || v.minWidthMm <= 0) { v.result = { error: '最小再現幅(mm)を正しく入力してください。' }; return; }
           const checkType = variant.checkType;
           const mode = checkType === 'wall' ? 'metal' : 'resin';
-          if (mode === 'metal' && !metalColor) { v.result = { error: '仕切り線(陽線)の色が指定されていません。②で画像をクリックして指定してください。' }; return; }
+          if (mode === 'metal' && !metalColor) { v.result = { error: '仕切り線(陽線)の色が指定されていません。③で画像をクリックして指定してください。' }; return; }
 
           const axisPx = v.axis === 'height' ? v.img.naturalHeight : v.img.naturalWidth;
           const mmPerPxScaled = (v.sizeMm / axisPx) / v.scaleToOriginal;
@@ -1247,7 +1280,7 @@
     const withResult = views.filter(v => v.img && v.result && !v.result.error);
 
     if (!views.some(v => v.img)) {
-      area.innerHTML = '<div class="card empty-note">まだ解析していません。①で画像を読み込み、「解析する」を押してください。</div>';
+      area.innerHTML = '<div class="card empty-note">まだ解析していません。②で画像を読み込み、「解析する」を押してください。</div>';
       overallWrap.style.display = 'none';
       return;
     }
@@ -1358,7 +1391,7 @@
   }
 
   // ══════════════════════════════════════════════════════════════
-  //  ⑤ 仕切り線(陽線)自動生成プレビュー
+  //  ⑥ 仕切り線(陽線)自動生成プレビュー
   // ══════════════════════════════════════════════════════════════
   function onWallGenDirectionChange() {
     const direction = document.querySelector('input[name="wallGenDirection"]:checked').value;
@@ -1367,7 +1400,7 @@
 
   function runWallGeneration() {
     const targets = views.filter(v => v.img);
-    if (!targets.length) { alert('先に①で画像を読み込んでください。'); return; }
+    if (!targets.length) { alert('先に②で画像を読み込んでください。'); return; }
 
     const wallWidthMm = parseFloat(document.getElementById('wallGenWidth').value);
     if (!isFinite(wallWidthMm) || wallWidthMm <= 0) { alert('仕切りの太さ(mm)を正しく入力してください。'); return; }
@@ -1386,12 +1419,12 @@
       const radiusPx = (wallWidthMm / mmPerPxScaled) / 2;
 
       const imageData = v.workCtx.getImageData(0, 0, v.workW, v.workH);
-      // 背景(材料が無い部分)を除いた「材料マスク」。②で背景色を指定していればそれを使う。
+      // 背景(材料が無い部分)を除いた「材料マスク」。③で背景色を指定していればそれを使う。
       let materialMask = buildTargetMask(imageData, v.workW, v.workH, 'resin', resinColor, parseFloat(document.getElementById('toleranceInput').value));
       materialMask = applyRegionMask(materialMask, v.workW, v.workH, v.regions);
 
       if (materialMask.reduce((a, x) => a + x, 0) < 10) {
-        v.wallGenResult = { error: '材料部分を検出できませんでした。②の背景色指定や解析範囲を見直してください。' };
+        v.wallGenResult = { error: '材料部分を検出できませんでした。③の背景色指定や②の解析範囲を見直してください。' };
         return;
       }
 
@@ -1494,14 +1527,26 @@
         header.style.padding = '0 0 4px';
         header.innerHTML = '🖨️ <b>色入れでの再現が難しい箇所(印刷への変更を検討してください)</b>';
         printList.appendChild(header);
+        if (r.thinColorSuggestions.length >= 6) {
+          const roiHint = document.createElement('li');
+          roiHint.className = 'empty-note';
+          roiHint.style.padding = '0 0 8px';
+          roiHint.style.color = '#1a56db';
+          roiHint.textContent = '⚠️ 指摘が多い場合、寸法線・矢印・文字などの指示部分がデザインとして拾われている可能性があります。②の画像で「解析範囲を指定」を使い、実際のデザイン部分だけを囲ってから再度お試しください。';
+          printList.appendChild(roiHint);
+        }
         r.thinColorSuggestions.forEach(function(s, i) {
           const li = document.createElement('li');
           li.className = 'report-item';
           const xMm = (s.cx * r.mmPerPxScaled).toFixed(1);
           const yMm = (s.cy * r.mmPerPxScaled).toFixed(1);
+          const countNote = s.count > 1 ? '(近接する' + s.count + '箇所をまとめて表示)' : '';
+          const thicknessNote = (s.minThicknessMm === s.maxThicknessMm)
+            ? '約<b>' + s.maxThicknessMm.toFixed(2) + 'mm</b>'
+            : '約<b>' + s.minThicknessMm.toFixed(2) + '〜' + s.maxThicknessMm.toFixed(2) + 'mm</b>';
           li.innerHTML = '<span class="badge" style="background:#e2802e;">P' + (i + 1) + '</span>'
-            + '<span class="desc">色 <b>' + s.colorHex + '</b>、画像上のおよそ(' + xMm + 'mm, ' + yMm + 'mm)付近。'
-            + 'この色が使われている箇所は、最大でも約<b>' + s.maxThicknessMm.toFixed(2) + 'mm</b>の太さしかなく、'
+            + '<span class="desc">色 <b>' + s.colorHex + '</b>、画像上のおよそ(' + xMm + 'mm, ' + yMm + 'mm)付近' + countNote + '。'
+            + 'この色が使われている箇所は、最大でも' + thicknessNote + 'の太さしかなく、'
             + '指定した仕切り幅(' + r.wallWidthMm.toFixed(2) + 'mm)を両側に確保すると色の面がほぼ残りません。色入れではなく印刷での再現をおすすめします。</span>';
           printList.appendChild(li);
         });
