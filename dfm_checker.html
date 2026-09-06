@@ -56,10 +56,13 @@
 
   .palette-swatch-list { display: flex; flex-wrap: wrap; gap: 8px; }
   .palette-swatch-item {
-    display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 20px;
-    padding: 3px 8px 3px 3px; font-size: 11px; color: var(--ink-soft);
+    display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 8px;
+    padding: 5px 8px; font-size: 11px; color: var(--ink-soft);
   }
   .palette-swatch-dot { width: 18px; height: 18px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.15); flex-shrink: 0; }
+  .palette-metal-toggle { display: flex; align-items: center; gap: 3px; white-space: nowrap; cursor: pointer; }
+  .palette-metal-toggle input { margin: 0; }
+  .palette-swatch-item:has(.palette-metal-toggle input:checked) { border-color: var(--accent); background: var(--accent-soft); }
   .palette-swatch-del { border: none; background: none; color: var(--warn); font-weight: 700; cursor: pointer; font-size: 13px; padding: 0 2px; }
   .palette-empty-note { font-size: 11.5px; color: var(--ink-soft); }
 
@@ -216,6 +219,10 @@
         <button type="button" class="btn btn-outline" onclick="clearPalette()">全てクリア</button>
       </div>
       <p class="hint" style="margin-top:8px;">色を登録しない場合は、従来通り自動判定(色の近さのみ)で境界を検出します。</p>
+      <p class="hint" style="margin-top:8px;">
+        各色の「凸(金属)にする」にチェックを入れると、その色の部分は仕切りの検出結果に関わらず、そのまま金属色(凸)として表示されます。
+        例えば輪郭線・目鼻・文字などにすでに使われている黒を金属色にしたい場合はこちらを使ってください。
+      </p>
     </div>
 
     <div class="card">
@@ -448,7 +455,7 @@
       if (!materialMask[i]) continue;
       let best = 0, bestDist = Infinity;
       for (let k = 0; k < palette.length; k++) {
-        const d = colorDist(data[i * 4], data[i * 4 + 1], data[i * 4 + 2], palette[k]);
+        const d = colorDist(data[i * 4], data[i * 4 + 1], data[i * 4 + 2], palette[k].rgb);
         if (d < bestDist) { bestDist = d; best = k; }
       }
       labels[i] = best;
@@ -506,6 +513,7 @@
     const thresholdPx = (wallWidthMm * 2) / mmPerPxScaled;
     const rawSuggestions = [];
     palette.forEach(function(color, idx) {
+      if (color.asMetal) return; // 金属色として扱う指定の色は、そもそも塗り分けの対象ではないので印刷提案の判定から除外する
       const colorMask = new Uint8Array(w * h);
       for (let i = 0; i < w * h; i++) colorMask[i] = (labels[i] === idx) ? 1 : 0;
       const comps = findColorRegionsWithMaxThickness(colorMask, w, h);
@@ -513,7 +521,7 @@
         if (comp.count < 5) return; // ノイズは無視
         if (comp.maxThickness < thresholdPx) {
           rawSuggestions.push({
-            colorHex: '#' + color.map(c => c.toString(16).padStart(2, '0')).join(''),
+            colorHex: '#' + color.rgb.map(c => c.toString(16).padStart(2, '0')).join(''),
             cx: comp.cx, cy: comp.cy,
             maxThicknessMm: comp.maxThickness * mmPerPxScaled
           });
@@ -977,7 +985,7 @@
         pickingMode = null;
       } else if (pickingMode === 'palette') {
         // パレット登録はクリックのたびに追加していく(色登録モードを終了するまで継続)
-        paletteColors.push(color);
+        paletteColors.push({ rgb: color, asMetal: false });
         renderPaletteList();
         document.getElementById('statusMsg').textContent = '色を追加しました(' + paletteColors.length + '色)。続けてクリックするか、「色登録モードを終了」を押してください。';
         return; // pickingModeは維持したままにする(継続してクリックできるように)
@@ -1039,12 +1047,14 @@
     const list = document.createElement('div');
     list.className = 'palette-swatch-list';
     paletteColors.forEach(function(c, i) {
-      const hex = '#' + c.map(v => v.toString(16).padStart(2, '0')).join('');
+      const hex = '#' + c.rgb.map(v => v.toString(16).padStart(2, '0')).join('');
       const item = document.createElement('div');
       item.className = 'palette-swatch-item';
       item.innerHTML = '<span class="palette-swatch-dot" style="background:' + hex + ';"></span>'
         + '<span>' + hex + '</span>'
+        + '<label class="palette-metal-toggle"><input type="checkbox"' + (c.asMetal ? ' checked' : '') + '> 凸(金属)にする</label>'
         + '<button type="button" class="palette-swatch-del" title="削除">×</button>';
+      item.querySelector('input[type="checkbox"]').addEventListener('change', function(e) { c.asMetal = e.target.checked; });
       item.querySelector('.palette-swatch-del').addEventListener('click', function() { removePaletteColor(i); });
       list.appendChild(item);
     });
@@ -1428,10 +1438,19 @@
         return;
       }
 
-      const boundary = paletteColors.length
-        ? detectLabelBoundaries(buildPaletteLabelMap(imageData, materialMask, v.workW, v.workH, paletteColors), v.workW, v.workH)
+      const labelMap = paletteColors.length ? buildPaletteLabelMap(imageData, materialMask, v.workW, v.workH, paletteColors) : null;
+      const boundary = labelMap
+        ? detectLabelBoundaries(labelMap, v.workW, v.workH)
         : detectColorBoundaries(imageData, materialMask, v.workW, v.workH, sensitivity);
-      const zone = buildWallZone(boundary, materialMask, v.workW, v.workH, radiusPx);
+      let zone = buildWallZone(boundary, materialMask, v.workW, v.workH, radiusPx);
+
+      // 「凸(金属)にする」指定のある色は、仕切りの検出結果に関わらず、そのままその色の範囲全体を金属色にする
+      if (labelMap) {
+        for (let i = 0; i < v.workW * v.workH; i++) {
+          const label = labelMap[i];
+          if (label >= 0 && paletteColors[label].asMetal) zone[i] = 1;
+        }
+      }
       const zoneCount = zone.reduce((a, x) => a + x, 0);
 
       // パレットを登録している場合のみ、「色入れでは細すぎて再現できない箇所」を判定し、印刷への変更を提案する
