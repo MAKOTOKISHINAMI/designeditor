@@ -116,6 +116,8 @@
   .summary-chip.ok b { color: var(--accent); }
   .report-list { list-style: none; margin: 0; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
   .report-item { display: flex; align-items: center; gap: 12px; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font-size: 12.5px; }
+  .report-item-clickable { cursor: pointer; transition: background 0.15s; }
+  .report-item-clickable:hover { background: var(--line-soft); border-color: var(--accent); }
   .report-item .badge { width: 22px; height: 22px; border-radius: 50%; background: var(--warn); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
   .report-item .desc { flex: 1; }
   .report-item .desc b { color: var(--warn); }
@@ -331,6 +333,22 @@
   let metalColor = null;
   let paletteColors = [];      // デザインで実際に使われている色のリスト([r,g,b]の配列)。登録すると全画素がこの中の最も近い色に丸められる。
   let paletteMode = false;     // trueの間、画像クリックのたびにパレットへ色を追加し続ける
+  let blinkTimer = null;       // 指摘リストをクリックした際の点滅表示の管理用
+
+  // レポートのリスト項目をクリックしたときに、対応するマーカーを一定時間点滅させる。
+  // drawFn(highlightIndex) は、highlightIndexで指定した番号のマーカーだけを強調して描く再描画関数を渡す。
+  function blinkMarker(drawFn, index, canvasEl) {
+    if (blinkTimer) { clearInterval(blinkTimer); blinkTimer = null; }
+    if (canvasEl && canvasEl.scrollIntoView) canvasEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    let on = true, ticks = 0;
+    drawFn(index);
+    blinkTimer = setInterval(function() {
+      on = !on;
+      drawFn(on ? index : null);
+      ticks++;
+      if (ticks >= 7) { clearInterval(blinkTimer); blinkTimer = null; drawFn(null); }
+    }, 260);
+  }
   const VIEW_MAX_DIM = 900;
 
   // ══════════════════════════════════════════════════════════════
@@ -409,6 +427,37 @@
       }
     }
     return restricted;
+  }
+
+  // マスクの中から最大のひとつながりのかたまりだけを残す。
+  // 解析範囲(ROI)を手動指定していない場合のデフォルト動作として使い、
+  // 製品本体から離れた寸法線・カラーコードの文字・トリムマーク(通常は小さく孤立している)を自動的に除外する。
+  function extractLargestComponentMask(mask, w, h) {
+    const visited = new Uint8Array(w * h);
+    let bestSize = 0, bestPixels = null;
+    for (let start = 0; start < w * h; start++) {
+      if (!mask[start] || visited[start]) continue;
+      const compPixels = [];
+      const stack = [start];
+      visited[start] = 1;
+      while (stack.length) {
+        const cur = stack.pop();
+        compPixels.push(cur);
+        const cx = cur % w, cy = (cur / w) | 0;
+        const neigh = [[cx - 1, cy], [cx + 1, cy], [cx, cy - 1], [cx, cy + 1]];
+        for (const [nx, ny] of neigh) {
+          if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+            const nidx = ny * w + nx;
+            if (mask[nidx] && !visited[nidx]) { visited[nidx] = 1; stack.push(nidx); }
+          }
+        }
+      }
+      if (compPixels.length > bestSize) { bestSize = compPixels.length; bestPixels = compPixels; }
+    }
+    if (!bestPixels) return mask; // 何も見つからない場合は元のマスクをそのまま返す
+    const out = new Uint8Array(w * h);
+    for (const idx of bestPixels) out[idx] = 1;
+    return out;
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -692,7 +741,7 @@
       workCanvas: null, workCtx: null, workW: 0, workH: 0, scaleToOriginal: 1,
       axis: 'width', sizeMm: 40,
       methodId: defaultMethod.id, variantId: defaultVariant.id, minWidthMm: defaultVariant.minWidthMm,
-      regions: [], roiMode: false,
+      regions: [], roiMode: false, autoLargestComponent: true,
       result: null
     });
     renderViewList();
@@ -784,8 +833,20 @@
       roiNote.className = 'view-roi-note';
       roiNote.textContent = v.regions.length
         ? ('指定済みの範囲: ' + v.regions.length + '個(この中だけを解析します。金具や指示テキストなど不要な部分は範囲の外に置いてください)')
-        : '範囲を指定しない場合は画像全体が解析対象になります。ドラッグで四角を描くと、その中だけが解析対象になります(複数可)。';
+        : 'ドラッグで四角を描くと、その中だけが解析対象になります(複数可)。';
       roiRow.appendChild(roiNote);
+
+      if (!v.regions.length) {
+        const autoLabel = document.createElement('label');
+        autoLabel.style.cssText = 'display:flex; align-items:center; gap:6px; font-size:11px; color:var(--ink-soft); margin-top:6px; cursor:pointer;';
+        const autoCheckbox = document.createElement('input');
+        autoCheckbox.type = 'checkbox';
+        autoCheckbox.checked = v.autoLargestComponent;
+        autoCheckbox.addEventListener('change', function() { v.autoLargestComponent = autoCheckbox.checked; });
+        autoLabel.appendChild(autoCheckbox);
+        autoLabel.appendChild(document.createTextNode('自動的に一番大きなかたまりだけを解析する(寸法線・カラーコードの文字・トリムマークなどを自動除外)'));
+        roiRow.appendChild(autoLabel);
+      }
       row.appendChild(roiRow);
 
       // ── 実寸 ──
@@ -1244,7 +1305,12 @@
 
           const imageData = v.workCtx.getImageData(0, 0, v.workW, v.workH);
           let mask = buildTargetMask(imageData, v.workW, v.workH, mode, mode === 'resin' ? resinColor : metalColor, tolerance);
-          mask = applyRegionMask(mask, v.workW, v.workH, v.regions);
+          if (v.regions.length) {
+            mask = applyRegionMask(mask, v.workW, v.workH, v.regions);
+          } else if (v.autoLargestComponent) {
+            // 寸法線・カラーコードの文字・トリムマークなど、製品本体から離れた小さな要素を自動的に除外する
+            mask = extractLargestComponentMask(mask, v.workW, v.workH);
+          }
 
           const foregroundCount = mask.reduce((a, val) => a + val, 0);
           if (foregroundCount < 10) {
@@ -1340,7 +1406,7 @@
       canvasWrap.appendChild(canvas);
       card.appendChild(canvasWrap);
 
-      function draw() {
+      function draw(highlightIndex) {
         const ctx = canvas.getContext('2d');
         ctx.drawImage(v.workCanvas, 0, 0);
         if (v.regions.length) {
@@ -1360,14 +1426,21 @@
         }
         ctx.font = 'bold 13px sans-serif';
         v.result.clusters.forEach(function(c, i) {
-          ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#b23b1d'; ctx.lineWidth = 1.5;
-          ctx.beginPath(); ctx.arc(c.cx, c.cy, 9, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-          ctx.fillStyle = '#b23b1d'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          const hi = (i === highlightIndex);
+          ctx.fillStyle = hi ? '#fff200' : '#ffffff';
+          ctx.strokeStyle = hi ? '#ff2d55' : '#b23b1d';
+          ctx.lineWidth = hi ? 3 : 1.5;
+          const radius = hi ? 14 : 9;
+          ctx.beginPath(); ctx.arc(c.cx, c.cy, radius, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = hi ? '#ff2d55' : '#b23b1d';
+          ctx.font = hi ? 'bold 15px sans-serif' : 'bold 13px sans-serif';
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
           ctx.fillText(String(i + 1), c.cx, c.cy + 1);
+          ctx.font = 'bold 13px sans-serif';
         });
       }
-      draw();
-      overlayCheckbox.addEventListener('change', draw);
+      draw(null);
+      overlayCheckbox.addEventListener('change', function() { draw(null); });
 
       const summary = document.createElement('div');
       summary.className = 'summary-bar';
@@ -1392,6 +1465,9 @@
             ? '最小幅 約<b>' + minMm + 'mm</b>(必要:' + v.result.minWidthMm.toFixed(2) + 'mm) — この太さに盛られる、または欠ける可能性があります。'
             : '仕切りの最小幅 約<b>' + minMm + 'mm</b>(必要:' + v.result.minWidthMm.toFixed(2) + 'mm) — 隣接する色が混ざる可能性があります。';
           li.innerHTML = '<span class="badge">' + (i + 1) + '</span><span class="desc">画像上のおよそ(' + xMm + 'mm, ' + yMm + 'mm)付近。' + desc + '</span>';
+          li.classList.add('report-item-clickable');
+          li.title = 'クリックすると図の該当箇所が点滅します';
+          li.addEventListener('click', function() { blinkMarker(draw, i, canvas); });
           list.appendChild(li);
         });
       }
@@ -1431,7 +1507,11 @@
       const imageData = v.workCtx.getImageData(0, 0, v.workW, v.workH);
       // 背景(材料が無い部分)を除いた「材料マスク」。③で背景色を指定していればそれを使う。
       let materialMask = buildTargetMask(imageData, v.workW, v.workH, 'resin', resinColor, parseFloat(document.getElementById('toleranceInput').value));
-      materialMask = applyRegionMask(materialMask, v.workW, v.workH, v.regions);
+      if (v.regions.length) {
+        materialMask = applyRegionMask(materialMask, v.workW, v.workH, v.regions);
+      } else if (v.autoLargestComponent) {
+        materialMask = extractLargestComponentMask(materialMask, v.workW, v.workH);
+      }
 
       if (materialMask.reduce((a, x) => a + x, 0) < 10) {
         v.wallGenResult = { error: '材料部分を検出できませんでした。③の背景色指定や②の解析範囲を見直してください。' };
@@ -1496,7 +1576,7 @@
       canvasWrap.appendChild(canvas);
       card.appendChild(canvasWrap);
 
-      function draw() {
+      function draw(highlightIndex) {
         const ctx = canvas.getContext('2d');
         ctx.drawImage(v.workCanvas, 0, 0);
         if (toggleCb.checked) {
@@ -1519,16 +1599,23 @@
         // 色入れでは細すぎる箇所を、オレンジの破線丸+番号で表示する
         ctx.font = 'bold 13px sans-serif';
         r.thinColorSuggestions.forEach(function(s, i) {
-          ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#e2802e'; ctx.lineWidth = 2;
-          ctx.setLineDash([3, 2]);
-          ctx.beginPath(); ctx.arc(s.cx, s.cy, 10, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          const hi = (i === highlightIndex);
+          ctx.fillStyle = hi ? '#fff200' : '#ffffff';
+          ctx.strokeStyle = hi ? '#ff2d55' : '#e2802e';
+          ctx.lineWidth = hi ? 3 : 2;
+          const radius = hi ? 15 : 10;
+          ctx.setLineDash(hi ? [] : [3, 2]);
+          ctx.beginPath(); ctx.arc(s.cx, s.cy, radius, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
           ctx.setLineDash([]);
-          ctx.fillStyle = '#e2802e'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillStyle = hi ? '#ff2d55' : '#e2802e';
+          ctx.font = hi ? 'bold 15px sans-serif' : 'bold 13px sans-serif';
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
           ctx.fillText('P' + (i + 1), s.cx, s.cy + 1);
+          ctx.font = 'bold 13px sans-serif';
         });
       }
-      draw();
-      toggleCb.addEventListener('change', draw);
+      draw(null);
+      toggleCb.addEventListener('change', function() { draw(null); });
 
       const note = document.createElement('div');
       note.className = 'disclaimer';
@@ -1551,7 +1638,7 @@
           roiHint.className = 'empty-note';
           roiHint.style.padding = '0 0 8px';
           roiHint.style.color = '#1a56db';
-          roiHint.textContent = '⚠️ 指摘が多い場合、寸法線・矢印・文字などの指示部分がデザインとして拾われている可能性があります。②の画像で「解析範囲を指定」を使い、実際のデザイン部分だけを囲ってから再度お試しください。';
+          roiHint.textContent = '⚠️ 指摘が多い場合、寸法線・矢印・文字などの指示部分がデザインとして拾われている可能性があります。②の画像の「自動的に一番大きなかたまりだけを解析する」がオンになっているか確認するか、「解析範囲を指定」で実際のデザイン部分だけを囲ってから再度お試しください。';
           printList.appendChild(roiHint);
         }
         r.thinColorSuggestions.forEach(function(s, i) {
@@ -1567,6 +1654,9 @@
             + '<span class="desc">色 <b>' + s.colorHex + '</b>、画像上のおよそ(' + xMm + 'mm, ' + yMm + 'mm)付近' + countNote + '。'
             + 'この色が使われている箇所は、最大でも' + thicknessNote + 'の太さしかなく、'
             + '指定した仕切り幅(' + r.wallWidthMm.toFixed(2) + 'mm)を両側に確保すると色の面がほぼ残りません。色入れではなく印刷での再現をおすすめします。</span>';
+          li.classList.add('report-item-clickable');
+          li.title = 'クリックすると図の該当箇所が点滅します';
+          li.addEventListener('click', function() { blinkMarker(draw, i, canvas); });
           printList.appendChild(li);
         });
         card.appendChild(printList);
