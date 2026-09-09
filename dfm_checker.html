@@ -511,37 +511,38 @@
     }
     return labels;
   }
-  // ラベルマップを使った境界検出：隣接画素のラベルが違えば境界とする(色距離のしきい値は使わない)
-  function detectLabelBoundaries(labels, w, h) {
-    const boundary = new Uint8Array(w * h);
-    for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
-        const i = y * w + x;
-        if (labels[i] < 0) continue;
-        if (x < w - 1 && labels[i + 1] >= 0 && labels[i + 1] !== labels[i]) { boundary[i] = 1; boundary[i + 1] = 1; }
-        if (y < h - 1 && labels[i + w] >= 0 && labels[i + w] !== labels[i]) { boundary[i] = 1; boundary[i + w] = 1; }
-      }
+  // 各画素について「自分とは違うラベル(=別の色。背景も含む)を持つ最寄りの画素までの距離」を求める。
+  // ラベルの数だけ距離変換を行い、各ラベルLについて「Lではない画素」を前景として求めた距離のうち、
+  // 実際にラベルLである画素の値だけを採用して1枚の距離マップに合成する。
+  // ※ 従来は「境界(隣接画素どうしでラベルが違う場所)」を先に2px幅でマーキングしてから距離変換していたが、
+  //   その境界マーキング自体が2px分の幅を持ってしまうため、生成される仕切りが指定した太さより
+  //   常に太くなってしまう不具合があった(0.5mm指定で実測0.8mmなど)。この関数は境界を経由せず直接
+  //   距離を測るため、2色の間の仕切りの合計幅が指定した太さ(片側0.5mm+反対側0.5mm=1mmではなく、
+  //   ちょうど0.5mm)に一致する。
+  function computeDistToDifferentLabel(labels, w, h, numLabels) {
+    const dist = new Float32Array(w * h).fill(Infinity);
+    for (let L = 0; L < numLabels; L++) {
+      const differentMask = new Uint8Array(w * h);
+      for (let i = 0; i < w * h; i++) differentMask[i] = (labels[i] !== L) ? 1 : 0;
+      const d = chamferDistanceTransform(differentMask, w, h);
+      for (let i = 0; i < w * h; i++) if (labels[i] === L) dist[i] = d[i];
     }
-    return boundary;
+    return dist;
   }
 
-  // 連結成分ごとに「その成分内でいちばん太い場所(=最大caliper径)」を求める。
-  // 色入れ可能かどうかは、細い場所ではなく「その色の面積がそもそも太いブロックとして存在するか」で見るため、
-  // 最大値を使う(全体が細ければmaxThicknessも小さいままになる)。
-  function findColorRegionsWithMaxThickness(mask, w, h) {
-    const distToBg = distToBackground(mask, w, h);
+  // 連結成分ごとに、画素の一覧と重心を返す(色入れ可否の判定で「壁を実際に引いたら何%残るか」を調べるのに使う)
+  function findConnectedComponentsPixels(mask, w, h) {
     const visited = new Uint8Array(w * h);
     const comps = [];
     for (let start = 0; start < w * h; start++) {
       if (!mask[start] || visited[start]) continue;
       const stack = [start]; visited[start] = 1;
-      let count = 0, sumX = 0, sumY = 0, maxThickness = 0, peakX = 0, peakY = 0;
+      const pixels = [];
+      let sumX = 0, sumY = 0;
       while (stack.length) {
-        const cur = stack.pop(); count++;
+        const cur = stack.pop(); pixels.push(cur);
         const cx = cur % w, cy = (cur / w) | 0;
         sumX += cx; sumY += cy;
-        const th = distToBg[cur] * 2;
-        if (th > maxThickness) { maxThickness = th; peakX = cx; peakY = cy; }
         const neigh = [[cx - 1, cy], [cx + 1, cy], [cx, cy - 1], [cx, cy + 1]];
         for (const [nx, ny] of neigh) {
           if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
@@ -550,29 +551,36 @@
           }
         }
       }
-      comps.push({ count, cx: sumX / count, cy: sumY / count, maxThickness, peakX, peakY });
+      comps.push({ pixels, cx: sumX / pixels.length, cy: sumY / pixels.length });
     }
     return comps;
   }
-  // 登録した色ごとに、色入れ(七宝等)での再現に十分な太さがあるかを判定する。
-  // 目安: その色のかたまりの「いちばん太い場所」ですら、仕切り幅の2倍(＝両側の仕切り+わずかな色の面)に
-  // 満たない場合は、色を流し込む加工では再現が難しいとみなし、印刷への変更を提案する。
+
+  // 登録した色ごとに、「実際に指定した太さの仕切りを引いたら、その色の面はどれだけ残るか」を判定する。
+  // ⑥で実際に生成する仕切りゾーン(distToDifferentLabel <= radiusPx)をそのまま使って判定するため、
+  // 「両側に仕切り幅を確保する」といった二重計算にはならない(2色の間の仕切りは常に指定した太さちょうどになる)。
+  // 元の面積のうち残る割合が一定以下(ほぼ塗りつぶされてしまう)の場合だけ、印刷への変更を提案する。
+  const CONSUMED_SURVIVE_RATIO = 0.12; // これ未満しか残らない場合は「実質埋まる」とみなす
   function findThinColorRegions(imageData, materialMask, w, h, palette, mmPerPxScaled, wallWidthMm) {
     const labels = buildPaletteLabelMap(imageData, materialMask, w, h, palette);
-    const thresholdPx = (wallWidthMm * 2) / mmPerPxScaled;
+    const radiusPx = (wallWidthMm / mmPerPxScaled) / 2;
+    const distToDiff = computeDistToDifferentLabel(labels, w, h, palette.length);
     const rawSuggestions = [];
     palette.forEach(function(color, idx) {
       if (color.asMetal) return; // 金属色として扱う指定の色は、そもそも塗り分けの対象ではないので印刷提案の判定から除外する
       const colorMask = new Uint8Array(w * h);
       for (let i = 0; i < w * h; i++) colorMask[i] = (labels[i] === idx) ? 1 : 0;
-      const comps = findColorRegionsWithMaxThickness(colorMask, w, h);
+      const comps = findConnectedComponentsPixels(colorMask, w, h);
       comps.forEach(function(comp) {
-        if (comp.count < 5) return; // ノイズは無視
-        if (comp.maxThickness < thresholdPx) {
+        if (comp.pixels.length < 5) return; // ノイズは無視
+        let survive = 0;
+        for (const idx2 of comp.pixels) if (distToDiff[idx2] > radiusPx) survive++;
+        const surviveRatio = survive / comp.pixels.length;
+        if (surviveRatio < CONSUMED_SURVIVE_RATIO) {
           rawSuggestions.push({
             colorHex: '#' + color.rgb.map(c => c.toString(16).padStart(2, '0')).join(''),
             cx: comp.cx, cy: comp.cy,
-            maxThicknessMm: comp.maxThickness * mmPerPxScaled
+            surviveRatio
           });
         }
       });
@@ -581,10 +589,10 @@
     // 近い場所にある指摘は1つにまとめる(細かすぎる結果を出さないため)。
     const mergeRadiusPx = SUGGESTION_MERGE_MM / mmPerPxScaled;
     const suggestions = mergeNearbySuggestions(rawSuggestions, mergeRadiusPx);
-    return { labels, suggestions };
+    return { labels, distToDiff, suggestions };
   }
   const SUGGESTION_MERGE_MM = 4; // この距離(mm)以内にある指摘どうしは1つにまとめる
-  // 近接する指摘を貪欲法でグルーピングし、代表点(重心)・件数・色の一覧・太さの範囲にまとめる
+  // 近接する指摘を貪欲法でグルーピングし、代表点(重心)・件数・色の一覧にまとめる
   function mergeNearbySuggestions(suggestions, mergeRadiusPx) {
     const clusters = [];
     suggestions.forEach(function(s) {
@@ -603,12 +611,11 @@
     });
     return clusters.map(function(c) {
       const colors = [...new Set(c.items.map(i => i.colorHex))];
-      const thicknesses = c.items.map(i => i.maxThicknessMm);
+      const worstSurviveRatio = Math.min.apply(null, c.items.map(i => i.surviveRatio));
       return {
         cx: c.cx, cy: c.cy, count: c.items.length,
         colorHex: colors.length === 1 ? colors[0] : (colors.length + '色'),
-        minThicknessMm: Math.min.apply(null, thicknesses),
-        maxThicknessMm: Math.max.apply(null, thicknesses)
+        worstSurviveRatio
       };
     });
   }
@@ -742,7 +749,8 @@
       axis: 'width', sizeMm: 40,
       methodId: defaultMethod.id, variantId: defaultVariant.id, minWidthMm: defaultVariant.minWidthMm,
       regions: [], roiMode: false, autoLargestComponent: true,
-      result: null
+      result: null, subViewResults: null,
+      wallGenResult: null, wallGenSubResults: null
     });
     renderViewList();
     updateAnalyzeButtonState();
@@ -831,10 +839,43 @@
       roiRow.appendChild(roiBtnRow);
       const roiNote = document.createElement('p');
       roiNote.className = 'view-roi-note';
-      roiNote.textContent = v.regions.length
-        ? ('指定済みの範囲: ' + v.regions.length + '個(この中だけを解析します。金具や指示テキストなど不要な部分は範囲の外に置いてください)')
-        : 'ドラッグで四角を描くと、その中だけが解析対象になります(複数可)。';
+      if (v.regions.length >= 2) {
+        roiNote.textContent = '2つ以上の範囲があるため、それぞれ別の面(表面/裏面など)として個別に解析・レポートします。名前を編集できます。';
+      } else if (v.regions.length === 1) {
+        roiNote.textContent = '指定済みの範囲: 1個(この中だけを解析します。金具や指示テキストなど不要な部分は範囲の外に置いてください)';
+      } else {
+        roiNote.textContent = 'ドラッグで四角を描くと、その中だけが解析対象になります。2個以上描くと、それぞれ別の面として個別に解析されます(表面/裏面や6面図など)。';
+      }
       roiRow.appendChild(roiNote);
+
+      if (v.regions.length >= 2) {
+        const regionListEl = document.createElement('div');
+        regionListEl.style.cssText = 'display:flex; flex-direction:column; gap:6px; margin-top:6px;';
+        v.regions.forEach(function(r, ri) {
+          const regRow = document.createElement('div');
+          regRow.style.cssText = 'display:flex; align-items:center; gap:6px;';
+          const swatchNum = document.createElement('span');
+          swatchNum.style.cssText = 'font-size:11px; color:var(--roi); font-weight:700; flex-shrink:0;';
+          swatchNum.textContent = '□' + (ri + 1);
+          const labelInput = document.createElement('input');
+          labelInput.type = 'text';
+          labelInput.value = r.label || ('面' + (ri + 1));
+          labelInput.placeholder = '面の名前(例: 表面)';
+          labelInput.style.cssText = 'flex:1; padding:5px 8px; font-size:12px;';
+          labelInput.addEventListener('input', function() { r.label = labelInput.value; });
+          const delRegBtn = document.createElement('button');
+          delRegBtn.type = 'button';
+          delRegBtn.className = 'view-del-btn';
+          delRegBtn.style.cssText = 'width:26px; height:26px; font-size:12px;';
+          delRegBtn.textContent = '×';
+          delRegBtn.addEventListener('click', function() { v.regions.splice(ri, 1); renderViewList(); });
+          regRow.appendChild(swatchNum);
+          regRow.appendChild(labelInput);
+          regRow.appendChild(delRegBtn);
+          regionListEl.appendChild(regRow);
+        });
+        roiRow.appendChild(regionListEl);
+      }
 
       if (!v.regions.length) {
         const autoLabel = document.createElement('label');
@@ -969,9 +1010,18 @@
     ctx.lineWidth = 2;
     ctx.setLineDash([5, 4]);
     ctx.fillStyle = 'rgba(26,86,219,0.08)';
-    v.regions.forEach(function(r) {
+    v.regions.forEach(function(r, ri) {
       ctx.fillRect(r.x, r.y, r.w, r.h);
       ctx.strokeRect(r.x, r.y, r.w, r.h);
+      if (v.regions.length >= 2) {
+        ctx.save();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#1a56db';
+        ctx.font = 'bold 14px sans-serif';
+        ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+        ctx.fillText('□' + (ri + 1), r.x + 4, r.y + 4);
+        ctx.restore();
+      }
     });
     if (draftRect) {
       ctx.strokeStyle = '#e2802e';
@@ -1018,6 +1068,10 @@
         };
         if (rect.w > 4 && rect.h > 4) {
           v.regions.push(rect);
+          if (v.regions.length >= 2) {
+            // 2個目以降が追加された時点で「複数面モード」とみなし、まだ無名の領域にもデフォルトラベルを振る
+            v.regions.forEach(function(r, idx) { if (!r.label) r.label = '面' + (idx + 1); });
+          }
           renderViewList();
         } else {
           drawViewPreview(v, canvas, null);
@@ -1292,6 +1346,7 @@
         targets.forEach(function(v) {
           const variant = getVariant(v.methodId, v.variantId);
           const method = getMethod(v.methodId);
+          v.result = null; v.subViewResults = null;
           if (!variant || !method) { v.result = { error: '製法が選択されていません。' }; return; }
           if (!isFinite(v.sizeMm) || v.sizeMm <= 0) { v.result = { error: '実寸(mm)を正しく入力してください。' }; return; }
           if (!isFinite(v.minWidthMm) || v.minWidthMm <= 0) { v.result = { error: '最小再現幅(mm)を正しく入力してください。' }; return; }
@@ -1302,41 +1357,58 @@
           const axisPx = v.axis === 'height' ? v.img.naturalHeight : v.img.naturalWidth;
           const mmPerPxScaled = (v.sizeMm / axisPx) / v.scaleToOriginal;
           const minWidthWorkPx = v.minWidthMm / mmPerPxScaled;
-
           const imageData = v.workCtx.getImageData(0, 0, v.workW, v.workH);
-          let mask = buildTargetMask(imageData, v.workW, v.workH, mode, mode === 'resin' ? resinColor : metalColor, tolerance);
-          if (v.regions.length) {
-            mask = applyRegionMask(mask, v.workW, v.workH, v.regions);
-          } else if (v.autoLargestComponent) {
-            // 寸法線・カラーコードの文字・トリムマークなど、製品本体から離れた小さな要素を自動的に除外する
-            mask = extractLargestComponentMask(mask, v.workW, v.workH);
+
+          // 1つの範囲(またはマスク)を解析して結果オブジェクトを返す共通処理
+          function analyzeRegionMask(mask) {
+            const foregroundCount = mask.reduce((a, val) => a + val, 0);
+            if (foregroundCount < 10) {
+              return { error: mode === 'resin'
+                ? '指定範囲内で対象となる材料部分を検出できませんでした。背景色の指定や範囲を見直してください。'
+                : '指定範囲内で仕切り色に近い画素がほとんど見つかりませんでした。仕切り線の色や範囲を見直してください。' };
+            }
+            const thickness = new Float32Array(v.workW * v.workH);
+            const { violation, distToBg } = detectThinRegions(mask, v.workW, v.workH, minWidthWorkPx / 2);
+            for (let i = 0; i < v.workW * v.workH; i++) thickness[i] = distToBg[i] * 2;
+            const clusters = clusterViolations(violation, thickness, v.workW, v.workH);
+            return {
+              flag: violation, thickness, clusters, mode, minWidthMm: v.minWidthMm, mmPerPxScaled,
+              methodName: method.name, variantLabel: variant.label, error: null
+            };
           }
 
-          const foregroundCount = mask.reduce((a, val) => a + val, 0);
-          if (foregroundCount < 10) {
-            v.result = { error: mode === 'resin'
-              ? '指定範囲内で対象となる材料部分を検出できませんでした。背景色の指定や範囲を見直してください。'
-              : '指定範囲内で仕切り色に近い画素がほとんど見つかりませんでした。仕切り線の色や範囲を見直してください。' };
-            return;
+          const baseMask = buildTargetMask(imageData, v.workW, v.workH, mode, mode === 'resin' ? resinColor : metalColor, tolerance);
+
+          if (v.regions.length >= 2) {
+            // 1枚の画像に表面・裏面や6面図など複数の面が含まれている場合：範囲ごとに個別に解析・レポートする
+            v.subViewResults = v.regions.map(function(r, ri) {
+              const mask = applyRegionMask(baseMask, v.workW, v.workH, [r]);
+              const result = analyzeRegionMask(mask);
+              return { label: r.label || ('面' + (ri + 1)), region: r, result };
+            });
+          } else {
+            let mask = baseMask;
+            if (v.regions.length === 1) {
+              mask = applyRegionMask(mask, v.workW, v.workH, v.regions);
+            } else if (v.autoLargestComponent) {
+              // 寸法線・カラーコードの文字・トリムマークなど、製品本体から離れた小さな要素を自動的に除外する
+              mask = extractLargestComponentMask(mask, v.workW, v.workH);
+            }
+            v.result = analyzeRegionMask(mask);
           }
-
-          const thickness = new Float32Array(v.workW * v.workH);
-          const { violation, distToBg } = detectThinRegions(mask, v.workW, v.workH, minWidthWorkPx / 2);
-          for (let i = 0; i < v.workW * v.workH; i++) thickness[i] = distToBg[i] * 2;
-          const clusters = clusterViolations(violation, thickness, v.workW, v.workH);
-
-          v.result = {
-            flag: violation, thickness, clusters, mode, minWidthMm: v.minWidthMm, mmPerPxScaled,
-            methodName: method.name, variantLabel: variant.label, error: null
-          };
         });
 
         renderResults();
-        const errCount = targets.filter(v => v.result && v.result.error).length;
+        const allDone = [];
+        targets.forEach(function(v) {
+          if (v.subViewResults) v.subViewResults.forEach(sv => allDone.push(sv.result));
+          else if (v.result) allDone.push(v.result);
+        });
+        const errCount = allDone.filter(r => r.error).length;
         statusEl.className = errCount ? 'status err' : 'status ok';
         statusEl.textContent = errCount
-          ? '⚠️ ' + errCount + '件のアングルでエラーが発生しました(詳細は各カードをご確認ください)。'
-          : '✅ ' + targets.length + '枚のアングルを解析しました。';
+          ? '⚠️ ' + errCount + '件の面でエラーが発生しました(詳細は各カードをご確認ください)。'
+          : '✅ ' + allDone.length + '面を解析しました。';
       } catch (err) {
         console.error(err);
         statusEl.className = 'status err';
@@ -1350,128 +1422,151 @@
   // ══════════════════════════════════════════════════════════════
   //  結果表示
   // ══════════════════════════════════════════════════════════════
+  // 1件の解析結果(v.result、またはv.subViewResultsの1要素)を1枚のカードとして描画する共通処理。
+  // outlineRegions: そのカードのキャンバスに青い破線で表示する範囲(単一面ならv.regions、複数面なら該当する1つの範囲のみ)
+  function buildResultCard(v, cardLabel, result, outlineRegions) {
+    const card = document.createElement('div');
+    card.className = 'card result-card';
+
+    if (result.error) {
+      card.innerHTML = '<div class="result-toolbar"><span>' + cardLabel + '</span></div><div class="empty-note">⚠️ ' + result.error + '</div>';
+      return card;
+    }
+
+    const toolbar = document.createElement('div');
+    toolbar.className = 'result-toolbar';
+    toolbar.innerHTML = '<span>' + cardLabel + '（' + result.methodName + ' / ' + result.variantLabel + '）</span>'
+      + '<label><input type="checkbox" checked> 問題箇所を赤で表示</label>';
+    const overlayCheckbox = toolbar.querySelector('input[type="checkbox"]');
+    card.appendChild(toolbar);
+
+    const canvasWrap = document.createElement('div');
+    canvasWrap.className = 'result-canvas-wrap';
+    const canvas = document.createElement('canvas');
+    canvas.className = 'result-canvas';
+    canvas.width = v.workW; canvas.height = v.workH;
+    canvasWrap.appendChild(canvas);
+    card.appendChild(canvasWrap);
+
+    function draw(highlightIndex) {
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(v.workCanvas, 0, 0);
+      if (outlineRegions && outlineRegions.length) {
+        ctx.save();
+        ctx.strokeStyle = '#1a56db'; ctx.setLineDash([5, 4]); ctx.lineWidth = 1.5;
+        outlineRegions.forEach(r => ctx.strokeRect(r.x, r.y, r.w, r.h));
+        ctx.restore();
+      }
+      const showOverlay = overlayCheckbox.checked;
+      if (showOverlay) {
+        const overlay = ctx.getImageData(0, 0, v.workW, v.workH);
+        const data = overlay.data;
+        for (let i = 0; i < v.workW * v.workH; i++) {
+          if (result.flag[i]) { data[i * 4] = 226; data[i * 4 + 1] = 46; data[i * 4 + 2] = 46; data[i * 4 + 3] = 235; }
+        }
+        ctx.putImageData(overlay, 0, 0);
+      }
+      ctx.font = 'bold 13px sans-serif';
+      result.clusters.forEach(function(c, i) {
+        const hi = (i === highlightIndex);
+        ctx.fillStyle = hi ? '#fff200' : '#ffffff';
+        ctx.strokeStyle = hi ? '#ff2d55' : '#b23b1d';
+        ctx.lineWidth = hi ? 3 : 1.5;
+        const radius = hi ? 14 : 9;
+        ctx.beginPath(); ctx.arc(c.cx, c.cy, radius, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = hi ? '#ff2d55' : '#b23b1d';
+        ctx.font = hi ? 'bold 15px sans-serif' : 'bold 13px sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(String(i + 1), c.cx, c.cy + 1);
+        ctx.font = 'bold 13px sans-serif';
+      });
+    }
+    draw(null);
+    overlayCheckbox.addEventListener('change', function() { draw(null); });
+
+    const summary = document.createElement('div');
+    summary.className = 'summary-bar';
+    const okCount = result.clusters.length === 0;
+    summary.innerHTML =
+      '<div class="summary-chip ' + (okCount ? 'ok' : 'warn') + '"><b>' + result.clusters.length + '件</b>最小幅未満の箇所</div>'
+      + '<div class="summary-chip"><b>' + result.minWidthMm.toFixed(2) + 'mm</b>設定した最小再現幅</div>';
+    card.appendChild(summary);
+
+    const list = document.createElement('ul');
+    list.className = 'report-list';
+    if (!result.clusters.length) {
+      list.innerHTML = '<li class="empty-note">✅ 指定した最小幅を下回る箇所は見つかりませんでした。</li>';
+    } else {
+      result.clusters.forEach(function(c, i) {
+        const li = document.createElement('li');
+        li.className = 'report-item';
+        const xMm = (c.cx * result.mmPerPxScaled).toFixed(1);
+        const yMm = (c.cy * result.mmPerPxScaled).toFixed(1);
+        const minMm = (c.minThickness * result.mmPerPxScaled).toFixed(2);
+        const desc = result.mode === 'resin'
+          ? '最小幅 約<b>' + minMm + 'mm</b>(必要:' + result.minWidthMm.toFixed(2) + 'mm) — この太さに盛られる、または欠ける可能性があります。'
+          : '仕切りの最小幅 約<b>' + minMm + 'mm</b>(必要:' + result.minWidthMm.toFixed(2) + 'mm) — 隣接する色が混ざる可能性があります。';
+        li.innerHTML = '<span class="badge">' + (i + 1) + '</span><span class="desc">画像上のおよそ(' + xMm + 'mm, ' + yMm + 'mm)付近。' + desc + '</span>';
+        li.classList.add('report-item-clickable');
+        li.title = 'クリックすると図の該当箇所が点滅します';
+        li.addEventListener('click', function() { blinkMarker(draw, i, canvas); });
+        list.appendChild(li);
+      });
+    }
+    card.appendChild(list);
+    return card;
+  }
+
   function renderResults() {
     const area = document.getElementById('resultsArea');
     const overallWrap = document.getElementById('overallSummaryWrap');
-    const withResult = views.filter(v => v.img && v.result && !v.result.error);
+    // 集計用：単一結果(v.result)と、複数面(v.subViewResults)のすべてのエラーなし結果をまとめて数える
+    const allResults = [];
+    views.filter(v => v.img).forEach(function(v) {
+      if (v.subViewResults) v.subViewResults.forEach(sv => allResults.push(sv.result));
+      else if (v.result) allResults.push(v.result);
+    });
+    const withResult = allResults.filter(r => !r.error);
 
     if (!views.some(v => v.img)) {
       area.innerHTML = '<div class="card empty-note">まだ解析していません。②で画像を読み込み、「解析する」を押してください。</div>';
       overallWrap.style.display = 'none';
       return;
     }
-    if (!views.some(v => v.result)) {
+    if (!allResults.length) {
       area.innerHTML = '<div class="card empty-note">画像を読み込みました。「解析する」を押してください。</div>';
       overallWrap.style.display = 'none';
       return;
     }
 
     if (withResult.length) {
-      const totalViolations = withResult.reduce((a, v) => a + v.result.clusters.length, 0);
+      const totalViolations = withResult.reduce((a, r) => a + r.clusters.length, 0);
       overallWrap.style.display = 'block';
       document.getElementById('overallSummary').innerHTML =
         '<div class="summary-chip ' + (totalViolations ? 'warn' : 'ok') + '"><b>' + totalViolations + '件</b>全アングル合計の指摘数</div>'
-        + '<div class="summary-chip"><b>' + withResult.length + '枚</b>解析したアングル数</div>';
+        + '<div class="summary-chip"><b>' + withResult.length + '面</b>解析した面の数</div>';
     } else {
       overallWrap.style.display = 'none';
     }
 
     area.innerHTML = '';
     views.filter(v => v.img).forEach(function(v) {
-      const card = document.createElement('div');
-      card.className = 'card result-card';
-
+      if (v.subViewResults) {
+        // 1枚の画像に複数の面(表面/裏面や6面図など)が含まれている場合：面ごとに個別のカードを並べる
+        v.subViewResults.forEach(function(sv) {
+          const card = buildResultCard(v, v.label + '（' + sv.label + '）', sv.result, [sv.region]);
+          area.appendChild(card);
+        });
+        return;
+      }
       if (!v.result) {
+        const card = document.createElement('div');
+        card.className = 'card result-card';
         card.innerHTML = '<div class="empty-note">「' + v.label + '」はまだ解析されていません。</div>';
-        area.appendChild(card); return;
+        area.appendChild(card);
+        return;
       }
-      if (v.result.error) {
-        card.innerHTML = '<div class="result-toolbar"><span>' + v.label + '</span></div><div class="empty-note">⚠️ ' + v.result.error + '</div>';
-        area.appendChild(card); return;
-      }
-
-      const toolbar = document.createElement('div');
-      toolbar.className = 'result-toolbar';
-      const toggleId = 'overlay_' + v.id;
-      toolbar.innerHTML = '<span>' + v.label + '（' + v.result.methodName + ' / ' + v.result.variantLabel + '）</span>'
-        + '<label><input type="checkbox" id="' + toggleId + '" checked> 問題箇所を赤で表示</label>';
-      const overlayCheckbox = toolbar.querySelector('input[type="checkbox"]'); // ← カードがまだdocumentに無い時点でも取得できる直接参照
-      card.appendChild(toolbar);
-
-      const canvasWrap = document.createElement('div');
-      canvasWrap.className = 'result-canvas-wrap';
-      const canvas = document.createElement('canvas');
-      canvas.className = 'result-canvas';
-      canvas.width = v.workW; canvas.height = v.workH;
-      canvasWrap.appendChild(canvas);
-      card.appendChild(canvasWrap);
-
-      function draw(highlightIndex) {
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(v.workCanvas, 0, 0);
-        if (v.regions.length) {
-          ctx.save();
-          ctx.strokeStyle = '#1a56db'; ctx.setLineDash([5, 4]); ctx.lineWidth = 1.5;
-          v.regions.forEach(r => ctx.strokeRect(r.x, r.y, r.w, r.h));
-          ctx.restore();
-        }
-        const showOverlay = overlayCheckbox.checked;
-        if (showOverlay) {
-          const overlay = ctx.getImageData(0, 0, v.workW, v.workH);
-          const data = overlay.data;
-          for (let i = 0; i < v.workW * v.workH; i++) {
-            if (v.result.flag[i]) { data[i * 4] = 226; data[i * 4 + 1] = 46; data[i * 4 + 2] = 46; data[i * 4 + 3] = 235; }
-          }
-          ctx.putImageData(overlay, 0, 0);
-        }
-        ctx.font = 'bold 13px sans-serif';
-        v.result.clusters.forEach(function(c, i) {
-          const hi = (i === highlightIndex);
-          ctx.fillStyle = hi ? '#fff200' : '#ffffff';
-          ctx.strokeStyle = hi ? '#ff2d55' : '#b23b1d';
-          ctx.lineWidth = hi ? 3 : 1.5;
-          const radius = hi ? 14 : 9;
-          ctx.beginPath(); ctx.arc(c.cx, c.cy, radius, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-          ctx.fillStyle = hi ? '#ff2d55' : '#b23b1d';
-          ctx.font = hi ? 'bold 15px sans-serif' : 'bold 13px sans-serif';
-          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          ctx.fillText(String(i + 1), c.cx, c.cy + 1);
-          ctx.font = 'bold 13px sans-serif';
-        });
-      }
-      draw(null);
-      overlayCheckbox.addEventListener('change', function() { draw(null); });
-
-      const summary = document.createElement('div');
-      summary.className = 'summary-bar';
-      const okCount = v.result.clusters.length === 0;
-      summary.innerHTML =
-        '<div class="summary-chip ' + (okCount ? 'ok' : 'warn') + '"><b>' + v.result.clusters.length + '件</b>最小幅未満の箇所</div>'
-        + '<div class="summary-chip"><b>' + v.result.minWidthMm.toFixed(2) + 'mm</b>設定した最小再現幅</div>';
-      card.appendChild(summary);
-
-      const list = document.createElement('ul');
-      list.className = 'report-list';
-      if (!v.result.clusters.length) {
-        list.innerHTML = '<li class="empty-note">✅ 指定した最小幅を下回る箇所は見つかりませんでした。</li>';
-      } else {
-        v.result.clusters.forEach(function(c, i) {
-          const li = document.createElement('li');
-          li.className = 'report-item';
-          const xMm = (c.cx * v.result.mmPerPxScaled).toFixed(1);
-          const yMm = (c.cy * v.result.mmPerPxScaled).toFixed(1);
-          const minMm = (c.minThickness * v.result.mmPerPxScaled).toFixed(2);
-          const desc = v.result.mode === 'resin'
-            ? '最小幅 約<b>' + minMm + 'mm</b>(必要:' + v.result.minWidthMm.toFixed(2) + 'mm) — この太さに盛られる、または欠ける可能性があります。'
-            : '仕切りの最小幅 約<b>' + minMm + 'mm</b>(必要:' + v.result.minWidthMm.toFixed(2) + 'mm) — 隣接する色が混ざる可能性があります。';
-          li.innerHTML = '<span class="badge">' + (i + 1) + '</span><span class="desc">画像上のおよそ(' + xMm + 'mm, ' + yMm + 'mm)付近。' + desc + '</span>';
-          li.classList.add('report-item-clickable');
-          li.title = 'クリックすると図の該当箇所が点滅します';
-          li.addEventListener('click', function() { blinkMarker(draw, i, canvas); });
-          list.appendChild(li);
-        });
-      }
-      card.appendChild(list);
+      const card = buildResultCard(v, v.label, v.result, v.regions);
       area.appendChild(card);
     });
   }
@@ -1500,173 +1595,199 @@
     const sensitivity = parseFloat(document.getElementById('wallGenSensitivity').value);
 
     targets.forEach(function(v) {
+      v.wallGenResult = null; v.wallGenSubResults = null;
       const axisPx = v.axis === 'height' ? v.img.naturalHeight : v.img.naturalWidth;
       const mmPerPxScaled = (v.sizeMm / axisPx) / v.scaleToOriginal;
       const radiusPx = (wallWidthMm / mmPerPxScaled) / 2;
-
       const imageData = v.workCtx.getImageData(0, 0, v.workW, v.workH);
-      // 背景(材料が無い部分)を除いた「材料マスク」。③で背景色を指定していればそれを使う。
-      let materialMask = buildTargetMask(imageData, v.workW, v.workH, 'resin', resinColor, parseFloat(document.getElementById('toleranceInput').value));
-      if (v.regions.length) {
-        materialMask = applyRegionMask(materialMask, v.workW, v.workH, v.regions);
-      } else if (v.autoLargestComponent) {
-        materialMask = extractLargestComponentMask(materialMask, v.workW, v.workH);
-      }
+      const tolerance = parseFloat(document.getElementById('toleranceInput').value);
+      const baseMaterialMask = buildTargetMask(imageData, v.workW, v.workH, 'resin', resinColor, tolerance);
 
-      if (materialMask.reduce((a, x) => a + x, 0) < 10) {
-        v.wallGenResult = { error: '材料部分を検出できませんでした。③の背景色指定や②の解析範囲を見直してください。' };
-        return;
-      }
-
-      const labelMap = paletteColors.length ? buildPaletteLabelMap(imageData, materialMask, v.workW, v.workH, paletteColors) : null;
-      const boundary = labelMap
-        ? detectLabelBoundaries(labelMap, v.workW, v.workH)
-        : detectColorBoundaries(imageData, materialMask, v.workW, v.workH, sensitivity);
-      let zone = buildWallZone(boundary, materialMask, v.workW, v.workH, radiusPx);
-
-      // 「凸(金属)にする」指定のある色は、仕切りの検出結果に関わらず、そのままその色の範囲全体を金属色にする
-      if (labelMap) {
-        for (let i = 0; i < v.workW * v.workH; i++) {
-          const label = labelMap[i];
-          if (label >= 0 && paletteColors[label].asMetal) zone[i] = 1;
+      // 1つの範囲(材料マスク)を解析して結果オブジェクトを返す共通処理
+      function analyzeWallGenMask(materialMask) {
+        if (materialMask.reduce((a, x) => a + x, 0) < 10) {
+          return { error: '材料部分を検出できませんでした。③の背景色指定や②の解析範囲を見直してください。' };
         }
+        const labelMap = paletteColors.length ? buildPaletteLabelMap(imageData, materialMask, v.workW, v.workH, paletteColors) : null;
+        let zone;
+        if (labelMap) {
+          // パレット登録時は、境界を経由せず直接「違うラベルまでの距離」を測ることで、
+          // 2色の間の仕切りの合計幅がちょうど指定した太さ(wallWidthMm)になるようにする。
+          const distToDiff = computeDistToDifferentLabel(labelMap, v.workW, v.workH, paletteColors.length);
+          zone = new Uint8Array(v.workW * v.workH);
+          for (let i = 0; i < v.workW * v.workH; i++) zone[i] = (materialMask[i] && distToDiff[i] <= radiusPx) ? 1 : 0;
+        } else {
+          const boundary = detectColorBoundaries(imageData, materialMask, v.workW, v.workH, sensitivity);
+          zone = buildWallZone(boundary, materialMask, v.workW, v.workH, radiusPx);
+        }
+        // 「凸(金属)にする」指定のある色は、仕切りの検出結果に関わらず、そのままその色の範囲全体を金属色にする
+        if (labelMap) {
+          for (let i = 0; i < v.workW * v.workH; i++) {
+            const label = labelMap[i];
+            if (label >= 0 && paletteColors[label].asMetal) zone[i] = 1;
+          }
+        }
+        const zoneCount = zone.reduce((a, x) => a + x, 0);
+        // パレットを登録している場合のみ、「色入れでは細すぎて再現できない箇所」を判定し、印刷への変更を提案する
+        let thinColorSuggestions = [];
+        if (paletteColors.length) {
+          thinColorSuggestions = findThinColorRegions(imageData, materialMask, v.workW, v.workH, paletteColors, mmPerPxScaled, wallWidthMm).suggestions;
+        }
+        return { zone, direction, wallColorRgb, wallWidthMm, zoneCount, thinColorSuggestions, mmPerPxScaled, error: null };
       }
-      const zoneCount = zone.reduce((a, x) => a + x, 0);
 
-      // パレットを登録している場合のみ、「色入れでは細すぎて再現できない箇所」を判定し、印刷への変更を提案する
-      let thinColorSuggestions = [];
-      if (paletteColors.length) {
-        thinColorSuggestions = findThinColorRegions(imageData, materialMask, v.workW, v.workH, paletteColors, mmPerPxScaled, wallWidthMm).suggestions;
+      if (v.regions.length >= 2) {
+        // 1枚の画像に表面・裏面や6面図など複数の面が含まれている場合：範囲ごとに個別に生成・レポートする
+        v.wallGenSubResults = v.regions.map(function(r, ri) {
+          const materialMask = applyRegionMask(baseMaterialMask, v.workW, v.workH, [r]);
+          const result = analyzeWallGenMask(materialMask);
+          return { label: r.label || ('面' + (ri + 1)), region: r, result };
+        });
+      } else {
+        let materialMask = baseMaterialMask;
+        if (v.regions.length === 1) {
+          materialMask = applyRegionMask(materialMask, v.workW, v.workH, v.regions);
+        } else if (v.autoLargestComponent) {
+          materialMask = extractLargestComponentMask(materialMask, v.workW, v.workH);
+        }
+        v.wallGenResult = analyzeWallGenMask(materialMask);
       }
-
-      v.wallGenResult = { zone, direction, wallColorRgb, wallWidthMm, zoneCount, thinColorSuggestions, mmPerPxScaled, error: null };
     });
 
     renderWallGenResults();
   }
 
+  // 1件の仕切り線プレビュー結果を1枚のカードとして描画する共通処理
+  function buildWallGenCard(v, cardLabel, r) {
+    const card = document.createElement('div');
+    card.className = 'card result-card';
+
+    if (r.error) {
+      card.innerHTML = '<div class="result-toolbar"><span>' + cardLabel + '(仕切り線プレビュー)</span></div><div class="empty-note">⚠️ ' + r.error + '</div>';
+      return card;
+    }
+
+    const toolbar = document.createElement('div');
+    toolbar.className = 'result-toolbar';
+    toolbar.innerHTML = '<span>' + cardLabel + '(仕切り線プレビュー・' + (r.direction === 'convex' ? '凸' : '凹') + '・' + r.wallWidthMm.toFixed(2) + 'mm)</span>'
+      + '<label><input type="checkbox" checked> 仕切りを表示</label>';
+    const toggleCb = toolbar.querySelector('input[type="checkbox"]');
+    card.appendChild(toolbar);
+
+    const canvasWrap = document.createElement('div');
+    canvasWrap.className = 'result-canvas-wrap';
+    const canvas = document.createElement('canvas');
+    canvas.className = 'result-canvas';
+    canvas.width = v.workW; canvas.height = v.workH;
+    canvasWrap.appendChild(canvas);
+    card.appendChild(canvasWrap);
+
+    function draw(highlightIndex) {
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(v.workCanvas, 0, 0);
+      if (toggleCb.checked) {
+        const img = ctx.getImageData(0, 0, v.workW, v.workH);
+        const data = img.data;
+        for (let i = 0; i < v.workW * v.workH; i++) {
+          if (!r.zone[i]) continue;
+          if (r.direction === 'convex') {
+            // 凸(金属の色がそのまま乗る)：不透明の金属色で塗りつぶす
+            data[i * 4] = r.wallColorRgb[0]; data[i * 4 + 1] = r.wallColorRgb[1]; data[i * 4 + 2] = r.wallColorRgb[2]; data[i * 4 + 3] = 255;
+          } else {
+            // 凹(色は変わらず溝ができるだけ)：元の色を少し暗くして「くぼみ」を表現する
+            data[i * 4] = Math.round(data[i * 4] * 0.62);
+            data[i * 4 + 1] = Math.round(data[i * 4 + 1] * 0.62);
+            data[i * 4 + 2] = Math.round(data[i * 4 + 2] * 0.62);
+          }
+        }
+        ctx.putImageData(img, 0, 0);
+      }
+      // 色入れでは細すぎる箇所を、オレンジの破線丸+番号で表示する
+      ctx.font = 'bold 13px sans-serif';
+      r.thinColorSuggestions.forEach(function(s, i) {
+        const hi = (i === highlightIndex);
+        ctx.fillStyle = hi ? '#fff200' : '#ffffff';
+        ctx.strokeStyle = hi ? '#ff2d55' : '#e2802e';
+        ctx.lineWidth = hi ? 3 : 2;
+        const radius = hi ? 15 : 10;
+        ctx.setLineDash(hi ? [] : [3, 2]);
+        ctx.beginPath(); ctx.arc(s.cx, s.cy, radius, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = hi ? '#ff2d55' : '#e2802e';
+        ctx.font = hi ? 'bold 15px sans-serif' : 'bold 13px sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('P' + (i + 1), s.cx, s.cy + 1);
+        ctx.font = 'bold 13px sans-serif';
+      });
+    }
+    draw(null);
+    toggleCb.addEventListener('change', function() { draw(null); });
+
+    const note = document.createElement('div');
+    note.className = 'disclaimer';
+    note.style.borderTop = 'none';
+    note.textContent = r.direction === 'convex'
+      ? 'グレーに塗られた部分が、実物では指定した金属色の凸(仕切り)になります。'
+      : '暗く表示されている部分は色が変わるわけではなく、実物ではその位置が凹んだ溝になることを示しています(表示上の色は説明のための表現です)。';
+    card.appendChild(note);
+
+    if (r.thinColorSuggestions.length) {
+      const printList = document.createElement('ul');
+      printList.className = 'report-list';
+      const header = document.createElement('li');
+      header.className = 'empty-note';
+      header.style.padding = '0 0 4px';
+      header.innerHTML = '🖨️ <b>色入れでの再現が難しい箇所(印刷への変更を検討してください)</b>';
+      printList.appendChild(header);
+      if (r.thinColorSuggestions.length >= 6) {
+        const roiHint = document.createElement('li');
+        roiHint.className = 'empty-note';
+        roiHint.style.padding = '0 0 8px';
+        roiHint.style.color = '#1a56db';
+        roiHint.textContent = '⚠️ 指摘が多い場合、寸法線・矢印・文字などの指示部分がデザインとして拾われている可能性があります。②の画像の「自動的に一番大きなかたまりだけを解析する」がオンになっているか確認するか、「解析範囲を指定」で実際のデザイン部分だけを囲ってから再度お試しください。';
+        printList.appendChild(roiHint);
+      }
+      r.thinColorSuggestions.forEach(function(s, i) {
+        const li = document.createElement('li');
+        li.className = 'report-item';
+        const xMm = (s.cx * r.mmPerPxScaled).toFixed(1);
+        const yMm = (s.cy * r.mmPerPxScaled).toFixed(1);
+        const countNote = s.count > 1 ? '(近接する' + s.count + '箇所をまとめて表示)' : '';
+        const survivePct = Math.round(s.worstSurviveRatio * 100);
+        li.innerHTML = '<span class="badge" style="background:#e2802e;">P' + (i + 1) + '</span>'
+          + '<span class="desc">色 <b>' + s.colorHex + '</b>、画像上のおよそ(' + xMm + 'mm, ' + yMm + 'mm)付近' + countNote + '。'
+          + '指定した仕切り幅(' + r.wallWidthMm.toFixed(2) + 'mm)を実際に生成すると、この色の面は約<b>' + survivePct + '%</b>しか残りません。色入れではなく印刷での再現をおすすめします。</span>';
+        li.classList.add('report-item-clickable');
+        li.title = 'クリックすると図の該当箇所が点滅します';
+        li.addEventListener('click', function() { blinkMarker(draw, i, canvas); });
+        printList.appendChild(li);
+      });
+      card.appendChild(printList);
+    } else if (paletteColors.length) {
+      const okNote = document.createElement('div');
+      okNote.className = 'empty-note';
+      okNote.textContent = '✅ 登録した色はすべて、色入れでの再現に十分な太さがありました。';
+      card.appendChild(okNote);
+    }
+
+    return card;
+  }
+
   function renderWallGenResults() {
     const area = document.getElementById('wallGenResultsArea');
     area.innerHTML = '';
-    const targets = views.filter(v => v.img && v.wallGenResult);
+    const targets = views.filter(v => v.img && (v.wallGenResult || v.wallGenSubResults));
     if (!targets.length) return;
 
     targets.forEach(function(v) {
-      const card = document.createElement('div');
-      card.className = 'card result-card';
-
-      if (v.wallGenResult.error) {
-        card.innerHTML = '<div class="result-toolbar"><span>' + v.label + '(仕切り線プレビュー)</span></div><div class="empty-note">⚠️ ' + v.wallGenResult.error + '</div>';
-        area.appendChild(card); return;
-      }
-
-      const r = v.wallGenResult;
-      const toolbar = document.createElement('div');
-      toolbar.className = 'result-toolbar';
-      toolbar.innerHTML = '<span>' + v.label + '(仕切り線プレビュー・' + (r.direction === 'convex' ? '凸' : '凹') + '・' + r.wallWidthMm.toFixed(2) + 'mm)</span>'
-        + '<label><input type="checkbox" checked> 仕切りを表示</label>';
-      const toggleCb = toolbar.querySelector('input[type="checkbox"]');
-      card.appendChild(toolbar);
-
-      const canvasWrap = document.createElement('div');
-      canvasWrap.className = 'result-canvas-wrap';
-      const canvas = document.createElement('canvas');
-      canvas.className = 'result-canvas';
-      canvas.width = v.workW; canvas.height = v.workH;
-      canvasWrap.appendChild(canvas);
-      card.appendChild(canvasWrap);
-
-      function draw(highlightIndex) {
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(v.workCanvas, 0, 0);
-        if (toggleCb.checked) {
-          const img = ctx.getImageData(0, 0, v.workW, v.workH);
-          const data = img.data;
-          for (let i = 0; i < v.workW * v.workH; i++) {
-            if (!r.zone[i]) continue;
-            if (r.direction === 'convex') {
-              // 凸(金属の色がそのまま乗る)：不透明の金属色で塗りつぶす
-              data[i * 4] = r.wallColorRgb[0]; data[i * 4 + 1] = r.wallColorRgb[1]; data[i * 4 + 2] = r.wallColorRgb[2]; data[i * 4 + 3] = 255;
-            } else {
-              // 凹(色は変わらず溝ができるだけ)：元の色を少し暗くして「くぼみ」を表現する
-              data[i * 4] = Math.round(data[i * 4] * 0.62);
-              data[i * 4 + 1] = Math.round(data[i * 4 + 1] * 0.62);
-              data[i * 4 + 2] = Math.round(data[i * 4 + 2] * 0.62);
-            }
-          }
-          ctx.putImageData(img, 0, 0);
-        }
-        // 色入れでは細すぎる箇所を、オレンジの破線丸+番号で表示する
-        ctx.font = 'bold 13px sans-serif';
-        r.thinColorSuggestions.forEach(function(s, i) {
-          const hi = (i === highlightIndex);
-          ctx.fillStyle = hi ? '#fff200' : '#ffffff';
-          ctx.strokeStyle = hi ? '#ff2d55' : '#e2802e';
-          ctx.lineWidth = hi ? 3 : 2;
-          const radius = hi ? 15 : 10;
-          ctx.setLineDash(hi ? [] : [3, 2]);
-          ctx.beginPath(); ctx.arc(s.cx, s.cy, radius, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-          ctx.setLineDash([]);
-          ctx.fillStyle = hi ? '#ff2d55' : '#e2802e';
-          ctx.font = hi ? 'bold 15px sans-serif' : 'bold 13px sans-serif';
-          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          ctx.fillText('P' + (i + 1), s.cx, s.cy + 1);
-          ctx.font = 'bold 13px sans-serif';
+      if (v.wallGenSubResults) {
+        v.wallGenSubResults.forEach(function(sv) {
+          const card = buildWallGenCard(v, v.label + '（' + sv.label + '）', sv.result);
+          area.appendChild(card);
         });
+        return;
       }
-      draw(null);
-      toggleCb.addEventListener('change', function() { draw(null); });
-
-      const note = document.createElement('div');
-      note.className = 'disclaimer';
-      note.style.borderTop = 'none';
-      note.textContent = r.direction === 'convex'
-        ? 'グレーに塗られた部分が、実物では指定した金属色の凸(仕切り)になります。'
-        : '暗く表示されている部分は色が変わるわけではなく、実物ではその位置が凹んだ溝になることを示しています(表示上の色は説明のための表現です)。';
-      card.appendChild(note);
-
-      if (r.thinColorSuggestions.length) {
-        const printList = document.createElement('ul');
-        printList.className = 'report-list';
-        const header = document.createElement('li');
-        header.className = 'empty-note';
-        header.style.padding = '0 0 4px';
-        header.innerHTML = '🖨️ <b>色入れでの再現が難しい箇所(印刷への変更を検討してください)</b>';
-        printList.appendChild(header);
-        if (r.thinColorSuggestions.length >= 6) {
-          const roiHint = document.createElement('li');
-          roiHint.className = 'empty-note';
-          roiHint.style.padding = '0 0 8px';
-          roiHint.style.color = '#1a56db';
-          roiHint.textContent = '⚠️ 指摘が多い場合、寸法線・矢印・文字などの指示部分がデザインとして拾われている可能性があります。②の画像の「自動的に一番大きなかたまりだけを解析する」がオンになっているか確認するか、「解析範囲を指定」で実際のデザイン部分だけを囲ってから再度お試しください。';
-          printList.appendChild(roiHint);
-        }
-        r.thinColorSuggestions.forEach(function(s, i) {
-          const li = document.createElement('li');
-          li.className = 'report-item';
-          const xMm = (s.cx * r.mmPerPxScaled).toFixed(1);
-          const yMm = (s.cy * r.mmPerPxScaled).toFixed(1);
-          const countNote = s.count > 1 ? '(近接する' + s.count + '箇所をまとめて表示)' : '';
-          const thicknessNote = (s.minThicknessMm === s.maxThicknessMm)
-            ? '約<b>' + s.maxThicknessMm.toFixed(2) + 'mm</b>'
-            : '約<b>' + s.minThicknessMm.toFixed(2) + '〜' + s.maxThicknessMm.toFixed(2) + 'mm</b>';
-          li.innerHTML = '<span class="badge" style="background:#e2802e;">P' + (i + 1) + '</span>'
-            + '<span class="desc">色 <b>' + s.colorHex + '</b>、画像上のおよそ(' + xMm + 'mm, ' + yMm + 'mm)付近' + countNote + '。'
-            + 'この色が使われている箇所は、最大でも' + thicknessNote + 'の太さしかなく、'
-            + '指定した仕切り幅(' + r.wallWidthMm.toFixed(2) + 'mm)を両側に確保すると色の面がほぼ残りません。色入れではなく印刷での再現をおすすめします。</span>';
-          li.classList.add('report-item-clickable');
-          li.title = 'クリックすると図の該当箇所が点滅します';
-          li.addEventListener('click', function() { blinkMarker(draw, i, canvas); });
-          printList.appendChild(li);
-        });
-        card.appendChild(printList);
-      } else if (paletteColors.length) {
-        const okNote = document.createElement('div');
-        okNote.className = 'empty-note';
-        okNote.textContent = '✅ 登録した色はすべて、色入れでの再現に十分な太さがありました。';
-        card.appendChild(okNote);
-      }
-
+      const card = buildWallGenCard(v, v.label, v.wallGenResult);
       area.appendChild(card);
     });
   }
