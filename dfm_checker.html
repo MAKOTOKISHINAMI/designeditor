@@ -671,9 +671,13 @@
     {
       id: 'metalplate', name: '金属プレート', note: '背景は基本的にニッケル等シルバーメッキ、または金メッキのメタルカラーになります。',
       variants: [
-        { id: 'enamel_etch', label: '凸凹色入れ有り(エッチング加工)', checkType: 'wall', minWidthMm: 0.3,
+        { id: 'engrave_etch_mono', label: '単色彫刻(エッチング・1色のみ色入れ)', checkType: 'material', minWidthMm: 0.3,
+          note: '彫刻(凹)の細い線・文字の最小幅です。これより細い部分は、実際には線どうしがつながって太い塊になり、デザインより黒色部分が広くなります。対応素材: 真鍮・ステンレスのみ。' },
+        { id: 'engrave_press_mono', label: '単色彫刻(型押し・1色のみ色入れ)', checkType: 'material', minWidthMm: 0.5,
+          note: '彫刻(凹)の細い線・文字の最小幅です。これより細い部分は、実際には線どうしがつながって太い塊になり、デザインより黒色部分が広くなります。対応素材: 真鍮・ステンレス・鉄。' },
+        { id: 'enamel_etch', label: '凸凹色入れ有り(エッチング加工・2色以上)', checkType: 'wall', minWidthMm: 0.3,
           note: '色と色の間の仕切り(陽線、金属色の凸)の最小幅です。型押しより細かい表現が可能ですが、凹みは浅くなります。対応素材: 真鍮・ステンレスのみ。' },
-        { id: 'enamel_press', label: '凸凹色入れ有り(型押し加工)', checkType: 'wall', minWidthMm: 0.5,
+        { id: 'enamel_press', label: '凸凹色入れ有り(型押し加工・2色以上)', checkType: 'wall', minWidthMm: 0.5,
           note: '色と色の間の仕切り(陽線、金属色の凸)の最小幅です。エッチングより凹みを深くできますが、表現できる細かさはやや劣ります。対応素材: 真鍮・ステンレス・鉄。' },
         { id: 'plain', label: '色入れ無し(金属素地のまま)', checkType: 'material', minWidthMm: 0.5, note: '彫刻・凹凸の最小幅の目安です。' },
         { id: 'print', label: '印刷', checkType: 'material', minWidthMm: 0.3, note: '印刷なので仕切りは不要です。印刷可能な最小の線幅の目安です。' }
