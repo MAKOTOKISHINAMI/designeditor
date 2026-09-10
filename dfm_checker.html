@@ -638,13 +638,17 @@
     for (let start = 0; start < w * h; start++) {
       if (!flag[start] || visited[start]) continue;
       const stack = [start]; visited[start] = 1;
-      let minX = w, maxX = 0, minY = h, maxY = 0, count = 0, minThickness = Infinity;
+      let minX = w, maxX = 0, minY = h, maxY = 0, count = 0, maxThickness = 0;
       while (stack.length) {
         const cur = stack.pop(); count++;
         const cx = cur % w, cy = (cur / w) | 0;
         if (cx < minX) minX = cx; if (cx > maxX) maxX = cx;
         if (cy < minY) minY = cy; if (cy > maxY) maxY = cy;
-        if (thickness[cur] < minThickness) minThickness = thickness[cur];
+        // ※ 指摘領域内の「最小」の太さを使うと、どんな形状でも輪郭の角・先端付近の画素は
+        //   必ずほぼゼロに近い値になってしまい、線の本来の太さに関係なく常に極小値が出てしまう。
+        //   「この指摘領域は、一番太い場所ですら基準に届いていない」という最大値の方が、
+        //   実際の線の太さを正しく表す指標になる。
+        if (thickness[cur] > maxThickness) maxThickness = thickness[cur];
         const neigh = [[cx - 1, cy], [cx + 1, cy], [cx, cy - 1], [cx, cy + 1]];
         for (const [nx, ny] of neigh) {
           if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
@@ -654,9 +658,9 @@
         }
       }
       if (count < 3) continue;
-      clusters.push({ minX, maxX, minY, maxY, count, minThickness, cx: (minX + maxX) / 2, cy: (minY + maxY) / 2 });
+      clusters.push({ minX, maxX, minY, maxY, count, maxThickness, cx: (minX + maxX) / 2, cy: (minY + maxY) / 2 });
     }
-    clusters.sort((a, b) => a.minThickness - b.minThickness);
+    clusters.sort((a, b) => a.maxThickness - b.maxThickness);
     return clusters;
   }
 
@@ -1518,10 +1522,10 @@
         li.className = 'report-item';
         const xMm = (c.cx * result.mmPerPxScaled).toFixed(1);
         const yMm = (c.cy * result.mmPerPxScaled).toFixed(1);
-        const minMm = (c.minThickness * result.mmPerPxScaled).toFixed(2);
+        const maxMm = (c.maxThickness * result.mmPerPxScaled).toFixed(2);
         const desc = result.mode === 'resin'
-          ? '最小幅 約<b>' + minMm + 'mm</b>(必要:' + result.minWidthMm.toFixed(2) + 'mm) — この太さに盛られる、または欠ける可能性があります。'
-          : '仕切りの最小幅 約<b>' + minMm + 'mm</b>(必要:' + result.minWidthMm.toFixed(2) + 'mm) — 隣接する色が混ざる可能性があります。';
+          ? '最小幅 約<b>' + maxMm + 'mm</b>(必要:' + result.minWidthMm.toFixed(2) + 'mm) — この太さに盛られる、または欠ける可能性があります。色を流し込む/入れる工程がある場合は、細かすぎて<b>色が入らない・欠ける可能性</b>もあります。'
+          : '仕切りの最小幅 約<b>' + maxMm + 'mm</b>(必要:' + result.minWidthMm.toFixed(2) + 'mm) — 隣接する色が混ざる可能性があります。';
         li.innerHTML = '<span class="badge">' + (i + 1) + '</span><span class="desc">画像上のおよそ(' + xMm + 'mm, ' + yMm + 'mm)付近。' + desc + '</span>';
         li.classList.add('report-item-clickable');
         li.title = 'クリックすると図の該当箇所が点滅します';
