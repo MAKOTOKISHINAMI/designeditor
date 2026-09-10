@@ -519,11 +519,15 @@
   //   常に太くなってしまう不具合があった(0.5mm指定で実測0.8mmなど)。この関数は境界を経由せず直接
   //   距離を測るため、2色の間の仕切りの合計幅が指定した太さ(片側0.5mm+反対側0.5mm=1mmではなく、
   //   ちょうど0.5mm)に一致する。
-  function computeDistToDifferentLabel(labels, w, h, numLabels) {
+  function computeDistToDifferentLabel(labels, w, h, numLabels, excludeBackground) {
     const dist = new Float32Array(w * h).fill(Infinity);
     for (let L = 0; L < numLabels; L++) {
       const differentMask = new Uint8Array(w * h);
-      for (let i = 0; i < w * h; i++) differentMask[i] = (labels[i] !== L) ? 1 : 0;
+      for (let i = 0; i < w * h; i++) {
+        differentMask[i] = excludeBackground
+          ? (labels[i] !== L && labels[i] >= 0 ? 1 : 0)  // 背景(-1)は「違う色」に含めない＝他の色にだけ反応する
+          : (labels[i] !== L ? 1 : 0);                    // 背景も含めて反応する(輪郭線の仕切り生成用)
+      }
       const d = chamferDistanceTransform(differentMask, w, h);
       for (let i = 0; i < w * h; i++) if (labels[i] === L) dist[i] = d[i];
     }
@@ -564,15 +568,23 @@
   function findThinColorRegions(imageData, materialMask, w, h, palette, mmPerPxScaled, wallWidthMm) {
     const labels = buildPaletteLabelMap(imageData, materialMask, w, h, palette);
     const radiusPx = (wallWidthMm / mmPerPxScaled) / 2;
-    const distToDiff = computeDistToDifferentLabel(labels, w, h, palette.length);
+    // ※ ここでは「他の色との間の仕切り」だけを見たいので、背景(輪郭線の外側)は「違う色」に含めない。
+    //   輪郭線ぎりぎりの色は、そもそも製品の外周(=常に金属の縁になる部分)であり、
+    //   色を流し込む/流し込まないの判定とは無関係なため。
+    const distToDiff = computeDistToDifferentLabel(labels, w, h, palette.length, true);
     const rawSuggestions = [];
     palette.forEach(function(color, idx) {
       if (color.asMetal) return; // 金属色として扱う指定の色は、そもそも塗り分けの対象ではないので印刷提案の判定から除外する
       const colorMask = new Uint8Array(w * h);
       for (let i = 0; i < w * h; i++) colorMask[i] = (labels[i] === idx) ? 1 : 0;
       const comps = findConnectedComponentsPixels(colorMask, w, h);
+      // 先端の色どうしが1点で接するような場所では、アンチエイリアス(色のにじみ)が本体から
+      // 切り離された極小の断片として誤って検出されることがある。その色の合計面積に対して
+      // 明らかに小さい断片(3%未満、かつ絶対数でも小さい)は、ノイズとして無視する。
+      const totalPixelsForColor = comps.reduce((a, c) => a + c.pixels.length, 0);
+      const noiseThreshold = Math.max(20, totalPixelsForColor * 0.03);
       comps.forEach(function(comp) {
-        if (comp.pixels.length < 5) return; // ノイズは無視
+        if (comp.pixels.length < noiseThreshold) return; // ノイズ(アンチエイリアスの孤立断片など)は無視
         let survive = 0;
         for (const idx2 of comp.pixels) if (distToDiff[idx2] > radiusPx) survive++;
         const surviveRatio = survive / comp.pixels.length;
@@ -1617,7 +1629,9 @@
         if (labelMap) {
           // パレット登録時は、境界を経由せず直接「違うラベルまでの距離」を測ることで、
           // 2色の間の仕切りの合計幅がちょうど指定した太さ(wallWidthMm)になるようにする。
-          const distToDiff = computeDistToDifferentLabel(labelMap, v.workW, v.workH, paletteColors.length);
+          // ここは仕切り「プレビュー」自体の生成なので、輪郭線(背景との境目)にも仕切りを描くため
+          // excludeBackground=false のまま(印刷提案の判定とは別の目的)。
+          const distToDiff = computeDistToDifferentLabel(labelMap, v.workW, v.workH, paletteColors.length, false);
           zone = new Uint8Array(v.workW * v.workH);
           for (let i = 0; i < v.workW * v.workH; i++) zone[i] = (materialMask[i] && distToDiff[i] <= radiusPx) ? 1 : 0;
         } else {
