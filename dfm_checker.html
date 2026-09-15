@@ -296,7 +296,7 @@
       <p class="hint" style="margin-bottom:10px;">
         添付イラストに仕切り線が描かれていない場合、色と色が隣接しているすべての境界を自動検出し、指定した太さの仕切りを入れた場合のイメージ図を生成します。
         背景(材料が無い部分)と接している輪郭線(＝製品全体のアウトライン)にも同様に仕切りが必要なため、そこにも生成されます。
-        あわせて、色の面積(太さ)が小さすぎて色入れでの再現が難しい箇所も検出し、印刷への変更を提案します。
+        あわせて、色分けが細かすぎる箇所も検出します(色を流し込む製法では「仕切りで埋まって色が入らない」、ポリストーンなど筆彩色の製法では「塗り分けできず隣の色にはみ出す」という指摘になります)。
       </p>
       <div class="field">
         <label for="wallGenWidth">仕切りの太さ(mm)</label>
@@ -733,7 +733,7 @@
   // ══════════════════════════════════════════════════════════════
   let PRODUCTION_METHODS = [
     {
-      id: 'diecast', name: 'ダイキャスト', note: '亜鉛合金等を金型に流し込んで成形。',
+      id: 'diecast', name: 'ダイキャスト', note: '亜鉛合金等を金型に流し込んで成形。', colorMode: 'flow',
       variants: [
         { id: 'plate', label: 'プレート成形(平面)', checkType: 'material', minWidthMm: 0.8,
           note: '文字・細い線の最小幅の目安です。成形で形状も仕上げるため側面はきれいに仕上がりますが、型から抜きやすくするため側面にわずかな勾配がつき、断面が台形に近くなります。' },
@@ -742,14 +742,14 @@
       ]
     },
     {
-      id: 'polystone', name: 'ポリストーン(シリコン型樹脂)', note: 'シリコン型に樹脂を流し込んで成形。',
+      id: 'polystone', name: 'ポリストーン(シリコン型樹脂)', note: 'シリコン型に樹脂を流し込んで成形。彩色は筆による手塗りです。', colorMode: 'brush',
       variants: [
         { id: 'default', label: '標準(立体成形)', checkType: 'material', minWidthMm: 1.0,
           note: '細い線・突起の最小幅の目安です。シリコン型は多少のアンダーカットなら抜けますが、勾配が強すぎる・彫り込みが深すぎると型が裂けることがあります。' }
       ]
     },
     {
-      id: 'metalplate', name: '金属プレート', note: '背景は基本的にニッケル等シルバーメッキ、または金メッキのメタルカラーになります。',
+      id: 'metalplate', name: '金属プレート', note: '背景は基本的にニッケル等シルバーメッキ、または金メッキのメタルカラーになります。', colorMode: 'flow',
       variants: [
         { id: 'engrave_etch_mono', label: '単色彫刻(エッチング・1色のみ色入れ)', checkType: 'material', minWidthMm: 0.3,
           note: '彫刻(凹)の細い線・文字の最小幅です。これより細い部分は、実際には線どうしがつながって太い塊になり、デザインより黒色部分が広くなります。対応素材: 真鍮・ステンレスのみ。' },
@@ -764,7 +764,7 @@
       ]
     },
     {
-      id: 'surfacefinish', name: '表面加工(共通・製法を問わず使える仕上げ)', note: '立体物の一部だけに、別の仕上げ方法を使う場合(例: ロゴだけ印刷、模様だけ転写シール)に選んでください。',
+      id: 'surfacefinish', name: '表面加工(共通・製法を問わず使える仕上げ)', note: '立体物の一部だけに、別の仕上げ方法を使う場合(例: ロゴだけ印刷、模様だけ転写シール)に選んでください。', colorMode: 'brush',
       variants: [
         { id: 'transfer_decal', label: '転写シール(デカール)', checkType: 'material', minWidthMm: 0.2,
           note: '薄いシートを貼るだけの加工です。印刷に近く、厚みは持ちません。これより細い線・模様はシール自体の印刷解像度で潰れる可能性があります。' },
@@ -774,7 +774,7 @@
       ]
     },
     {
-      id: 'softpvc', name: 'ソフトPVC', note: '色を流し込む場合、色と色の間には金型側の仕切り(0.5mm)が必ず必要です。金型側が凸のため、成形品の表面ではその部分が逆に凹になります。',
+      id: 'softpvc', name: 'ソフトPVC', note: '色を流し込む場合、色と色の間には金型側の仕切り(0.5mm)が必ず必要です。金型側が凸のため、成形品の表面ではその部分が逆に凹になります。', colorMode: 'flow',
       variants: [
         { id: 'front2d', label: '表面：平面2D(色流し込み)', checkType: 'wall', minWidthMm: 0.5, note: '色と色の間の仕切り(成形品では凹)の最小幅です。' },
         { id: 'front3d', label: '表面：半立体3D(色流し込み)', checkType: 'wall', minWidthMm: 0.5, note: '色と色の間の仕切り(成形品では凹)の最小幅です。立体的な盛り上がり自体の最小幅は別途ご確認ください。' },
@@ -1728,12 +1728,16 @@
           }
         }
         const zoneCount = zone.reduce((a, x) => a + x, 0);
-        // パレットを登録している場合のみ、「色入れでは細すぎて再現できない箇所」を判定し、印刷への変更を提案する
+        // パレットを登録している場合のみ、色分けが細かすぎる箇所を判定する。
+        // colorMode='flow'(金属七宝・ソフトPVC等の色流し込み)なら「仕切りで埋まって色が入らない」、
+        // colorMode='brush'(ポリストーン等の筆彩色)なら「細かすぎて塗り分けできず、はみ出す」という意味になる。
         let thinColorSuggestions = [];
         if (paletteColors.length) {
           thinColorSuggestions = findThinColorRegions(imageData, materialMask, v.workW, v.workH, paletteColors, mmPerPxScaled, wallWidthMm).suggestions;
         }
-        return { zone, direction, wallColorRgb, wallWidthMm, zoneCount, thinColorSuggestions, mmPerPxScaled, error: null };
+        const curMethod = getMethod(v.methodId);
+        const colorMode = (curMethod && curMethod.colorMode) ? curMethod.colorMode : 'flow';
+        return { zone, direction, wallColorRgb, wallWidthMm, zoneCount, thinColorSuggestions, mmPerPxScaled, colorMode, error: null };
       }
 
       if (v.regions.length >= 2) {
@@ -1769,7 +1773,9 @@
 
     const toolbar = document.createElement('div');
     toolbar.className = 'result-toolbar';
-    toolbar.innerHTML = '<span>' + cardLabel + '(仕切り線プレビュー・' + (r.direction === 'convex' ? '凸' : '凹') + '・' + r.wallWidthMm.toFixed(2) + 'mm)</span>'
+    toolbar.innerHTML = '<span>' + cardLabel + (r.colorMode === 'brush'
+        ? '(塗り分け確認・基準' + r.wallWidthMm.toFixed(2) + 'mm)'
+        : '(仕切り線プレビュー・' + (r.direction === 'convex' ? '凸' : '凹') + '・' + r.wallWidthMm.toFixed(2) + 'mm)') + '</span>'
       + '<label><input type="checkbox" checked> 仕切りを表示</label>';
     const toggleCb = toolbar.querySelector('input[type="checkbox"]');
     card.appendChild(toolbar);
@@ -1837,7 +1843,10 @@
       const header = document.createElement('li');
       header.className = 'empty-note';
       header.style.padding = '0 0 4px';
-      header.innerHTML = '🖨️ <b>色入れでの再現が難しい箇所(印刷への変更を検討してください)</b>';
+      const isBrush = (r.colorMode === 'brush');
+      header.innerHTML = isBrush
+        ? '🖌️ <b>塗り分けが難しい箇所(色がはみ出す可能性があります)</b>'
+        : '🖨️ <b>色入れでの再現が難しい箇所(印刷への変更を検討してください)</b>';
       printList.appendChild(header);
       if (r.thinColorSuggestions.length >= 6) {
         const roiHint = document.createElement('li');
@@ -1856,7 +1865,9 @@
         const survivePct = Math.round(s.worstSurviveRatio * 100);
         li.innerHTML = '<span class="badge" style="background:#e2802e;">P' + (i + 1) + '</span>'
           + '<span class="desc">色 <b>' + s.colorHex + '</b>、画像上のおよそ(' + xMm + 'mm, ' + yMm + 'mm)付近' + countNote + '。'
-          + '指定した仕切り幅(' + r.wallWidthMm.toFixed(2) + 'mm)を実際に生成すると、この色の面は約<b>' + survivePct + '%</b>しか残りません。色入れではなく印刷での再現をおすすめします。</span>';
+          + (isBrush
+              ? '指定した基準幅(' + r.wallWidthMm.toFixed(2) + 'mm)に対して、この色の面は約<b>' + survivePct + '%</b>しか余裕がありません。筆で塗り分けるには細かすぎるため、<b>隣の色にはみ出す</b>可能性があります。転写シールや印刷での再現もご検討ください。</span>'
+              : '指定した仕切り幅(' + r.wallWidthMm.toFixed(2) + 'mm)を実際に生成すると、この色の面は約<b>' + survivePct + '%</b>しか残りません。色入れではなく印刷での再現をおすすめします。</span>');
         li.classList.add('report-item-clickable');
         li.title = 'クリックすると図の該当箇所が点滅します';
         li.addEventListener('click', function() { blinkMarker(draw, i, canvas); });
@@ -1866,7 +1877,9 @@
     } else if (paletteColors.length) {
       const okNote = document.createElement('div');
       okNote.className = 'empty-note';
-      okNote.textContent = '✅ 登録した色はすべて、色入れでの再現に十分な太さがありました。';
+      okNote.textContent = (r.colorMode === 'brush')
+        ? '✅ 登録した色はすべて、筆での塗り分けに十分な太さがありました。'
+        : '✅ 登録した色はすべて、色入れでの再現に十分な太さがありました。';
       card.appendChild(okNote);
     }
 
