@@ -138,6 +138,70 @@
   .variant-row input, .variant-row select { padding: 6px 8px; font-size: 12px; }
   .variant-row .del-btn { border: none; background: var(--warn-soft); color: var(--warn); border-radius: 6px; width: 26px; height: 26px; cursor: pointer; font-weight: 700; }
   .variant-row-labels { display: grid; grid-template-columns: 1.3fr 1fr 0.7fr auto; gap: 6px; font-size: 10.5px; color: var(--ink-soft); margin-bottom: 4px; }
+  /* ══════════════════════════════════════════════════════════════
+     使い方ガイド チャットボット(右下固定)
+     ══════════════════════════════════════════════════════════════ */
+  #helpBotButton {
+    position: fixed; right: 22px; bottom: 22px; width: 56px; height: 56px;
+    border-radius: 50%; background: var(--accent); color: #fff; border: none;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.25); cursor: pointer; font-size: 24px;
+    z-index: 1000; display: flex; align-items: center; justify-content: center;
+    transition: transform 0.15s;
+  }
+  #helpBotButton:hover { transform: scale(1.06); }
+  #helpBotButton .badge-dot {
+    position: absolute; top: 2px; right: 2px; width: 12px; height: 12px; border-radius: 50%;
+    background: #e2802e; border: 2px solid #fff;
+  }
+
+  #helpBotPanel {
+    position: fixed; right: 22px; bottom: 90px; width: 350px; max-width: calc(100vw - 32px);
+    height: 500px; max-height: calc(100vh - 130px);
+    background: var(--paper); border: 1px solid var(--line); border-radius: 14px;
+    box-shadow: 0 10px 34px rgba(0,0,0,0.22); display: none; flex-direction: column;
+    overflow: hidden; z-index: 1000;
+  }
+  #helpBotPanel.open { display: flex; }
+
+  .helpbot-header {
+    background: var(--accent); color: #fff; padding: 14px 16px; display: flex;
+    align-items: center; justify-content: space-between; flex-shrink: 0;
+  }
+  .helpbot-header h3 { margin: 0; font-size: 13.5px; font-weight: 700; }
+  .helpbot-header p { margin: 2px 0 0; font-size: 10.5px; opacity: 0.85; }
+  .helpbot-close { background: none; border: none; color: #fff; font-size: 20px; cursor: pointer; line-height: 1; padding: 2px 4px; }
+
+  .helpbot-messages {
+    flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px;
+    background: var(--bg);
+  }
+  .helpbot-msg { max-width: 88%; font-size: 12.5px; line-height: 1.6; padding: 9px 12px; border-radius: 12px; }
+  .helpbot-msg.bot { background: var(--paper); border: 1px solid var(--line); align-self: flex-start; border-bottom-left-radius: 3px; }
+  .helpbot-msg.user { background: var(--accent); color: #fff; align-self: flex-end; border-bottom-right-radius: 3px; }
+  .helpbot-msg b { color: var(--accent); }
+  .helpbot-msg.user b { color: #fff; }
+  .helpbot-msg ul { margin: 6px 0 0; padding-left: 18px; }
+  .helpbot-msg li { margin-bottom: 3px; }
+
+  .helpbot-quick { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 14px 12px; flex-shrink: 0; background: var(--bg); }
+  .helpbot-quick-btn {
+    border: 1px solid var(--accent); color: var(--accent); background: var(--paper);
+    border-radius: 14px; padding: 5px 10px; font-size: 11px; cursor: pointer;
+  }
+  .helpbot-quick-btn:hover { background: var(--accent-soft); }
+
+  .helpbot-input-row { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--line); flex-shrink: 0; background: var(--paper); }
+  .helpbot-input-row input {
+    flex: 1; padding: 9px 12px; border: 1px solid var(--line); border-radius: 20px; font-size: 12.5px;
+  }
+  .helpbot-input-row button {
+    background: var(--accent); color: #fff; border: none; border-radius: 50%;
+    width: 36px; height: 36px; flex-shrink: 0; cursor: pointer; font-size: 15px;
+  }
+  @media (max-width: 480px) {
+    #helpBotPanel { right: 8px; left: 8px; width: auto; bottom: 78px; }
+    #helpBotButton { right: 16px; bottom: 16px; }
+  }
 </style>
 </head>
 <body>
@@ -697,6 +761,16 @@
           note: '色と色の間の仕切り(陽線、金属色の凸)の最小幅です。エッチングより凹みを深くできますが、表現できる細かさはやや劣ります。対応素材: 真鍮・ステンレス・鉄。' },
         { id: 'plain', label: '色入れ無し(金属素地のまま)', checkType: 'material', minWidthMm: 0.5, note: '彫刻・凹凸の最小幅の目安です。' },
         { id: 'print', label: '印刷', checkType: 'material', minWidthMm: 0.3, note: '印刷なので仕切りは不要です。印刷可能な最小の線幅の目安です。' }
+      ]
+    },
+    {
+      id: 'surfacefinish', name: '表面加工(共通・製法を問わず使える仕上げ)', note: '立体物の一部だけに、別の仕上げ方法を使う場合(例: ロゴだけ印刷、模様だけ転写シール)に選んでください。',
+      variants: [
+        { id: 'transfer_decal', label: '転写シール(デカール)', checkType: 'material', minWidthMm: 0.2,
+          note: '薄いシートを貼るだけの加工です。印刷に近く、厚みは持ちません。これより細い線・模様はシール自体の印刷解像度で潰れる可能性があります。' },
+        { id: 'hand_paint', label: '筆による彩色(手描き)', checkType: 'material', minWidthMm: 0.8,
+          note: '職人が筆で塗り分ける想定の最小幅の目安です。人の手作業のため、量産では個体差が出やすい点にご注意ください。' },
+        { id: 'print_general', label: '印刷(汎用)', checkType: 'material', minWidthMm: 0.3, note: '印刷可能な最小の線幅の目安です。' }
       ]
     },
     {
@@ -1321,6 +1395,10 @@
 
     if (usedMethodIds.has('polystone')) {
       items.push('<b>ポリストーン(シリコン型)について:</b> シリコン型は柔らかいため、多少のアンダーカットがあっても型を伸ばして抜くことができます。ただし勾配が強すぎる・彫り込みが深すぎると、抜くときに<b>型が裂けてしまう</b>ことがあります。硬い金型のように「絶対に抜けない」というより「無理をすると型が壊れる」という考え方に近いです。');
+      items.push('<b>透明素材・多層表現について:</b> 透明樹脂で成形した上から彩色すると、塗った色は常に「表面」に乗るため、透明な層の<b>奥に別の色がある</b>ような表現(例: 透明な白身の下に見える醤油や米)はそのままでは再現できません。この場合、色を塗った本体パーツと透明パーツを別々に成形して後から組み合わせる、といった多パーツ構成が必要になります。手間とコストは増えますが、このツールでは各パーツを別々の画像(または解析範囲)として個別にチェックしてください。');
+    }
+    if (usedMethodIds.has('surfacefinish')) {
+      items.push('<b>表面加工(転写シール・筆彩色・印刷)について:</b> これらは立体の成形とは別の後工程です。1つの製品の中で「ロゴだけ印刷」「模様だけ転写シール」「その他は筆彩色」のように工程を混在させる場合は、それぞれの部分を別々の解析範囲(または別画像)に分けて、対応する仕上げ方法を選んでチェックすると精度が上がります。筆彩色は人の手作業のため、量産時の個体差にもご注意ください。');
     }
     if (usedMethodIds.has('diecast')) {
       items.push('<b>ダイキャストについて:</b> 立体成形はアンダーカットが基本的に抜けません。プレート成形は成形と同時に側面も仕上がりますが、型から抜きやすくするための勾配で断面がわずかに台形になります。');
@@ -1813,7 +1891,254 @@
       area.appendChild(card);
     });
   }
+  // ══════════════════════════════════════════════════════════════
+  //  使い方ガイド チャットボット(ルールベースFAQ、API不使用でオフライン動作)
+  //  ※ このツールは完全に静的なHTMLファイル(サーバー無し)として配布されるため、
+  //    実際のAI(Claude等)のAPIをここから呼び出すことはできない(APIキーが無い)。
+  //    そのため、キーワード一致度でFAQから最も近い回答を選ぶ簡易的な仕組みにしている。
+  // ══════════════════════════════════════════════════════════════
+  const HELPBOT_FAQ = [
+    {
+      q: 'こんにちは',
+      keywords: ['こんにちは', 'こんばんは', 'おはよう', 'はじめまして', 'hello', 'hi'],
+      a: 'こんにちは！このツールの使い方について質問してください。下の「よくある質問」ボタンから選んでいただくこともできます。'
+    },
+    {
+      q: '6面図や図面シートを読み込んだら、指摘が何十件も出てしまいます',
+      keywords: ['6面図', '図面', '指摘が多', '何十件', '大量', '59件', 'view'],
+      a: '図面シートには寸法線・引き出し線・「TOP VIEW」などのラベル枠が含まれており、それらがすべて「細い線」として検出されてしまうためです。'
+        + '②の「🔲 解析範囲を指定」で、<b>各ビューのイラスト部分だけ</b>を四角で囲んでください(寸法線・ラベル・矢印は範囲の外に置く)。'
+        + '6つのビューがある場合は6つの四角を描けば、それぞれ別の面として個別にレポートされます。すべての指摘が同じ太さ(例: 全部0.08mm)になっている場合は、まず間違いなく指示線を拾っています。'
+    },
+    {
+      q: '1つの製品で印刷・転写シール・筆彩色を使い分けたいときはどうしますか？',
+      keywords: ['転写シール', 'デカール', '筆彩色', '手描き', '使い分け', '工程を混在', '表面加工'],
+      a: '①の製法で<b>「表面加工(共通・製法を問わず使える仕上げ)」</b>を選ぶと、「転写シール(デカール)」「筆による彩色(手描き)」「印刷(汎用)」から選べます。'
+        + '1つの製品の中で工程が混在する場合は、それぞれの部分を別々の解析範囲(または別画像)に分けて、対応する仕上げ方法でチェックしてください。'
+    },
+    {
+      q: '透明素材の中に色があるデザインは再現できますか？',
+      keywords: ['透明', 'クリア', '白身', '層', '重なり', '中に色'],
+      a: '透明樹脂で成形した上から彩色すると、色は常に「表面」に乗ります。そのため、透明な層の<b>奥に別の色がある</b>ような表現(例: 透明な白身の下に見える醤油や米)は、1つのパーツのままでは再現できません。'
+        + '色を塗った本体パーツと透明パーツを別々に成形して後から組み合わせる、といった多パーツ構成が必要になります。その場合は、各パーツを別々の画像(または解析範囲)として個別にチェックしてください。'
+    },
+    {
+      q: '①製法とは何ですか？何を選べばいいですか？',
+      keywords: ['①', '製法', 'ダイキャスト', 'ポリストーン', '金属プレート', 'ソフトpvc', 'ソフトPVC', '加工方法', '何を選'],
+      a: '①では、この商品をどう作るか(製法)を1つだけ選びます。選んだ製法は、②で読み込むすべての画像に共通で適用されます。'
+        + '<ul>'
+        + '<li><b>ダイキャスト</b>：金型に金属を流し込んで成形(プレート/立体)</li>'
+        + '<li><b>ポリストーン</b>：シリコン型に樹脂を流し込む立体成形</li>'
+        + '<li><b>金属プレート</b>：単色彫刻・凸凹色入れ(七宝)・素地のまま・印刷</li>'
+        + '<li><b>ソフトPVC</b>：色を流し込む2D/3D、または印刷</li>'
+        + '</ul>製法を選ぶと「バリエーション」(具体的な仕上げ方法)を②の各画像で選べるようになります。'
+    },
+    {
+      q: 'バリエーションとは何ですか？',
+      keywords: ['バリエーション', '表面3d', '裏面2d', 'エッチング', '型押し', '単色彫刻'],
+      a: '同じ製法の中での「具体的な仕上げ方」のことです。例えば金属プレートなら「単色彫刻(エッチング)」「凸凹色入れ(型押し)」「素地のまま」「印刷」などから選びます。'
+        + 'それぞれ最小再現幅の初期値が異なり、②の各画像ごとに個別に選べるので、1枚の画像に表面(3D)と裏面(印刷)のように違う仕上げが混在していても対応できます。'
+    },
+    {
+      q: '画像はどうやって読み込みますか？複数枚読み込めますか？',
+      keywords: ['画像', '読み込', 'アップロード', '複数枚', '正面', '側面', '裏面'],
+      a: '②の「＋ 画像を追加」で、正面・側面・裏面など好きな枚数の画像を追加できます。各画像ごとに、実寸(mm)・バリエーション・最小再現幅・解析範囲を個別に設定できます。1回の「解析する」で、追加したすべての画像をまとめてチェックします。'
+    },
+    {
+      q: '1枚の画像に表面と裏面や6面図が入っている場合はどうすればいいですか？',
+      keywords: ['6面図', '表裏', '表面裏面', '一枚の画像', '1枚の画像', '複数の面', '両面'],
+      a: 'その画像の中で「🔲 解析範囲を指定」を使って、表面の部分だけを四角で囲み、続けて裏面の部分だけをもう一つ四角で囲んでください。'
+        + '<b>四角(範囲)を2個以上描くと、自動的にそれぞれ別の面として個別に解析・レポート</b>されます。各範囲には名前(例: 表面/裏面)を付けられます。寸法線や指示テキストなど不要な部分は、どの四角にも含めないでください。'
+    },
+    {
+      q: '解析範囲(ROI)とは何ですか？何のために使いますか？',
+      keywords: ['解析範囲', 'roi', 'ROI', '範囲を指定', '四角で囲', 'トリムマーク', '寸法線', '指示'],
+      a: '画像の中で「実際に解析したいデザイン部分」だけをドラッグで四角く囲む機能です。寸法線・カラーコードの文字・キーホルダー金具などの指示部分を解析対象から除外したいときに使います。'
+        + '範囲を1つも描かない場合は、②の「自動的に一番大きなかたまりだけを解析する」がオンなら、自動的に一番大きい塊(製品本体)だけが対象になります。'
+    },
+    {
+      q: '自動的に一番大きなかたまりだけを解析する、とは何ですか？',
+      keywords: ['自動的に一番大きな', 'かたまり', '自動除外', 'トリムマーク'],
+      a: '解析範囲(ROI)を手動で指定しなかった場合のデフォルト動作です。画像の中で一番大きくひとつながりの塊(＝通常は製品本体)だけを自動的に解析対象にし、離れた場所にある小さい要素(隅のトリムマーク、寸法線、テキストなど)を自動的に除外します。うまく除外できない場合は、手動で解析範囲を指定してください。'
+    },
+    {
+      q: '背景色や仕切り線の色はどうやって指定しますか？',
+      keywords: ['背景色', '仕切り線の色', '陽線の色', '色を指定', 'スポイト', 'クリックして色'],
+      a: '③の「画像をクリックして背景色を指定」または「画像をクリックして仕切り線の色を指定」のボタンを押してから、②の画像上で対象の色をクリックしてください。背景色は「材料が無い部分」の判定に、仕切り線の色は「仕切りの最小幅」の判定に使われます。'
+    },
+    {
+      q: '仕切り線(陽線)とは何ですか？',
+      keywords: ['陽線', '仕切り線とは', '仕切りとは'],
+      a: '金属加工(七宝・エナメル)で、色と色の間にある、金属そのものの色をした細い線のことです。色を流し込む区画を仕切るための壁で、これが無いと隣の色と混ざってしまいます。ソフトPVCでも同じ役割の仕切りがありますが、あちらは金型側が凸のため、成形品では逆に凹(溝)として現れます。'
+    },
+    {
+      q: '⑤の色を登録する機能は何のためにありますか？',
+      keywords: ['⑤', 'パレット', '色を登録', 'デザインの色'],
+      a: '自動判定だけだと、グラデーションやアンチエイリアスも別の色として細かく拾ってしまうことがあります。実際にデザインで使っている色(例: 灰色・赤・黒など)をあらかじめ登録しておくと、すべての画素が一番近い登録色に丸められてから境界を検出するため、誤検出が大幅に減ります。「🎨 画像をクリックして色を追加」で色登録モードに入り、順番にクリックしていってください。'
+    },
+    {
+      q: '「凸(金属)にする」チェックは何のためですか？',
+      keywords: ['凸(金属)にする', '凸 金属', '金属にする'],
+      a: '登録した色のうち、すでに輪郭線・目鼻・文字などに使われている色(黒など)を、仕切りの計算とは関係なく、そのまま金属色(凸)として表示したい場合に使います。チェックを入れた色は、印刷提案の判定からも除外されます。'
+    },
+    {
+      q: '⑥仕切り線プレビュー生成とは何をする機能ですか？',
+      keywords: ['⑥', '仕切り線プレビュー', 'プレビューを生成', '凸凹', '凸か凹'],
+      a: 'デザインに仕切り線が描かれていない場合に、色と色が隣接するすべての境界を自動検出し、指定した太さの仕切りを実際に入れたらどう見えるかのイメージ図を生成する機能です。'
+        + '<ul><li><b>凸</b>(金属プレート・ダイキャスト)：指定した金属色で塗りつぶして表示</li>'
+        + '<li><b>凹</b>(ソフトPVC)：色は変えず、少し暗くして溝を表現</li></ul>'
+        + '背景(製品のアウトライン)にも同様に仕切りが必要なため、そこにも生成されます。'
+    },
+    {
+      q: '印刷への変更提案(P1やP2の指摘)とは何ですか？',
+      keywords: ['印刷への変更', '印刷を検討', '印刷提案', 'p1', 'P1', '色入れが難しい', '色が入れられない', '色入れできない', '色が入らない'],
+      a: '⑤で色を登録している場合、⑥の生成時に「実際に指定した太さの仕切りを引いたら、その色の面はどれだけ残るか」を計算し、ほぼ全部埋まってしまう(残存率12%未満)箇所を検出します。文字や細かい模様など、色を流し込む加工では再現できない可能性が高い箇所に、印刷への変更を提案します。近い場所にある指摘は自動的に1つにまとめて表示されます。'
+    },
+    {
+      q: '最小再現幅とは何ですか？どう決めればいいですか？',
+      keywords: ['最小再現幅', '最小幅とは', 'mm入力'],
+      a: 'これより細い部分は実際にはこの太さに盛られて(または欠けて)再現される、という目安の数値です。バリエーションを選ぶと初期値が自動で入りますが、実際に製造してみて感覚が違った場合は、その都度この数値を調整することで精度が上がっていきます。'
+    },
+    {
+      q: '指摘リストの番号をクリックすると何が起きますか？',
+      keywords: ['クリックすると点滅', '番号をクリック', '点滅'],
+      a: '指摘リストの項目をクリックすると、キャンバス上の対応するマーカーが黄色く大きく点滅します(約1.8秒間)。画面が長い場合は該当画像まで自動でスクロールします。どの指摘がデザインのどの部分を指しているか分かりやすくするための機能です。'
+    },
+    {
+      q: '⑦製法を追加する方法を教えてください',
+      keywords: ['⑦', '製法を追加', '製法を登録', '新しい製法', 'json', 'JSON'],
+      a: '⑦を開き、製法名とバリエーション(名前・判定方式「材料の最小幅」or「仕切り線の最小幅」・最小幅mm)を入力して「この製法を登録する」を押すと、①ですぐ選べるようになります。登録した製法一覧はJSONで書き出し・読み込みができるので、他のPCや同僚と共有できます。'
+    },
+    {
+      q: '材料の最小幅と仕切り線の最小幅の違いは何ですか？',
+      keywords: ['材料の最小幅', '仕切り線の最小幅', '判定方式の違い', '2つの違い'],
+      a: '<b>材料の最小幅</b>は、線や文字などの「素材そのもの」の太さを見る判定です(樹脂・彫刻・印刷など)。<b>仕切り線の最小幅</b>は、色と色を仕切る壁(陽線)の太さを見る判定です(七宝・エナメル・ソフトPVCの色流し込みなど)。同じ「0.5mm」という数値でも、意味も計算方法も異なります。'
+    },
+    {
+      q: '結果の赤い表示は何を意味していますか？',
+      keywords: ['赤い表示', '赤く表示', '問題箇所を赤'], 
+      a: '指定した最小幅を下回っている(＝実物ではこの太さに盛られる、欠ける、または色が混ざる可能性がある)箇所を赤く塗って示しています。「問題箇所を赤で表示」のチェックを外すと、元の画像だけを確認できます。'
+    },
+    {
+      q: 'このツールの結果はどこまで信用できますか？',
+      keywords: ['信用', '正確', '目安', '注意事項', '免責'],
+      a: 'この結果は画像の色分布から機械的に推定した目安です。実際の再現性は素材・加工機・メーカーの仕様によって変わります。特に立体成形の「型から抜けるか(アンダーカット)」「強度」などは、このツールでは判定できません。最終的な仕様の可否は、必ず加工会社・原型師にご確認ください。'
+    },
+    {
+      q: 'ひとつも項目に一致しない場合の使い方の流れを教えてください',
+      keywords: ['使い方', '流れ', 'はじめ方', 'やり方が分からない', 'どうすれば'],
+      a: '基本の流れは次の通りです。<ul>'
+        + '<li>① 製法を選ぶ</li>'
+        + '<li>② 画像を追加し、実寸(mm)・バリエーションを設定(必要なら解析範囲も指定)</li>'
+        + '<li>③ 背景色・仕切り線の色を指定</li>'
+        + '<li>「解析する」を押して結果を確認</li>'
+        + '<li>仕切り線が無いデザインなら、⑤で色を登録してから⑥でプレビュー生成</li>'
+        + '</ul>他に気になる項目があれば、下の「よくある質問」ボタンか、質問を直接入力してください。'
+    }
+  ];
+
+  function helpBotScore(question, entry) {
+    const q = question.toLowerCase();
+    let score = 0;
+    entry.keywords.forEach(function(k) {
+      if (q.indexOf(k.toLowerCase()) !== -1) score++;
+    });
+    return score;
+  }
+
+  function findHelpBotAnswer(question) {
+    let best = null, bestScore = 0;
+    HELPBOT_FAQ.forEach(function(entry) {
+      const s = helpBotScore(question, entry);
+      if (s > bestScore) { bestScore = s; best = entry; }
+    });
+    if (best && bestScore > 0) return best.a;
+    return '申し訳ありません、うまく一致する回答が見つかりませんでした。もう少し具体的なキーワード(例:「解析範囲」「パレット」「印刷提案」「6面図」など)で聞いていただくか、下の「よくある質問」ボタンからお選びください。';
+  }
+
+  function toggleHelpBot() {
+    const panel = document.getElementById('helpBotPanel');
+    const opening = !panel.classList.contains('open');
+    panel.classList.toggle('open');
+    if (opening) {
+      document.getElementById('helpBotBadge').style.display = 'none';
+      if (!helpBotInitialized) initHelpBot();
+      document.getElementById('helpBotInput').focus();
+    }
+  }
+
+  let helpBotInitialized = false;
+  function initHelpBot() {
+    helpBotInitialized = true;
+    appendHelpBotMessage('bot',
+      'こんにちは！このツールの使い方について、なんでも聞いてください。<br>例:「6面図はどう解析すればいい？」「印刷提案って何？」「陽線とは？」');
+    renderHelpBotQuickReplies();
+  }
+
+  function renderHelpBotQuickReplies() {
+    const wrap = document.getElementById('helpBotQuick');
+    wrap.innerHTML = '';
+    const picks = [
+      '①製法とは何ですか？何を選べばいいですか？',
+      '1枚の画像に表面と裏面や6面図が入っている場合はどうすればいいですか？',
+      '⑥仕切り線プレビュー生成とは何をする機能ですか？',
+      '印刷への変更提案(P1やP2の指摘)とは何ですか？'
+    ];
+    picks.forEach(function(q) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'helpbot-quick-btn';
+      btn.textContent = q.length > 22 ? q.slice(0, 22) + '…' : q;
+      btn.title = q;
+      btn.addEventListener('click', function() { submitHelpBotQuestion(q); });
+      wrap.appendChild(btn);
+    });
+  }
+
+  function appendHelpBotMessage(role, html) {
+    const list = document.getElementById('helpBotMessages');
+    const div = document.createElement('div');
+    div.className = 'helpbot-msg ' + role;
+    div.innerHTML = html;
+    list.appendChild(div);
+    list.scrollTop = list.scrollHeight;
+  }
+
+  function sendHelpBotMessage() {
+    const input = document.getElementById('helpBotInput');
+    const q = input.value.trim();
+    if (!q) return;
+    input.value = '';
+    submitHelpBotQuestion(q);
+  }
+
+  function submitHelpBotQuestion(q) {
+    appendHelpBotMessage('user', q.replace(/</g, '&lt;'));
+    const answer = findHelpBotAnswer(q);
+    setTimeout(function() { appendHelpBotMessage('bot', answer); }, 250);
+  }
 </script>
+
+<!-- ══════ 使い方ガイド チャットボット ══════ -->
+<button type="button" id="helpBotButton" onclick="toggleHelpBot()" title="使い方ガイド">
+  💬<span class="badge-dot" id="helpBotBadge"></span>
+</button>
+
+<div id="helpBotPanel">
+  <div class="helpbot-header">
+    <div>
+      <h3>使い方ガイド</h3>
+      <p>このツールの使い方について質問できます</p>
+    </div>
+    <button type="button" class="helpbot-close" onclick="toggleHelpBot()">×</button>
+  </div>
+  <div class="helpbot-messages" id="helpBotMessages"></div>
+  <div class="helpbot-quick" id="helpBotQuick"></div>
+  <div class="helpbot-input-row">
+    <input type="text" id="helpBotInput" placeholder="質問を入力(例: 表裏を分けたい)" onkeydown="if(event.key==='Enter') sendHelpBotMessage();">
+    <button type="button" onclick="sendHelpBotMessage()">➤</button>
+  </div>
+</div>
 
 </body>
 </html>
