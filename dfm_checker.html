@@ -1471,7 +1471,7 @@
             const clusters = clusterViolations(violation, thickness, v.workW, v.workH);
             return {
               flag: violation, thickness, clusters, mode, minWidthMm: v.minWidthMm, mmPerPxScaled,
-              methodName: method.name, variantLabel: variant.label, error: null
+              methodId: method.id, methodName: method.name, variantLabel: variant.label, error: null
             };
           }
 
@@ -1602,7 +1602,9 @@
         const yMm = (c.cy * result.mmPerPxScaled).toFixed(1);
         const maxMm = (c.maxThickness * result.mmPerPxScaled).toFixed(2);
         const desc = result.mode === 'resin'
-          ? '最小幅 約<b>' + maxMm + 'mm</b>(必要:' + result.minWidthMm.toFixed(2) + 'mm) — この太さに盛られる、または欠ける可能性があります。色を流し込む/入れる工程がある場合は、細かすぎて<b>色が入らない・欠ける可能性</b>もあります。'
+          ? (result.methodId === 'polystone'
+              ? '最小幅 約<b>' + maxMm + 'mm</b>(必要:' + result.minWidthMm.toFixed(2) + 'mm) — <b>とがった突起・先端</b>と判定されました。シリコン型は多少のアンダーカットなら伸びて抜けますが、突起がとがりすぎている・大きすぎると<b>型から抜けなくなる可能性</b>や、抜くときに<b>欠けてしまう恐れ</b>があります。先端を<b>丸める</b>ことをおすすめします。'
+              : '最小幅 約<b>' + maxMm + 'mm</b>(必要:' + result.minWidthMm.toFixed(2) + 'mm) — この太さに盛られる、または欠ける可能性があります。色を流し込む/入れる工程がある場合は、細かすぎて<b>色が入らない・欠ける可能性</b>もあります。')
           : '仕切りの最小幅 約<b>' + maxMm + 'mm</b>(必要:' + result.minWidthMm.toFixed(2) + 'mm) — 隣接する色が混ざる可能性があります。';
         li.innerHTML = '<span class="badge">' + (i + 1) + '</span><span class="desc">画像上のおよそ(' + xMm + 'mm, ' + yMm + 'mm)付近。' + desc + '</span>';
         li.classList.add('report-item-clickable');
@@ -1701,24 +1703,42 @@
       const tolerance = parseFloat(document.getElementById('toleranceInput').value);
       const baseMaterialMask = buildTargetMask(imageData, v.workW, v.workH, 'resin', resinColor, tolerance);
 
+      // 背景(材料が無い部分)と接する輪郭線(＝製品全体のアウトライン)専用の仕切り幅。
+      // 凸仕上げ(金属プレート・ダイキャスト)は、内側のデコ(色間の仕切り)がそれより細く設定されていても、
+      // 型として成立させるためアウトラインだけは最低0.5mmを確保する。指定幅が0.5mm以上ならその幅をそのまま使う。
+      // 凹仕上げ(ソフトPVC)はこの下限を設けず、指定した仕切り幅をそのまま使う。
+      const outlineWidthMm = (direction === 'convex') ? Math.max(wallWidthMm, 0.5) : wallWidthMm;
+      const outlineRadiusPx = (outlineWidthMm / mmPerPxScaled) / 2;
+
       // 1つの範囲(材料マスク)を解析して結果オブジェクトを返す共通処理
       function analyzeWallGenMask(materialMask) {
         if (materialMask.reduce((a, x) => a + x, 0) < 10) {
           return { error: '材料部分を検出できませんでした。③の背景色指定や②の解析範囲を見直してください。' };
         }
         const labelMap = paletteColors.length ? buildPaletteLabelMap(imageData, materialMask, v.workW, v.workH, paletteColors) : null;
+        // アウトライン(背景との境目)は内側の色境界とは別の太さ(outlineRadiusPx)で扱うため、
+        // 背景までの距離を別途測っておく。
+        const bgDist = distToBackground(materialMask, v.workW, v.workH);
         let zone;
         if (labelMap) {
           // パレット登録時は、境界を経由せず直接「違うラベルまでの距離」を測ることで、
           // 2色の間の仕切りの合計幅がちょうど指定した太さ(wallWidthMm)になるようにする。
-          // ここは仕切り「プレビュー」自体の生成なので、輪郭線(背景との境目)にも仕切りを描くため
-          // excludeBackground=false のまま(印刷提案の判定とは別の目的)。
-          const distToDiff = computeDistToDifferentLabel(labelMap, v.workW, v.workH, paletteColors.length, false);
+          // ここでは背景は「違う色」に含めず(excludeBackground=true)、色どうしの境目だけをradiusPxで判定し、
+          // 輪郭線(背景との境目)は下のoutlineRadiusPxで別途判定する。
+          const distToDiff = computeDistToDifferentLabel(labelMap, v.workW, v.workH, paletteColors.length, true);
           zone = new Uint8Array(v.workW * v.workH);
-          for (let i = 0; i < v.workW * v.workH; i++) zone[i] = (materialMask[i] && distToDiff[i] <= radiusPx) ? 1 : 0;
+          for (let i = 0; i < v.workW * v.workH; i++) {
+            if (!materialMask[i]) continue;
+            zone[i] = (distToDiff[i] <= radiusPx || bgDist[i] <= outlineRadiusPx) ? 1 : 0;
+          }
         } else {
           const boundary = detectColorBoundaries(imageData, materialMask, v.workW, v.workH, sensitivity);
-          zone = buildWallZone(boundary, materialMask, v.workW, v.workH, radiusPx);
+          const innerZone = buildWallZone(boundary, materialMask, v.workW, v.workH, radiusPx);
+          zone = new Uint8Array(v.workW * v.workH);
+          for (let i = 0; i < v.workW * v.workH; i++) {
+            if (!materialMask[i]) continue;
+            zone[i] = (innerZone[i] || bgDist[i] <= outlineRadiusPx) ? 1 : 0;
+          }
         }
         // 「凸(金属)にする」指定のある色は、仕切りの検出結果に関わらず、そのままその色の範囲全体を金属色にする
         if (labelMap) {
