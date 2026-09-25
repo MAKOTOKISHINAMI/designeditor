@@ -1830,6 +1830,18 @@
           }
         }
         const zoneCount = zone.reduce((a, x) => a + x, 0);
+        // ゾーン内部での「縁からの距離」を求めておく(プレビューで凸凹の立体感を出すため、
+        // 縁に近いほど暗く/明るく陰影をつける「面取り」風の表現に使う)。
+        const zoneEdgeDist = distToBackground(zone, v.workW, v.workH);
+        // 色入れ有り(パレット登録あり)で凸仕上げの場合：仕切り(壁)以外の、色が流し込まれる
+        // 凹部分(材料のうち仕切りではない箇所)も、まだ色を入れていない生地の金属として
+        // シルバーのグラデーションで表現できるよう、その範囲と縁からの距離も求めておく。
+        let recessMask = null, recessEdgeDist = null;
+        if (labelMap && direction === 'convex') {
+          recessMask = new Uint8Array(v.workW * v.workH);
+          for (let i = 0; i < v.workW * v.workH; i++) recessMask[i] = (materialMask[i] && !zone[i]) ? 1 : 0;
+          recessEdgeDist = distToBackground(recessMask, v.workW, v.workH);
+        }
         // パレットを登録している場合のみ、色分けが細かすぎる箇所を判定する。
         // colorMode='flow'(金属七宝・ソフトPVC等の色流し込み)なら「仕切りで埋まって色が入らない」、
         // colorMode='brush'(ポリストーン等の筆彩色)なら「細かすぎて塗り分けできず、はみ出す」という意味になる。
@@ -1839,7 +1851,7 @@
         }
         const curMethod = getMethod(v.methodId);
         const colorMode = (curMethod && curMethod.colorMode) ? curMethod.colorMode : 'flow';
-        return { zone, direction, wallColorRgb, wallWidthMm, zoneCount, thinColorSuggestions, mmPerPxScaled, colorMode, error: null };
+        return { zone, zoneEdgeDist, recessMask, recessEdgeDist, wholeBodyMetal, direction, wallColorRgb, wallWidthMm, zoneCount, thinColorSuggestions, mmPerPxScaled, colorMode, error: null };
       }
 
       if (v.regions.length >= 2) {
@@ -1871,6 +1883,35 @@
     const band = Math.sin((x + y) * 0.045) * 0.5 + Math.sin((x - y) * 0.02) * 0.25;
     return 1 + band * 0.28;
   }
+  // ゾーンの「縁からの距離(zoneEdgeDist)」から簡易的な高さマップを作り、
+  // 左上から光が当たっていると仮定して面取り(ベベル)風の陰影係数マップを返す。
+  // 凸(convex)なら縁が暗く盛り上がった中心が明るい(山型)、凹(concave)ならその逆(谷型)になる。
+  function buildBevelShadeMap(zone, zoneEdgeDist, w, h, bevelPx, invert, strength) {
+    const height = new Float32Array(w * h);
+    for (let i = 0; i < w * h; i++) {
+      if (!zone[i]) continue;
+      const t = Math.min(zoneEdgeDist[i], bevelPx) / bevelPx; // 0(縁)〜1(内部平坦部)
+      // ease-out: 縁のすぐ内側で傾斜が急、内部に向かうほどなだらかになる(実際の面取り・丸みに近い形状)。
+      // 単純な直線ランプより、縁のハイライト/シャドウがくっきり出て凸凹が分かりやすくなる。
+      let hgt = 1 - (1 - t) * (1 - t);
+      if (invert) hgt = 1 - hgt;
+      height[i] = hgt;
+    }
+    const shade = new Float32Array(w * h).fill(1);
+    const lightX = -0.7, lightY = -0.7;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = y * w + x;
+        if (!zone[i]) continue;
+        const xm = x > 0 ? i - 1 : i, xp = x < w - 1 ? i + 1 : i;
+        const ym = y > 0 ? i - w : i, yp = y < h - 1 ? i + w : i;
+        const dx = height[xp] - height[xm];
+        const dy = height[yp] - height[ym];
+        shade[i] = 1 + (dx * lightX + dy * lightY) * strength;
+      }
+    }
+    return shade;
+  }
 
   function buildWallGenCard(v, cardLabel, r) {
     const card = document.createElement('div');
@@ -1883,11 +1924,15 @@
 
     const toolbar = document.createElement('div');
     toolbar.className = 'result-toolbar';
+    const showRecessToggle = r.recessMask
+      ? '<label style="margin-left:10px;"><input type="checkbox" id="recessCb" checked> 色が入る部分もシルバー地金で表示</label>'
+      : '';
     toolbar.innerHTML = '<span>' + cardLabel + (r.colorMode === 'brush'
         ? '(塗り分け確認・基準' + r.wallWidthMm.toFixed(2) + 'mm)'
         : '(仕切り線プレビュー・' + (r.direction === 'convex' ? '凸' : '凹') + '・' + r.wallWidthMm.toFixed(2) + 'mm)') + '</span>'
-      + '<label><input type="checkbox" checked> 仕切りを表示</label>';
+      + '<label><input type="checkbox" checked> 仕切りを表示</label>' + showRecessToggle;
     const toggleCb = toolbar.querySelector('input[type="checkbox"]');
+    const recessCb = toolbar.querySelector('#recessCb');
     card.appendChild(toolbar);
 
     const canvasWrap = document.createElement('div');
@@ -1902,24 +1947,55 @@
       const ctx = canvas.getContext('2d');
       ctx.drawImage(v.workCanvas, 0, 0);
       if (toggleCb.checked) {
+        // ゾーンの厚み(=仕切りの太さ)に応じたベベル幅で、山型(凸)/谷型(凹)の陰影マップを作る。
+        // 部分的な仕切り線は、その太さに応じた細いベベルにする。
+        // 色入れ無し(製品全体が金属色)の場合は、0.数mmの仕切り太さを基準にすると陰影が
+        // 数px程度の縁取りにしかならず、ほぼ見えなくなってしまうため、画像サイズに応じた
+        // もっと広いベベル幅・強めのコントラストにして、全体が丸みを帯びて見えるようにする。
+        const bevelPx = r.wholeBodyMetal
+          ? Math.max(8, Math.min(40, Math.round(Math.min(v.workW, v.workH) * 0.08)))
+          : Math.max(2, (r.wallWidthMm / r.mmPerPxScaled) * 0.6);
+        const bevelStrength = r.wholeBodyMetal ? 1.4 : 0.55;
+        const reliefMin = r.wholeBodyMetal ? 0.35 : 0.55;
+        const reliefMax = r.wholeBodyMetal ? 1.85 : 1.6;
+        const bevelShade = buildBevelShadeMap(r.zone, r.zoneEdgeDist, v.workW, v.workH, bevelPx, r.direction === 'concave', bevelStrength);
         const img = ctx.getImageData(0, 0, v.workW, v.workH);
         const data = img.data;
         for (let i = 0; i < v.workW * v.workH; i++) {
           if (!r.zone[i]) continue;
+          const relief = Math.max(reliefMin, Math.min(reliefMax, bevelShade[i]));
           if (r.direction === 'convex') {
-            // 凸(金属の色がそのまま乗る)：単なるベタ塗りだと実物の質感が伝わりにくいため、
-            // 斜め方向の明暗バンドを重ねて「金属らしい光沢(ヘアライン/反射)」の見た目にする。
+            // 凸(金属の色がそのまま乗る)：
+            // ・色入れ無し(製品全体が金属色)のときだけ、斜め方向の光沢バンドで金属らしい質感を出す。
+            // ・色入れ有り(仕切り線)のときは、単色グレー等そのままの色で、面取りの陰影(relief)だけ付けて
+            //   シンプルな凸ラインとして再現する。
             const x = i % v.workW, y = (i / v.workW) | 0;
-            const shade = metallicShadeFactor(x, y);
+            const shade = r.wholeBodyMetal ? (metallicShadeFactor(x, y) * relief) : relief;
             data[i * 4] = clamp255(Math.round(r.wallColorRgb[0] * shade));
             data[i * 4 + 1] = clamp255(Math.round(r.wallColorRgb[1] * shade));
             data[i * 4 + 2] = clamp255(Math.round(r.wallColorRgb[2] * shade));
             data[i * 4 + 3] = 255;
           } else {
-            // 凹(色は変わらず溝ができるだけ)：元の色を少し暗くして「くぼみ」を表現する
-            data[i * 4] = Math.round(data[i * 4] * 0.62);
-            data[i * 4 + 1] = Math.round(data[i * 4 + 1] * 0.62);
-            data[i * 4 + 2] = Math.round(data[i * 4 + 2] * 0.62);
+            // 凹(色は変わらず溝ができるだけ)：中心ほど深く暗く、縁は元の色に近い明るさにして、
+            // 溝の立体感を出す。
+            const darken = 0.62 * relief;
+            data[i * 4] = clamp255(Math.round(data[i * 4] * darken));
+            data[i * 4 + 1] = clamp255(Math.round(data[i * 4 + 1] * darken));
+            data[i * 4 + 2] = clamp255(Math.round(data[i * 4 + 2] * darken));
+          }
+        }
+        // 色が入る凹部分(仕切り以外の材料)も、まだ着色していない生地の金属として
+        // シルバーのグラデーションで表現する(色入れ有り・凸仕上げのときだけ、チェックがオンの場合)。
+        if (r.recessMask && recessCb && recessCb.checked) {
+          const recessBevelPx = Math.max(4, Math.min(20, Math.round(Math.min(v.workW, v.workH) * 0.04)));
+          const recessShade = buildBevelShadeMap(r.recessMask, r.recessEdgeDist, v.workW, v.workH, recessBevelPx, true, 1.2);
+          for (let i = 0; i < v.workW * v.workH; i++) {
+            if (!r.recessMask[i]) continue;
+            const relief = Math.max(0.4, Math.min(1.7, recessShade[i]));
+            data[i * 4] = clamp255(Math.round(r.wallColorRgb[0] * relief));
+            data[i * 4 + 1] = clamp255(Math.round(r.wallColorRgb[1] * relief));
+            data[i * 4 + 2] = clamp255(Math.round(r.wallColorRgb[2] * relief));
+            data[i * 4 + 3] = 255;
           }
         }
         ctx.putImageData(img, 0, 0);
@@ -1944,6 +2020,7 @@
     }
     draw(null);
     toggleCb.addEventListener('change', function() { draw(null); });
+    if (recessCb) recessCb.addEventListener('change', function() { draw(null); });
 
     const note = document.createElement('div');
     note.className = 'disclaimer';
