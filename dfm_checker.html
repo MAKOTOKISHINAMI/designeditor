@@ -751,6 +751,8 @@
           note: '突起・凹みの最小幅の目安です。硬い金型なのでアンダーカット(引っかかり形状)は基本的に抜けません。' },
         { id: 'enamel', label: '凸凹色入れ有り(2色以上)', checkType: 'wall', minWidthMm: 0.5,
           note: '色と色の間の仕切り(陽線、金属色の凸)の最小幅です。金型に彫り込んで色を流し込むため、金属プレートの型押しと同程度の太さが必要です(エッチングほど細かくは表現できません)。' },
+        { id: 'solid_nocolor', label: '凸凹色入れ無し(立体・メッキ1色)', checkType: 'material', minWidthMm: 1.0,
+          note: '立体的な凸凹(模様・キャラクター等)はあるが、色分けはせずメッキ仕上げ一色のみにする場合の、突起・凹みの最小幅の目安です。⑥の仕切り線プレビューでは、製品全体がそのまま指定した金属色(シルバー等)で表示されます。' },
         { id: 'plain', label: '色入れ無し(メッキ1色のみ)', checkType: 'material', minWidthMm: 0.8,
           note: '色を流し込まず、メッキ仕上げ一色のみにする場合の、文字・細い線の最小幅の目安です。' }
       ]
@@ -773,6 +775,8 @@
           note: '色と色の間の仕切り(陽線、金属色の凸)の最小幅です。型押しより細かい表現が可能ですが、凹みは浅くなります。対応素材: 真鍮・ステンレスのみ。' },
         { id: 'enamel_press', label: '凸凹色入れ有り(型押し加工・2色以上)', checkType: 'wall', minWidthMm: 0.5,
           note: '色と色の間の仕切り(陽線、金属色の凸)の最小幅です。エッチングより凹みを深くできますが、表現できる細かさはやや劣ります。対応素材: 真鍮・ステンレス・鉄。' },
+        { id: 'solid_nocolor', label: '凸凹色入れ無し(立体・メッキ1色)', checkType: 'material', minWidthMm: 0.5,
+          note: '立体的な凸凹(模様等)はあるが、色分けはせずメッキ仕上げ一色のみにする場合の、突起・凹みの最小幅の目安です。⑥の仕切り線プレビューでは、製品全体がそのまま指定した金属色(シルバー等)で表示されます。' },
         { id: 'plain', label: '色入れ無し(金属素地のまま)', checkType: 'material', minWidthMm: 0.5, note: '彫刻・凹凸の最小幅の目安です。' },
         { id: 'print', label: '印刷', checkType: 'material', minWidthMm: 0.3, note: '印刷なので仕切りは不要です。印刷可能な最小の線幅の目安です。' }
       ]
@@ -1837,7 +1841,9 @@
         // 凹部分(材料のうち仕切りではない箇所)も、まだ色を入れていない生地の金属として
         // シルバーのグラデーションで表現できるよう、その範囲と縁からの距離も求めておく。
         let recessMask = null, recessEdgeDist = null;
-        if (labelMap && direction === 'convex') {
+        // (パレット未登録でも、仕切りゾーン以外の材料部分がある限り計算する。
+        //  色入れ無しの製品全体塗り(wholeBodyMetal)のときはzone=materialMaskなので該当なし)
+        if (!wholeBodyMetal && direction === 'convex') {
           recessMask = new Uint8Array(v.workW * v.workH);
           for (let i = 0; i < v.workW * v.workH; i++) recessMask[i] = (materialMask[i] && !zone[i]) ? 1 : 0;
           recessEdgeDist = distToBackground(recessMask, v.workW, v.workH);
