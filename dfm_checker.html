@@ -1791,11 +1791,18 @@
           return { error: '材料部分を検出できませんでした。③の背景色指定や②の解析範囲を見直してください。' };
         }
         const labelMap = paletteColors.length ? buildPaletteLabelMap(imageData, materialMask, v.workW, v.workH, paletteColors) : null;
+        // 色入れ無し(メッキ1色のみ等、checkType='material')でパレット未登録の場合：
+        // 仕切り線という概念が無く、製品全体がそのまま指定した金属色になるため、
+        // 部分的な仕切りゾーンではなく材料全体をプレビュー対象にする。
+        const curVariant = getVariant(v.methodId, v.variantId);
+        const wholeBodyMetal = !labelMap && curVariant && curVariant.checkType === 'material';
         // アウトライン(背景との境目)は内側の色境界とは別の太さ(outlineRadiusPx)で扱うため、
         // 背景までの距離を別途測っておく。
         const bgDist = distToBackground(materialMask, v.workW, v.workH);
         let zone;
-        if (labelMap) {
+        if (wholeBodyMetal) {
+          zone = materialMask;
+        } else if (labelMap) {
           // パレット登録時は、境界を経由せず直接「違うラベルまでの距離」を測ることで、
           // 2色の間の仕切りの合計幅がちょうど指定した太さ(wallWidthMm)になるようにする。
           // ここでは背景は「違う色」に含めず(excludeBackground=true)、色どうしの境目だけをradiusPxで判定し、
@@ -1857,6 +1864,14 @@
   }
 
   // 1件の仕切り線プレビュー結果を1枚のカードとして描画する共通処理
+  function clamp255(v) { return v < 0 ? 0 : (v > 255 ? 255 : v); }
+  // 斜め45度の帯状に明暗を変化させ、シルバー/ゴールドなど金属色を「ヘアライン仕上げ」風の
+  // 光沢があるように見せるための明るさ係数(0.72〜1.28程度)を返す。
+  function metallicShadeFactor(x, y) {
+    const band = Math.sin((x + y) * 0.045) * 0.5 + Math.sin((x - y) * 0.02) * 0.25;
+    return 1 + band * 0.28;
+  }
+
   function buildWallGenCard(v, cardLabel, r) {
     const card = document.createElement('div');
     card.className = 'card result-card';
@@ -1892,8 +1907,14 @@
         for (let i = 0; i < v.workW * v.workH; i++) {
           if (!r.zone[i]) continue;
           if (r.direction === 'convex') {
-            // 凸(金属の色がそのまま乗る)：不透明の金属色で塗りつぶす
-            data[i * 4] = r.wallColorRgb[0]; data[i * 4 + 1] = r.wallColorRgb[1]; data[i * 4 + 2] = r.wallColorRgb[2]; data[i * 4 + 3] = 255;
+            // 凸(金属の色がそのまま乗る)：単なるベタ塗りだと実物の質感が伝わりにくいため、
+            // 斜め方向の明暗バンドを重ねて「金属らしい光沢(ヘアライン/反射)」の見た目にする。
+            const x = i % v.workW, y = (i / v.workW) | 0;
+            const shade = metallicShadeFactor(x, y);
+            data[i * 4] = clamp255(Math.round(r.wallColorRgb[0] * shade));
+            data[i * 4 + 1] = clamp255(Math.round(r.wallColorRgb[1] * shade));
+            data[i * 4 + 2] = clamp255(Math.round(r.wallColorRgb[2] * shade));
+            data[i * 4 + 3] = 255;
           } else {
             // 凹(色は変わらず溝ができるだけ)：元の色を少し暗くして「くぼみ」を表現する
             data[i * 4] = Math.round(data[i * 4] * 0.62);
