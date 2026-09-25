@@ -84,6 +84,16 @@
   .view-canvas { max-width: 100%; max-height: 220px; image-rendering: pixelated; cursor: default; display: block; }
   .view-canvas.crosshair { cursor: crosshair; }
   .view-canvas.roi-cursor { cursor: cell; }
+  #colorMagnifier {
+    position: fixed; z-index: 9999; display: none; pointer-events: none;
+    background: #fff; border: 2px solid var(--accent, #2563eb); border-radius: 8px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.35); overflow: hidden;
+  }
+  #colorMagnifier canvas { display: block; image-rendering: pixelated; }
+  #colorMagnifier .mag-readout {
+    font-size: 12px; text-align: center; padding: 3px 0; background: #111; color: #fff;
+    font-family: monospace;
+  }
   .view-size-row { display: flex; gap: 6px; margin-top: 8px; align-items: center; }
   .view-size-row select { flex: 1; padding: 6px 8px; font-size: 12px; }
   .view-size-row input { width: 70px; padding: 6px 8px; font-size: 12px; }
@@ -1174,6 +1184,15 @@
       return;
     }
 
+    canvas.addEventListener('mousemove', function(e) {
+      if (!pickingMode) return;
+      const p = toWorkCoord(e);
+      showColorMagnifier(v, e.clientX, e.clientY, p.x, p.y);
+    });
+    canvas.addEventListener('mouseleave', function() {
+      hideColorMagnifier();
+    });
+
     canvas.addEventListener('click', function(e) {
       if (!pickingMode) return;
       const p = toWorkCoord(e);
@@ -1202,8 +1221,59 @@
       if (!pickingMode) {
         document.querySelectorAll('.view-canvas').forEach(c => c.classList.remove('crosshair'));
         document.getElementById('statusMsg').textContent = '';
+        hideColorMagnifier();
       }
     });
+  }
+
+  // ── 色を拾うとき、画像が小さくて狙いづらいので、カーソル位置を拡大して見せるルーペ ──
+  let magnifierEl = null, magnifierCanvas = null, magnifierReadout = null;
+  const MAGNIFIER_SRC_PX = 15;   // カーソル中心から何px四方を拡大するか(作業用キャンバス座標)
+  const MAGNIFIER_SCALE = 9;     // 拡大倍率
+  function ensureMagnifier() {
+    if (magnifierEl) return;
+    magnifierEl = document.createElement('div');
+    magnifierEl.id = 'colorMagnifier';
+    magnifierCanvas = document.createElement('canvas');
+    const dim = MAGNIFIER_SRC_PX * MAGNIFIER_SCALE;
+    magnifierCanvas.width = dim; magnifierCanvas.height = dim;
+    magnifierReadout = document.createElement('div');
+    magnifierReadout.className = 'mag-readout';
+    magnifierEl.appendChild(magnifierCanvas);
+    magnifierEl.appendChild(magnifierReadout);
+    document.body.appendChild(magnifierEl);
+  }
+  function showColorMagnifier(v, clientX, clientY, workX, workY) {
+    ensureMagnifier();
+    const half = (MAGNIFIER_SRC_PX - 1) / 2;
+    const sx = Math.max(0, Math.min(v.workW - MAGNIFIER_SRC_PX, Math.round(workX - half)));
+    const sy = Math.max(0, Math.min(v.workH - MAGNIFIER_SRC_PX, Math.round(workY - half)));
+    const sw = Math.min(MAGNIFIER_SRC_PX, v.workW - sx);
+    const sh = Math.min(MAGNIFIER_SRC_PX, v.workH - sy);
+    const ctx = magnifierCanvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, magnifierCanvas.width, magnifierCanvas.height);
+    ctx.drawImage(v.workCanvas, sx, sy, sw, sh, 0, 0, sw * MAGNIFIER_SCALE, sh * MAGNIFIER_SCALE);
+    // 中央(=実際にクリックで拾われる画素)を枠で強調表示
+    const cellX = (workX - sx) * MAGNIFIER_SCALE, cellY = (workY - sy) * MAGNIFIER_SCALE;
+    ctx.strokeStyle = '#ff2d55'; ctx.lineWidth = 2;
+    ctx.strokeRect(cellX + 1, cellY + 1, MAGNIFIER_SCALE - 2, MAGNIFIER_SCALE - 2);
+    // 読み取り値の表示
+    const px = v.workCtx.getImageData(workX, workY, 1, 1).data;
+    const hex = '#' + [0, 1, 2].map(i => px[i].toString(16).padStart(2, '0')).join('');
+    magnifierReadout.textContent = hex + '  (' + px[0] + ',' + px[1] + ',' + px[2] + ')';
+    // カーソルに重ならないよう右下にオフセットしつつ、画面端では自動的に反対側へ
+    const dim = MAGNIFIER_SRC_PX * MAGNIFIER_SCALE;
+    const margin = 18;
+    let left = clientX + margin, top = clientY + margin;
+    if (left + dim > window.innerWidth) left = clientX - margin - dim;
+    if (top + dim + 24 > window.innerHeight) top = clientY - margin - dim - 24;
+    magnifierEl.style.left = left + 'px';
+    magnifierEl.style.top = top + 'px';
+    magnifierEl.style.display = 'block';
+  }
+  function hideColorMagnifier() {
+    if (magnifierEl) magnifierEl.style.display = 'none';
   }
 
   function startPicking(kind) {
@@ -1237,6 +1307,7 @@
       document.getElementById('palettePickBtn').classList.remove('picking');
       document.getElementById('palettePickBtn').textContent = '🎨 画像をクリックして色を追加';
       document.getElementById('statusMsg').textContent = '';
+      hideColorMagnifier();
     }
   }
   function removePaletteColor(idx) {
