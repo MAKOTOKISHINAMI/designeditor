@@ -1836,7 +1836,18 @@
         const zoneCount = zone.reduce((a, x) => a + x, 0);
         // ゾーン内部での「縁からの距離」を求めておく(プレビューで凸凹の立体感を出すため、
         // 縁に近いほど暗く/明るく陰影をつける「面取り」風の表現に使う)。
-        const zoneEdgeDist = distToBackground(zone, v.workW, v.workH);
+        let zoneEdgeDist = distToBackground(zone, v.workW, v.workH);
+        // 色入れ無し(製品全体が金属色)の場合：外周のシルエットだけでは、目・ネクタイ・文字など
+        // デザイン内部の模様(色の違い)が埋もれて真っ平らに見えてしまう。パレット未登録でも
+        // 色の違いを自動検出し、その境目からの距離も「縁」として扱うことで、内部の模様も
+        // 立体的な凹凸として表現できるようにする。
+        if (wholeBodyMetal) {
+          const internalBoundary = detectColorBoundaries(imageData, materialMask, v.workW, v.workH, sensitivity);
+          const internalDist = chamferDistanceTransform(internalBoundary, v.workW, v.workH);
+          for (let i = 0; i < v.workW * v.workH; i++) {
+            if (zone[i] && internalDist[i] < zoneEdgeDist[i]) zoneEdgeDist[i] = internalDist[i];
+          }
+        }
         // 色入れ有り(パレット登録あり)で凸仕上げの場合：仕切り(壁)以外の、色が流し込まれる
         // 凹部分(材料のうち仕切りではない箇所)も、まだ色を入れていない生地の金属として
         // シルバーのグラデーションで表現できるよう、その範囲と縁からの距離も求めておく。
@@ -1887,7 +1898,7 @@
   // 光沢があるように見せるための明るさ係数(0.72〜1.28程度)を返す。
   function metallicShadeFactor(x, y) {
     const band = Math.sin((x + y) * 0.045) * 0.5 + Math.sin((x - y) * 0.02) * 0.25;
-    return 1 + band * 0.28;
+    return 1 + band * 0.16;
   }
   // ゾーンの「縁からの距離(zoneEdgeDist)」から簡易的な高さマップを作り、
   // 左上から光が当たっていると仮定して面取り(ベベル)風の陰影係数マップを返す。
@@ -1931,7 +1942,7 @@
     const toolbar = document.createElement('div');
     toolbar.className = 'result-toolbar';
     const showRecessToggle = r.recessMask
-      ? '<label style="margin-left:10px;"><input type="checkbox" id="recessCb" checked> 色が入る部分もシルバー地金で表示</label>'
+      ? '<label style="margin-left:10px;"><input type="checkbox" id="recessCb"> 色が入る部分もシルバー地金で表示</label>'
       : '';
     toolbar.innerHTML = '<span>' + cardLabel + (r.colorMode === 'brush'
         ? '(塗り分け確認・基準' + r.wallWidthMm.toFixed(2) + 'mm)'
@@ -1955,13 +1966,12 @@
       if (toggleCb.checked) {
         // ゾーンの厚み(=仕切りの太さ)に応じたベベル幅で、山型(凸)/谷型(凹)の陰影マップを作る。
         // 部分的な仕切り線は、その太さに応じた細いベベルにする。
-        // 色入れ無し(製品全体が金属色)の場合は、0.数mmの仕切り太さを基準にすると陰影が
-        // 数px程度の縁取りにしかならず、ほぼ見えなくなってしまうため、画像サイズに応じた
-        // もっと広いベベル幅・強めのコントラストにして、全体が丸みを帯びて見えるようにする。
+        // 色入れ無し(製品全体が金属色)の場合は、外周だけでなく目・ネクタイ・文字などデザイン内部の
+        // 境目でも陰影がつくようになったため、細かい模様までつぶれないよう控えめな幅にする。
         const bevelPx = r.wholeBodyMetal
-          ? Math.max(8, Math.min(40, Math.round(Math.min(v.workW, v.workH) * 0.08)))
+          ? Math.max(4, Math.min(16, Math.round(Math.min(v.workW, v.workH) * 0.025)))
           : Math.max(2, (r.wallWidthMm / r.mmPerPxScaled) * 0.6);
-        const bevelStrength = r.wholeBodyMetal ? 1.4 : 0.55;
+        const bevelStrength = r.wholeBodyMetal ? 1.5 : 0.55;
         const reliefMin = r.wholeBodyMetal ? 0.35 : 0.55;
         const reliefMax = r.wholeBodyMetal ? 1.85 : 1.6;
         const bevelShade = buildBevelShadeMap(r.zone, r.zoneEdgeDist, v.workW, v.workH, bevelPx, r.direction === 'concave', bevelStrength);
@@ -1992,12 +2002,16 @@
         }
         // 色が入る凹部分(仕切り以外の材料)も、まだ着色していない生地の金属として
         // シルバーのグラデーションで表現する(色入れ有り・凸仕上げのときだけ、チェックがオンの場合)。
+        // 実際のエッチング/型押しの凹みは、なだらかな丸い窪みではなく、壁が立った箱型(直角に近い)形状で
+        // 底は概ね平らなので、ベベル幅は狭く(壁のごく縁だけ)し、かつ全体を仕切り(壁)より暗めのトーンに
+        // 落とすことで「低い場所にある」ことがはっきり分かるようにする。
         if (r.recessMask && recessCb && recessCb.checked) {
-          const recessBevelPx = Math.max(4, Math.min(20, Math.round(Math.min(v.workW, v.workH) * 0.04)));
-          const recessShade = buildBevelShadeMap(r.recessMask, r.recessEdgeDist, v.workW, v.workH, recessBevelPx, true, 1.2);
+          const recessBevelPx = Math.max(2, Math.min(6, Math.round(Math.min(v.workW, v.workH) * 0.008)));
+          const recessShade = buildBevelShadeMap(r.recessMask, r.recessEdgeDist, v.workW, v.workH, recessBevelPx, true, 1.3);
+          const RECESS_BASE_DARKEN = 0.72; // 壁より暗いベーストーン(凹んでいることを明確にする)
           for (let i = 0; i < v.workW * v.workH; i++) {
             if (!r.recessMask[i]) continue;
-            const relief = Math.max(0.4, Math.min(1.7, recessShade[i]));
+            const relief = Math.max(0.55, Math.min(1.35, recessShade[i])) * RECESS_BASE_DARKEN;
             data[i * 4] = clamp255(Math.round(r.wallColorRgb[0] * relief));
             data[i * 4 + 1] = clamp255(Math.round(r.wallColorRgb[1] * relief));
             data[i * 4 + 2] = clamp255(Math.round(r.wallColorRgb[2] * relief));
