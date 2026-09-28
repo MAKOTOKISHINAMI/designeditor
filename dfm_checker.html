@@ -1799,7 +1799,8 @@
         // 仕切り線という概念が無く、製品全体がそのまま指定した金属色になるため、
         // 部分的な仕切りゾーンではなく材料全体をプレビュー対象にする。
         const curVariant = getVariant(v.methodId, v.variantId);
-        const wholeBodyMetal = !labelMap && curVariant && curVariant.checkType === 'material';
+        // 「凸凹色入れ無し」(solid_nocolor)は全体塗りにせず、輪郭・模様の境目を凸(濃いグレー)、それ以外を凹(薄いグレー)の2色で表示する。
+        const wholeBodyMetal = !labelMap && curVariant && curVariant.checkType === 'material' && curVariant.id !== 'solid_nocolor';
         // アウトライン(背景との境目)は内側の色境界とは別の太さ(outlineRadiusPx)で扱うため、
         // 背景までの距離を別途測っておく。
         const bgDist = distToBackground(materialMask, v.workW, v.workH);
@@ -1942,7 +1943,7 @@
     const toolbar = document.createElement('div');
     toolbar.className = 'result-toolbar';
     const showRecessToggle = r.recessMask
-      ? '<label style="margin-left:10px;"><input type="checkbox" id="recessCb" checked> 色が入る凹部分をグレーのグラデーションで表示(OFFで元のデザイン色)</label>'
+      ? '<label style="margin-left:10px;"><input type="checkbox" id="recessCb" checked> 色が入る凹部分を薄いグレーで表示(OFFで元のデザイン色)</label><span style="margin-left:8px;font-size:11px;color:#888;">[フラット2色版]</span>'
       : '';
     toolbar.innerHTML = '<span>' + cardLabel + (r.colorMode === 'brush'
         ? '(塗り分け確認・基準' + r.wallWidthMm.toFixed(2) + 'mm)'
@@ -2000,17 +2001,11 @@
             data[i * 4 + 2] = clamp255(Math.round(data[i * 4 + 2] * darken));
           }
         }
-        // 色が入る凹部分(仕切り以外の材料)：まだ着色していない生地の金属として、
-        // 個々の凹みごとの丸い陰影ではなく、製品全体にかかる一続きのシルバーグラデーション
-        // (上が暗め・中央が明るい・下がやや暗めの斜めの金属光沢)で表現する。
-        // 仕切り(壁)は陰影を付けず、指定した金属色のフラットな凸ラインのまま。
+        // 色が入る凹部分(仕切り以外の材料)：凸(仕切り)=濃いグレーのフラット単色、
+        // 凹=薄いグレーで、凹みごとではなく製品全体を1枚の金属プレートとして見せる
+        // 一続きの平面グラデーション(全ての凹みで同じグラデーション)にする。
         if (r.recessMask && recessCb && recessCb.checked) {
-          // 壁をフラットな単色に戻す(凹み側のグラデーションと対比させる)
-          for (let i = 0; i < v.workW * v.workH; i++) {
-            if (!r.zone[i] || r.recessMask[i]) continue;
-            data[i * 4] = r.wallColorRgb[0]; data[i * 4 + 1] = r.wallColorRgb[1]; data[i * 4 + 2] = r.wallColorRgb[2]; data[i * 4 + 3] = 255;
-          }
-          // グラデーションの基準範囲(材料全体のバウンディングボックス)
+          const WALL_DARKEN = 0.72;
           let bx0 = v.workW, by0 = v.workH, bx1 = 0, by1 = 0;
           for (let i = 0; i < v.workW * v.workH; i++) {
             if (!r.recessMask[i] && !r.zone[i]) continue;
@@ -2020,17 +2015,21 @@
           }
           const bw = Math.max(1, bx1 - bx0), bh = Math.max(1, by1 - by0);
           for (let i = 0; i < v.workW * v.workH; i++) {
-            if (!r.recessMask[i]) continue;
-            const x = i % v.workW, y = (i / v.workW) | 0;
-            // 縦方向中心＋わずかに右上がりの斜め。t: 0(上)〜1(下)
-            const t = Math.min(1, Math.max(0, ((y - by0) / bh) * 0.85 + (1 - (x - bx0) / bw) * 0.15));
-            // 上部は暗め(0.62)→中央付近で明るい(1.0)→下部はやや暗め(0.78)
-            const glow = Math.exp(-Math.pow((t - 0.5) / 0.2, 2));
-            const f = 0.62 + 0.38 * glow + (t > 0.5 ? 0.0 : 0.0) + 0.16 * Math.max(0, t - 0.5) * 2 * (1 - glow);
-            data[i * 4] = clamp255(Math.round(r.wallColorRgb[0] * f));
-            data[i * 4 + 1] = clamp255(Math.round(r.wallColorRgb[1] * f));
-            data[i * 4 + 2] = clamp255(Math.round(r.wallColorRgb[2] * f));
-            data[i * 4 + 3] = 255;
+            if (r.recessMask[i]) {
+              const x = i % v.workW, y = (i / v.workW) | 0;
+              // 左上→右下方向の斜めグラデーション(0〜1)。中央付近が最も明るい金属光沢。
+              const t = Math.min(1, Math.max(0, ((x - bx0) / bw) * 0.4 + ((y - by0) / bh) * 0.6));
+              const f = 0.86 + 0.16 * Math.exp(-Math.pow((t - 0.45) / 0.25, 2));
+              data[i * 4] = clamp255(Math.round(r.wallColorRgb[0] * f));
+              data[i * 4 + 1] = clamp255(Math.round(r.wallColorRgb[1] * f));
+              data[i * 4 + 2] = clamp255(Math.round(r.wallColorRgb[2] * f));
+              data[i * 4 + 3] = 255;
+            } else if (r.zone[i]) {
+              data[i * 4] = Math.round(r.wallColorRgb[0] * WALL_DARKEN);
+              data[i * 4 + 1] = Math.round(r.wallColorRgb[1] * WALL_DARKEN);
+              data[i * 4 + 2] = Math.round(r.wallColorRgb[2] * WALL_DARKEN);
+              data[i * 4 + 3] = 255;
+            }
           }
         }
         ctx.putImageData(img, 0, 0);
