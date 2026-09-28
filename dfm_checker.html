@@ -2000,21 +2000,36 @@
             data[i * 4 + 2] = clamp255(Math.round(data[i * 4 + 2] * darken));
           }
         }
-        // 色が入る凹部分(仕切り以外の材料)も、まだ着色していない生地の金属として
-        // シルバーのグラデーションで表現する(色入れ有り・凸仕上げのときだけ、チェックがオンの場合)。
-        // 実際のエッチング/型押しの凹みは、なだらかな丸い窪みではなく、壁が立った箱型(直角に近い)形状で
-        // 底は概ね平らなので、ベベル幅は狭く(壁のごく縁だけ)し、かつ全体を仕切り(壁)より暗めのトーンに
-        // 落とすことで「低い場所にある」ことがはっきり分かるようにする。
+        // 色が入る凹部分(仕切り以外の材料)：まだ着色していない生地の金属として、
+        // 個々の凹みごとの丸い陰影ではなく、製品全体にかかる一続きのシルバーグラデーション
+        // (上が暗め・中央が明るい・下がやや暗めの斜めの金属光沢)で表現する。
+        // 仕切り(壁)は陰影を付けず、指定した金属色のフラットな凸ラインのまま。
         if (r.recessMask && recessCb && recessCb.checked) {
-          const recessBevelPx = Math.max(2, Math.min(6, Math.round(Math.min(v.workW, v.workH) * 0.008)));
-          const recessShade = buildBevelShadeMap(r.recessMask, r.recessEdgeDist, v.workW, v.workH, recessBevelPx, true, 1.3);
-          const RECESS_BASE_DARKEN = 0.72; // 壁より暗いベーストーン(凹んでいることを明確にする)
+          // 壁をフラットな単色に戻す(凹み側のグラデーションと対比させる)
+          for (let i = 0; i < v.workW * v.workH; i++) {
+            if (!r.zone[i] || r.recessMask[i]) continue;
+            data[i * 4] = r.wallColorRgb[0]; data[i * 4 + 1] = r.wallColorRgb[1]; data[i * 4 + 2] = r.wallColorRgb[2]; data[i * 4 + 3] = 255;
+          }
+          // グラデーションの基準範囲(材料全体のバウンディングボックス)
+          let bx0 = v.workW, by0 = v.workH, bx1 = 0, by1 = 0;
+          for (let i = 0; i < v.workW * v.workH; i++) {
+            if (!r.recessMask[i] && !r.zone[i]) continue;
+            const x = i % v.workW, y = (i / v.workW) | 0;
+            if (x < bx0) bx0 = x; if (x > bx1) bx1 = x;
+            if (y < by0) by0 = y; if (y > by1) by1 = y;
+          }
+          const bw = Math.max(1, bx1 - bx0), bh = Math.max(1, by1 - by0);
           for (let i = 0; i < v.workW * v.workH; i++) {
             if (!r.recessMask[i]) continue;
-            const relief = Math.max(0.55, Math.min(1.35, recessShade[i])) * RECESS_BASE_DARKEN;
-            data[i * 4] = clamp255(Math.round(r.wallColorRgb[0] * relief));
-            data[i * 4 + 1] = clamp255(Math.round(r.wallColorRgb[1] * relief));
-            data[i * 4 + 2] = clamp255(Math.round(r.wallColorRgb[2] * relief));
+            const x = i % v.workW, y = (i / v.workW) | 0;
+            // 縦方向中心＋わずかに右上がりの斜め。t: 0(上)〜1(下)
+            const t = Math.min(1, Math.max(0, ((y - by0) / bh) * 0.85 + (1 - (x - bx0) / bw) * 0.15));
+            // 上部は暗め(0.62)→中央付近で明るい(1.0)→下部はやや暗め(0.78)
+            const glow = Math.exp(-Math.pow((t - 0.5) / 0.2, 2));
+            const f = 0.62 + 0.38 * glow + (t > 0.5 ? 0.0 : 0.0) + 0.16 * Math.max(0, t - 0.5) * 2 * (1 - glow);
+            data[i * 4] = clamp255(Math.round(r.wallColorRgb[0] * f));
+            data[i * 4 + 1] = clamp255(Math.round(r.wallColorRgb[1] * f));
+            data[i * 4 + 2] = clamp255(Math.round(r.wallColorRgb[2] * f));
             data[i * 4 + 3] = 255;
           }
         }
