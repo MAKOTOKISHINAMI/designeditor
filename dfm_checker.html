@@ -1900,7 +1900,7 @@
         }
         const curMethod = getMethod(v.methodId);
         const colorMode = (curMethod && curMethod.colorMode) ? curMethod.colorMode : 'flow';
-        return { zone, zoneEdgeDist, recessMask, recessEdgeDist, wholeBodyMetal, direction, wallColorRgb, wallWidthMm, zoneCount, thinColorSuggestions, mmPerPxScaled, colorMode, error: null };
+        return { zone, zoneEdgeDist, recessMask, recessEdgeDist, wholeBodyMetal, noColorVariant: !!(curVariant && curVariant.id === 'solid_nocolor'), direction, wallColorRgb, wallWidthMm, zoneCount, thinColorSuggestions, mmPerPxScaled, colorMode, error: null };
       }
 
       if (v.regions.length >= 2) {
@@ -1974,7 +1974,7 @@
     const toolbar = document.createElement('div');
     toolbar.className = 'result-toolbar';
     const showRecessToggle = r.recessMask
-      ? '<label style="margin-left:10px;"><input type="checkbox" id="recessCb" checked> 色が入る凹部分を薄いグレーで表示(OFFで元のデザイン色)</label><span style="margin-left:8px;font-size:11px;color:#888;">[フラット2色版]</span>'
+      ? '<label style="margin-left:10px;"><input type="checkbox" id="recessCb"' + (r.noColorVariant ? ' checked' : '') + '> 色が入る凹部分を薄いグレーで表示(OFFで元のデザイン色)</label><span style="margin-left:8px;font-size:11px;color:#888;">[フラット2色版]</span>'
       : '';
     toolbar.innerHTML = '<span>' + cardLabel + (r.colorMode === 'brush'
         ? '(塗り分け確認・基準' + r.wallWidthMm.toFixed(2) + 'mm)'
