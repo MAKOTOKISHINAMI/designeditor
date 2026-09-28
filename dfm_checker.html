@@ -1942,7 +1942,7 @@
     const toolbar = document.createElement('div');
     toolbar.className = 'result-toolbar';
     const showRecessToggle = r.recessMask
-      ? '<label style="margin-left:10px;"><input type="checkbox" id="recessCb"> 色が入る部分もシルバー地金で表示</label>'
+      ? '<label style="margin-left:10px;"><input type="checkbox" id="recessCb" checked> 色が入る凹部分をグレーのグラデーションで表示(OFFで元のデザイン色)</label>'
       : '';
     toolbar.innerHTML = '<span>' + cardLabel + (r.colorMode === 'brush'
         ? '(塗り分け確認・基準' + r.wallWidthMm.toFixed(2) + 'mm)'
