@@ -833,9 +833,39 @@
   }
   // 製法を切り替えたら、読み込み済みの全画像を新しい製法に揃える。
   // バリエーションは、同じidが新しい製法にもあればそれを維持し、無ければ先頭のバリエーションにする。
+  // 製法・バリエーションを変更したときのリセット：写真(と実寸・名前)だけ残し、
+  // 解析結果・仕切りプレビュー・③の色の指定・解析範囲を初期状態に戻す(⑤のパレットは残す)。
+  function resetForSpecChange() {
+    pickingMode = null;
+    paletteMode = false;
+    document.querySelectorAll('.view-canvas').forEach(c => c.classList.remove('crosshair'));
+    ['resinPickBtn', 'metalPickBtn', 'palettePickBtn'].forEach(function(id) {
+      const b = document.getElementById(id); if (b) b.classList.remove('picking');
+    });
+    const pb = document.getElementById('palettePickBtn');
+    if (pb) pb.textContent = '🎨 画像をクリックして色を追加';
+    const st = document.getElementById('statusMsg'); if (st) st.textContent = '';
+    hideColorMagnifier();
+    resinColor = null;
+    metalColor = null;
+    document.getElementById('resinSwatch').style.background = '#ffffff';
+    document.getElementById('resinSwatchLabel').textContent = '自動判定(透明 or ほぼ白)';
+    document.getElementById('metalSwatch').style.background = '#333333';
+    document.getElementById('metalSwatchLabel').textContent = '未指定';
+    // ⑤で登録した色(paletteColors)は、×で個別に削除・追加できるのでリセットしない
+    views.forEach(function(v) {
+      v.result = null; v.subViewResults = null;
+      v.wallGenResult = null; v.wallGenSubResults = null;
+      v.regions = []; v.roiMode = false;
+    });
+    renderResults();
+    renderWallGenResults();
+  }
+
   function onGlobalMethodChange() {
     const method = getCurrentGlobalMethod();
     document.getElementById('globalMethodNote').textContent = method.note || '';
+    resetForSpecChange();
     views.forEach(function(v) {
       const keepVariant = method.variants.find(vv => vv.id === v.variantId);
       const variant = keepVariant || method.variants[0];
@@ -1038,7 +1068,8 @@
         v.minWidthMm = variant ? variant.minWidthMm : v.minWidthMm;
         minWidthInputEl.value = v.minWidthMm;
         variantNote.textContent = variant ? variant.note : '';
-        renderCaveats();
+        resetForSpecChange();
+        renderViewList();
       });
       methodRow.appendChild(variantLabelEl);
       methodRow.appendChild(variantSel);
