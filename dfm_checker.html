@@ -332,7 +332,7 @@
         <input type="range" id="wallGenSensitivity" min="10" max="120" value="40" oninput="document.getElementById('wallGenSensitivityValue').textContent = this.value">
         <p class="hint">値が小さいほど、わずかな色の違いも境界として拾います。色を登録した場合はこの感度は使いません。</p>
       </div>
-      <button type="button" class="btn btn-primary btn-block" onclick="runWallGeneration()">仕切り線プレビューを生成する</button>
+      <button type="button" class="btn btn-primary btn-block" onclick="runWallGeneration()">製品イメージを生成する</button>
     </div>
 
     <div class="card">
@@ -539,6 +539,42 @@
   //  指定した太さの仕切りゾーンを作る(背景と接する外周＝製品のアウトラインも同様に対象)。
   // ══════════════════════════════════════════════════════════════
   // materialMask=1の画素どうしが隣接していて、色が閾値以上違う場合に「境界」とみなす。
+  // 細かい鉛筆の陰影線・毛並みのハッチングなどのノイズをならすための単純なボックスブラー。
+  // 色入れ無しの全体金属プレビューで、内部の境界検出にこのぼかし後の画像を使うことで、
+  // 毛並みの1本1本まで拾ってレース状に穴だらけになるのを防ぎ、大きな形(耳・角・リング穴など)
+  // の境目だけを拾うようにする。
+  function boxBlurImageData(imageData, w, h, radius) {
+    const src = imageData.data;
+    const tmp = new Uint8ClampedArray(src.length);
+    const out = new Uint8ClampedArray(src.length);
+    // 横方向
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        let r = 0, g = 0, b = 0, n = 0;
+        for (let dx = -radius; dx <= radius; dx++) {
+          const xx = x + dx; if (xx < 0 || xx >= w) continue;
+          const i = (y * w + xx) * 4;
+          r += src[i]; g += src[i + 1]; b += src[i + 2]; n++;
+        }
+        const o = (y * w + x) * 4;
+        tmp[o] = r / n; tmp[o + 1] = g / n; tmp[o + 2] = b / n; tmp[o + 3] = src[o + 3];
+      }
+    }
+    // 縦方向
+    for (let x = 0; x < w; x++) {
+      for (let y = 0; y < h; y++) {
+        let r = 0, g = 0, b = 0, n = 0;
+        for (let dy = -radius; dy <= radius; dy++) {
+          const yy = y + dy; if (yy < 0 || yy >= h) continue;
+          const i = (yy * w + x) * 4;
+          r += tmp[i]; g += tmp[i + 1]; b += tmp[i + 2]; n++;
+        }
+        const o = (y * w + x) * 4;
+        out[o] = r / n; out[o + 1] = g / n; out[o + 2] = b / n; out[o + 3] = tmp[o + 3];
+      }
+    }
+    return { data: out };
+  }
   function detectColorBoundaries(imageData, materialMask, w, h, edgeThreshold) {
     const data = imageData.data;
     const boundary = new Uint8Array(w * h);
@@ -1822,6 +1858,14 @@
 
       // 1つの範囲(材料マスク)を解析して結果オブジェクトを返す共通処理
       function analyzeWallGenMask(materialMask) {
+        const curVariant = getVariant(v.methodId, v.variantId);
+        // 仕切り線(陽線)という概念があるのは、色と色の間に仕切りが必要な checkType='wall' の製法・バリエーションと、
+        // 「凸凹色入れ無し」(solid_nocolor、色分けはしないが立体的な凸凹を金属色でまとめて見せたいケース)だけ。
+        // それ以外(プレート成形・立体成形・色入れ無しの金属素地・印刷・ポリストーン等)は、
+        // そもそも仕切りという工程が無いため、⑥のプレビューは対象外とする。
+        if (!(curVariant && (curVariant.checkType === 'wall' || curVariant.id === 'solid_nocolor'))) {
+          return { notApplicable: true, error: null };
+        }
         if (materialMask.reduce((a, x) => a + x, 0) < 10) {
           return { error: '材料部分を検出できませんでした。③の背景色指定や②の解析範囲を見直してください。' };
         }
@@ -1829,7 +1873,6 @@
         // 色入れ無し(メッキ1色のみ等、checkType='material')でパレット未登録の場合：
         // 仕切り線という概念が無く、製品全体がそのまま指定した金属色になるため、
         // 部分的な仕切りゾーンではなく材料全体をプレビュー対象にする。
-        const curVariant = getVariant(v.methodId, v.variantId);
         // 「凸凹色入れ無し」(solid_nocolor)は全体塗りにせず、輪郭・模様の境目を凸(濃いグレー)、それ以外を凹(薄いグレー)の2色で表示する。
         const wholeBodyMetal = !labelMap && curVariant && curVariant.checkType === 'material' && curVariant.id !== 'solid_nocolor';
         // アウトライン(背景との境目)は内側の色境界とは別の太さ(outlineRadiusPx)で扱うため、
@@ -1874,7 +1917,10 @@
         // 色の違いを自動検出し、その境目からの距離も「縁」として扱うことで、内部の模様も
         // 立体的な凹凸として表現できるようにする。
         if (wholeBodyMetal) {
-          const internalBoundary = detectColorBoundaries(imageData, materialMask, v.workW, v.workH, sensitivity);
+          // 毛並みの1本1本などの細かいハッチングを無視し、耳・角・リング穴のような
+          // 大きな形の境目だけを拾うため、ぼかした画像で境界検出し、閾値も高めにする。
+          const blurred = boxBlurImageData(imageData, v.workW, v.workH, 3);
+          const internalBoundary = detectColorBoundaries(blurred, materialMask, v.workW, v.workH, Math.max(sensitivity, 55));
           const internalDist = chamferDistanceTransform(internalBoundary, v.workW, v.workH);
           for (let i = 0; i < v.workW * v.workH; i++) {
             if (zone[i] && internalDist[i] < zoneEdgeDist[i]) zoneEdgeDist[i] = internalDist[i];
@@ -1970,6 +2016,11 @@
       card.innerHTML = '<div class="result-toolbar"><span>' + cardLabel + '(仕切り線プレビュー)</span></div><div class="empty-note">⚠️ ' + r.error + '</div>';
       return card;
     }
+    if (r.notApplicable) {
+      card.innerHTML = '<div class="result-toolbar"><span>' + cardLabel + '</span></div>'
+        + '<div class="empty-note">この製法・バリエーションには仕切り線という工程が無いため、⑥のプレビューは対象外です。①②の基本チェック(最小幅)のみご利用ください。</div>';
+      return card;
+    }
 
     const toolbar = document.createElement('div');
     toolbar.className = 'result-toolbar';
@@ -2001,7 +2052,7 @@
         // 色入れ無し(製品全体が金属色)の場合は、外周だけでなく目・ネクタイ・文字などデザイン内部の
         // 境目でも陰影がつくようになったため、細かい模様までつぶれないよう控えめな幅にする。
         const bevelPx = r.wholeBodyMetal
-          ? Math.max(4, Math.min(16, Math.round(Math.min(v.workW, v.workH) * 0.025)))
+          ? Math.max(6, Math.min(24, Math.round(Math.min(v.workW, v.workH) * 0.035)))
           : Math.max(2, (r.wallWidthMm / r.mmPerPxScaled) * 0.6);
         const bevelStrength = r.wholeBodyMetal ? 1.5 : 0.55;
         const reliefMin = r.wholeBodyMetal ? 0.35 : 0.55;
