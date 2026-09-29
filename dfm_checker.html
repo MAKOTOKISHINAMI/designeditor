@@ -1865,11 +1865,9 @@
           return { notApplicable: true, error: null };
         }
         // colorMode='brush'(ポリストーン・筆彩色等)は金属イメージではなく、
-        // 元のデザイン色に軽い陰影を付けた「彩色済みフィギュア風」の製品イメージにする。
+        // 元のデザイン色をそのまま活かし、光の陰影程度を軽く付けた「彩色済みフィギュア風」の製品イメージにする。
+        // ぼかして平均化すると輪郭が甘くなってかえって分かりづらくなるため、色そのものはぼかさない。
         const paintedFigure = !!(curMethodForCheck && curMethodForCheck.colorMode === 'brush');
-        // 原画の細かい塗りムラ・ハッチング・ハイライトの描き込みまで拾うと騒がしくなるため、
-        // 広めにぼかした「そのエリアの平均色」を色の元データとして使い、単調なベタ塗りに近づける。
-        const avgColorData = paintedFigure ? boxBlurImageData(imageData, v.workW, v.workH, 8).data : null;
         if (materialMask.reduce((a, x) => a + x, 0) < 10) {
           return { error: '材料部分を検出できませんでした。③の背景色指定や②の解析範囲を見直してください。' };
         }
@@ -1923,10 +1921,9 @@
         if (wholeBodyMetal) {
           // 毛並みの1本1本などの細かいハッチングを無視し、耳・角・リング穴のような
           // 大きな形の境目だけを拾うため、ぼかした画像で境界検出し、閾値も高めにする。
-          // 彩色済みフィギュア(paintedFigure)は、塗りムラやペン入れの陰影線まで拾うと騒がしくなるため、
-          // さらに広めにぼかし、閾値もより粗くする。
-          const blurRadius = paintedFigure ? 7 : 3;
-          const boundaryThreshold = paintedFigure ? 75 : 55;
+          // ただし彩色済みフィギュア(paintedFigure)は、色そのものはぼかさない(輪郭が甘くなるため)。
+          const blurRadius = paintedFigure ? 1 : 3;
+          const boundaryThreshold = paintedFigure ? 65 : 55;
           const blurred = boxBlurImageData(imageData, v.workW, v.workH, blurRadius);
           const internalBoundary = detectColorBoundaries(blurred, materialMask, v.workW, v.workH, Math.max(sensitivity, boundaryThreshold));
           const internalDist = chamferDistanceTransform(internalBoundary, v.workW, v.workH);
@@ -1954,7 +1951,7 @@
         }
         const curMethod = getMethod(v.methodId);
         const colorMode = (curMethod && curMethod.colorMode) ? curMethod.colorMode : 'flow';
-        return { zone, zoneEdgeDist, recessMask, recessEdgeDist, wholeBodyMetal, paintedFigure, avgColorData, noColorVariant: !!(curVariant && curVariant.id === 'solid_nocolor'), direction, wallColorRgb, wallWidthMm, zoneCount, thinColorSuggestions, mmPerPxScaled, colorMode, error: null };
+        return { zone, zoneEdgeDist, recessMask, recessEdgeDist, wholeBodyMetal, paintedFigure, noColorVariant: !!(curVariant && curVariant.id === 'solid_nocolor'), direction, wallColorRgb, wallWidthMm, zoneCount, thinColorSuggestions, mmPerPxScaled, colorMode, error: null };
       }
 
       if (v.regions.length >= 2) {
@@ -2072,13 +2069,11 @@
           if (!r.zone[i]) continue;
           const relief = Math.max(reliefMin, Math.min(reliefMax, bevelShade[i]));
           if (r.paintedFigure) {
-            // ポリストーン等(筆彩色)：金属色に置き換えず、そのエリアの平均色(単調なベタ塗り)を使い、
-            // 陰影(relief)だけを軽く掛けて、彩色済みフィギュアのような立体感を出す。
-            const shade = Math.max(0.75, Math.min(1.25, relief));
-            const ci = i * 4;
-            data[ci] = clamp255(Math.round(r.avgColorData[ci] * shade));
-            data[ci + 1] = clamp255(Math.round(r.avgColorData[ci + 1] * shade));
-            data[ci + 2] = clamp255(Math.round(r.avgColorData[ci + 2] * shade));
+            // ポリストーン等(筆彩色)：ぼかさず元のデザイン色のまま、光の陰影程度を軽く掛けるだけにする。
+            const shade = Math.max(0.82, Math.min(1.18, relief));
+            data[i * 4] = clamp255(Math.round(data[i * 4] * shade));
+            data[i * 4 + 1] = clamp255(Math.round(data[i * 4 + 1] * shade));
+            data[i * 4 + 2] = clamp255(Math.round(data[i * 4 + 2] * shade));
           } else if (r.direction === 'convex') {
             // 凸(金属の色がそのまま乗る)：
             // ・色入れ無し(製品全体が金属色)のときだけ、斜め方向の光沢バンドで金属らしい質感を出す。
