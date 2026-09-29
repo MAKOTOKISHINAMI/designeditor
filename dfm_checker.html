@@ -1859,13 +1859,17 @@
       // 1つの範囲(材料マスク)を解析して結果オブジェクトを返す共通処理
       function analyzeWallGenMask(materialMask) {
         const curVariant = getVariant(v.methodId, v.variantId);
-        // 仕切り線(陽線)という概念があるのは、色と色の間に仕切りが必要な checkType='wall' の製法・バリエーションと、
-        // 「凸凹色入れ無し」(solid_nocolor、色分けはしないが立体的な凸凹を金属色でまとめて見せたいケース)だけ。
-        // それ以外(プレート成形・立体成形・色入れ無しの金属素地・印刷・ポリストーン等)は、
-        // そもそも仕切りという工程が無いため、⑥のプレビューは対象外とする。
-        if (!(curVariant && (curVariant.checkType === 'wall' || curVariant.id === 'solid_nocolor'))) {
+        const curMethodForCheck = getMethod(v.methodId);
+        // 「印刷」「転写シール」は平面にそのまま図柄が乗るだけなので対象外。
+        if (curVariant && /print|decal/i.test(curVariant.id)) {
           return { notApplicable: true, error: null };
         }
+        // colorMode='brush'(ポリストーン・筆彩色等)は金属イメージではなく、
+        // 元のデザイン色に軽い陰影を付けた「彩色済みフィギュア風」の製品イメージにする。
+        const paintedFigure = !!(curMethodForCheck && curMethodForCheck.colorMode === 'brush');
+        // 原画の細かい塗りムラ・ハッチング・ハイライトの描き込みまで拾うと騒がしくなるため、
+        // 広めにぼかした「そのエリアの平均色」を色の元データとして使い、単調なベタ塗りに近づける。
+        const avgColorData = paintedFigure ? boxBlurImageData(imageData, v.workW, v.workH, 8).data : null;
         if (materialMask.reduce((a, x) => a + x, 0) < 10) {
           return { error: '材料部分を検出できませんでした。③の背景色指定や②の解析範囲を見直してください。' };
         }
@@ -1919,8 +1923,12 @@
         if (wholeBodyMetal) {
           // 毛並みの1本1本などの細かいハッチングを無視し、耳・角・リング穴のような
           // 大きな形の境目だけを拾うため、ぼかした画像で境界検出し、閾値も高めにする。
-          const blurred = boxBlurImageData(imageData, v.workW, v.workH, 3);
-          const internalBoundary = detectColorBoundaries(blurred, materialMask, v.workW, v.workH, Math.max(sensitivity, 55));
+          // 彩色済みフィギュア(paintedFigure)は、塗りムラやペン入れの陰影線まで拾うと騒がしくなるため、
+          // さらに広めにぼかし、閾値もより粗くする。
+          const blurRadius = paintedFigure ? 7 : 3;
+          const boundaryThreshold = paintedFigure ? 75 : 55;
+          const blurred = boxBlurImageData(imageData, v.workW, v.workH, blurRadius);
+          const internalBoundary = detectColorBoundaries(blurred, materialMask, v.workW, v.workH, Math.max(sensitivity, boundaryThreshold));
           const internalDist = chamferDistanceTransform(internalBoundary, v.workW, v.workH);
           for (let i = 0; i < v.workW * v.workH; i++) {
             if (zone[i] && internalDist[i] < zoneEdgeDist[i]) zoneEdgeDist[i] = internalDist[i];
@@ -1946,7 +1954,7 @@
         }
         const curMethod = getMethod(v.methodId);
         const colorMode = (curMethod && curMethod.colorMode) ? curMethod.colorMode : 'flow';
-        return { zone, zoneEdgeDist, recessMask, recessEdgeDist, wholeBodyMetal, noColorVariant: !!(curVariant && curVariant.id === 'solid_nocolor'), direction, wallColorRgb, wallWidthMm, zoneCount, thinColorSuggestions, mmPerPxScaled, colorMode, error: null };
+        return { zone, zoneEdgeDist, recessMask, recessEdgeDist, wholeBodyMetal, paintedFigure, avgColorData, noColorVariant: !!(curVariant && curVariant.id === 'solid_nocolor'), direction, wallColorRgb, wallWidthMm, zoneCount, thinColorSuggestions, mmPerPxScaled, colorMode, error: null };
       }
 
       if (v.regions.length >= 2) {
@@ -2018,7 +2026,7 @@
     }
     if (r.notApplicable) {
       card.innerHTML = '<div class="result-toolbar"><span>' + cardLabel + '</span></div>'
-        + '<div class="empty-note">この製法・バリエーションには仕切り線という工程が無いため、⑥のプレビューは対象外です。①②の基本チェック(最小幅)のみご利用ください。</div>';
+        + '<div class="empty-note">この製法(印刷・筆彩色・ポリストーン等)には、金属を流し込んだり仕切りを彫ったりする工程が無く、シルバー等の金属イメージにする意味が無いため、製品イメージ生成は対象外です。①②の基本チェック(最小幅)のみご利用ください。</div>';
       return card;
     }
 
@@ -2063,7 +2071,15 @@
         for (let i = 0; i < v.workW * v.workH; i++) {
           if (!r.zone[i]) continue;
           const relief = Math.max(reliefMin, Math.min(reliefMax, bevelShade[i]));
-          if (r.direction === 'convex') {
+          if (r.paintedFigure) {
+            // ポリストーン等(筆彩色)：金属色に置き換えず、そのエリアの平均色(単調なベタ塗り)を使い、
+            // 陰影(relief)だけを軽く掛けて、彩色済みフィギュアのような立体感を出す。
+            const shade = Math.max(0.75, Math.min(1.25, relief));
+            const ci = i * 4;
+            data[ci] = clamp255(Math.round(r.avgColorData[ci] * shade));
+            data[ci + 1] = clamp255(Math.round(r.avgColorData[ci + 1] * shade));
+            data[ci + 2] = clamp255(Math.round(r.avgColorData[ci + 2] * shade));
+          } else if (r.direction === 'convex') {
             // 凸(金属の色がそのまま乗る)：
             // ・色入れ無し(製品全体が金属色)のときだけ、斜め方向の光沢バンドで金属らしい質感を出す。
             // ・色入れ有り(仕切り線)のときは、単色グレー等そのままの色で、面取りの陰影(relief)だけ付けて
