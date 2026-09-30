@@ -471,7 +471,7 @@
     const dr = r - ref[0], dg = g - ref[1], db = b - ref[2];
     return Math.sqrt(dr * dr + dg * dg + db * db);
   }
-  function buildTargetMask(imageData, w, h, mode, refColor, tolerance) {
+  function buildTargetMask(imageData, w, h, mode, refColor, tolerance, paletteColors) {
     const data = imageData.data;
     const mask = new Uint8Array(w * h);
     for (let i = 0; i < w * h; i++) {
@@ -479,7 +479,16 @@
       if (a < 16) { mask[i] = 0; continue; }
       if (mode === 'resin') {
         const bg = refColor || [255, 255, 255];
-        mask[i] = colorDist(r, g, b, bg) > tolerance ? 1 : 0;
+        let isMaterial = colorDist(r, g, b, bg) > tolerance;
+        // ⑤で登録したデザインの色に近い画素は、背景色(白など)に近い色であっても、
+        // 「登録済みの色=材料」として扱う。プリント柄の白いマークなどが、背景の白と
+        // 見分けがつかず誤って「材料なし」の穴として検出されるのを防ぐため。
+        if (!isMaterial && paletteColors && paletteColors.length) {
+          for (let p = 0; p < paletteColors.length; p++) {
+            if (colorDist(r, g, b, paletteColors[p].rgb) <= tolerance) { isMaterial = true; break; }
+          }
+        }
+        mask[i] = isMaterial ? 1 : 0;
       } else {
         mask[i] = colorDist(r, g, b, refColor) <= tolerance ? 1 : 0;
       }
@@ -1621,7 +1630,7 @@
             };
           }
 
-          const baseMask = buildTargetMask(imageData, v.workW, v.workH, mode, mode === 'resin' ? resinColor : metalColor, tolerance);
+          const baseMask = buildTargetMask(imageData, v.workW, v.workH, mode, mode === 'resin' ? resinColor : metalColor, tolerance, paletteColors);
 
           if (v.regions.length >= 2) {
             // 1枚の画像に表面・裏面や6面図など複数の面が含まれている場合：範囲ごとに個別に解析・レポートする
@@ -1736,6 +1745,19 @@
       + '<div class="summary-chip"><b>' + result.minWidthMm.toFixed(2) + 'mm</b>設定した最小再現幅</div>';
     card.appendChild(summary);
 
+    // ポリストーン等(筆彩色)は、印刷・彩色の細かい模様(ロゴ等)が背景色(白等)と紛らわしく、
+    // 「材料が無い穴」として誤検出されることがある。パレット未登録・検出あり・材料モードのときに注意書きを出す。
+    if (result.mode === 'resin' && result.clusters.length > 0 && !paletteColors.length) {
+      const curMethodForNote = getMethod(result.methodId);
+      if (curMethodForNote && curMethodForNote.colorMode === 'brush') {
+        const note = document.createElement('div');
+        note.className = 'card empty-note';
+        note.style.marginBottom = '8px';
+        note.innerHTML = '💡 検出された箇所の中に、実際は<b>ロゴや模様など印刷・彩色の細かい柄</b>が、背景色(白など)と見分けがつかず誤って検出されているものが含まれている可能性があります。柄の色を⑤「デザインの色を登録する」に追加すると、その色は材料として扱われるようになり、誤検出を減らせます。<br>なお、彫刻や3D成形とは異なり、<b>印刷・彩色の柄そのものは型からの抜けやすさとは無関係</b>です。ここでの判定は本体の立体的な形状(輪郭・突起)の細さを見ていますので、柄の一部が細いだけであれば無視して問題ありません。';
+        card.appendChild(note);
+      }
+    }
+
     const list = document.createElement('ul');
     list.className = 'report-list';
     if (!result.clusters.length) {
@@ -1847,7 +1869,7 @@
       const radiusPx = (wallWidthMm / mmPerPxScaled) / 2;
       const imageData = v.workCtx.getImageData(0, 0, v.workW, v.workH);
       const tolerance = parseFloat(document.getElementById('toleranceInput').value);
-      const baseMaterialMask = buildTargetMask(imageData, v.workW, v.workH, 'resin', resinColor, tolerance);
+      const baseMaterialMask = buildTargetMask(imageData, v.workW, v.workH, 'resin', resinColor, tolerance, paletteColors);
 
       // 背景(材料が無い部分)と接する輪郭線(＝製品全体のアウトライン)専用の仕切り幅。
       // 凸仕上げ(金属プレート・ダイキャスト)は、内側のデコ(色間の仕切り)がそれより細く設定されていても、
