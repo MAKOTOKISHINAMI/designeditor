@@ -219,7 +219,7 @@
 <header>
   <h1>再現性チェッカー</h1>
   <p>
-    お客様のイメージ画像(JPEG/PNG)と実寸(mm)を入力すると、金属プレート・ダイキャスト・ソフトPVCなど、
+    お客様のイメージ画像(JPEG/PNG/SVG)と実寸(mm)を入力すると、金属プレート・ダイキャスト・ソフトPVCなど、
     加工方法ごとの「最小再現幅」を下回っている箇所を自動検出して図示します。表面・裏面など複数アングルをまとめて解析でき、
     画像内でキーホルダー金具や指示テキストなど解析対象外の部分は範囲選択で除外できます。
   </p>
@@ -938,6 +938,10 @@
     const method = getCurrentGlobalMethod();
     document.getElementById('globalMethodNote').textContent = method.note || '';
     resetForSpecChange();
+    // ソフトPVCは、金属の色入れとは凸凹が逆(型が凸のため成形品の表面は凹になる)なので、
+    // ⑥製品イメージ生成の仕上げの向きも自動的に「凹」にしておく。
+    const dirRadio = document.querySelector('input[name="wallGenDirection"][value="' + (method.id === 'softpvc' ? 'concave' : 'convex') + '"]');
+    if (dirRadio) dirRadio.checked = true;
     views.forEach(function(v) {
       const keepVariant = method.variants.find(vv => vv.id === v.variantId);
       const variant = keepVariant || method.variants[0];
@@ -998,7 +1002,7 @@
       if (!v.img) {
         const dz = document.createElement('div');
         dz.className = 'view-dropzone';
-        dz.textContent = 'クリックして画像を選択(JPEG/PNG)';
+        dz.textContent = 'クリックして画像を選択(JPEG/PNG/SVG)';
         const fileInput = document.createElement('input');
         fileInput.type = 'file'; fileInput.accept = 'image/*'; fileInput.style.display = 'none';
         fileInput.addEventListener('change', function(e) { handleViewFileSelect(v.id, e); });
@@ -1182,6 +1186,9 @@
     if (!file) return;
     const v = findView(viewId);
     if (!v) return;
+    // SVGはベクター画像なので、ファイル自体が小さい解像度を宣言していても、解析用には
+    // 高い解像度でラスタライズ(ビットマップ化)し直すことで、JPEG/PNGよりきれいな輪郭で解析できる。
+    v.isVector = /svg/i.test(file.type) || /\.svg$/i.test(file.name);
     const reader = new FileReader();
     reader.onload = function(f) {
       const img = new Image();
@@ -1202,7 +1209,11 @@
   }
   function prepareWorkCanvas(v) {
     const naturalW = v.img.naturalWidth, naturalH = v.img.naturalHeight;
-    v.scaleToOriginal = Math.min(1, VIEW_MAX_DIM / Math.max(naturalW, naturalH));
+    // SVG(ベクター)は拡大しても画質が落ちないので、小さく宣言されていても解析解像度まで拡大する。
+    // JPEG/PNG(ラスター)は、拡大してもにじむだけで精度は上がらないので、これまで通り縮小のみ行う。
+    v.scaleToOriginal = v.isVector
+      ? (VIEW_MAX_DIM / Math.max(naturalW, naturalH))
+      : Math.min(1, VIEW_MAX_DIM / Math.max(naturalW, naturalH));
     v.workW = Math.max(1, Math.round(naturalW * v.scaleToOriginal));
     v.workH = Math.max(1, Math.round(naturalH * v.scaleToOriginal));
     v.workCanvas = document.createElement('canvas');
@@ -2173,10 +2184,21 @@
         zone = new Uint8Array(w * h);
         for (let i = 0; i < w * h; i++) zone[i] = (materialMask[i] && (distToDiff[i] <= radiusPx || bgDist[i] <= radiusPx)) ? 1 : 0;
       }
+      // デザインにすでに金属色の輪郭線が描かれている場合、⑤で「凸(金属)にする」を付けた色は、
+      // 仕切りの計算結果に関わらずそのまま仕切り(壁)として扱う。これを入れないと、その色が
+      // 「色が入る部分」の一つとして誤って塗りつぶされてしまう(⑥製品イメージ生成と同じ仕様)。
+      if (labelMap) {
+        for (let i = 0; i < w * h; i++) {
+          const label = labelMap[i];
+          if (label >= 0 && paletteColors[label].asMetal) zone[i] = 1;
+        }
+      }
       paths.push({ d: loopsToSvgPathD(traceRectilinearContours(zone, w, h), mmPerPxScaled, off.x, off.y), stroke: '#c81e3a', width: 0.1, label: '仕切り線(幅' + wallWidthMm.toFixed(2) + 'mm・内外2本線)' });
       if (labelMap) {
         // 色が入る凹部分：右下の色一覧と同じ色で、実際に色が入る範囲をベクトルの塗りとして表現する
+        // (「凸(金属)にする」を付けた色は仕切り扱いなので、ここでは塗らない)
         paletteColors.forEach(function(pc, idx) {
+          if (pc.asMetal) return;
           const hex = rgbToHex(pc.rgb);
           const colorMask = new Uint8Array(w * h);
           for (let i = 0; i < w * h; i++) colorMask[i] = (materialMask[i] && !zone[i] && labelMap[i] === idx) ? 1 : 0;
