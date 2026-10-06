@@ -907,7 +907,14 @@
   // バリエーションは、同じidが新しい製法にもあればそれを維持し、無ければ先頭のバリエーションにする。
   // 製法・バリエーションを変更したときのリセット：写真(と実寸・名前)だけ残し、
   // 解析結果・仕切りプレビュー・③の色の指定・解析範囲を初期状態に戻す(⑤のパレットは残す)。
-  function resetForSpecChange() {
+  // syncWallWidthMm: 指定があれば、⑥⑧で使う「仕切りの太さ(mm)」を、②の「最小再現幅(mm)」と
+  // 同じ値に揃える。この2つは本来どちらも同じ「仕切り(陽線)の幅」を指しており、ずれていると
+  // ①②のチェックと⑥⑧の生成イメージで前提の太さが変わってしまうため、仕様が変わるたびに合わせておく。
+  function resetForSpecChange(syncWallWidthMm) {
+    if (isFinite(syncWallWidthMm) && syncWallWidthMm > 0) {
+      const wgw = document.getElementById('wallGenWidth');
+      if (wgw) wgw.value = syncWallWidthMm;
+    }
     pickingMode = null;
     paletteMode = false;
     document.querySelectorAll('.view-canvas').forEach(c => c.classList.remove('crosshair'));
@@ -937,7 +944,7 @@
   function onGlobalMethodChange() {
     const method = getCurrentGlobalMethod();
     document.getElementById('globalMethodNote').textContent = method.note || '';
-    resetForSpecChange();
+    resetForSpecChange(method.variants[0] ? method.variants[0].minWidthMm : undefined);
     // ソフトPVCは、金属の色入れとは凸凹が逆(型が凸のため成形品の表面は凹になる)なので、
     // ⑥製品イメージ生成の仕上げの向きも自動的に「凹」にしておく。
     const dirRadio = document.querySelector('input[name="wallGenDirection"][value="' + (method.id === 'softpvc' ? 'concave' : 'convex') + '"]');
@@ -1144,7 +1151,7 @@
         v.minWidthMm = variant ? variant.minWidthMm : v.minWidthMm;
         minWidthInputEl.value = v.minWidthMm;
         variantNote.textContent = variant ? variant.note : '';
-        resetForSpecChange();
+        resetForSpecChange(variant ? variant.minWidthMm : undefined);
         renderViewList();
       });
       methodRow.appendChild(variantLabelEl);
