@@ -213,6 +213,7 @@
     #helpBotButton { right: 16px; bottom: 16px; }
   }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
 
@@ -341,14 +342,17 @@
     </div>
 
     <div class="card">
-      <h2>⑧ 実寸SVGで書き出す</h2>
+      <h2>⑧ 実寸SVG／PDFで書き出す</h2>
       <p class="hint" style="margin-bottom:10px;">
-        実寸(mm)に合わせたSVGファイルを書き出します。右下に、⑤で登録した色(未登録なら③で指定した色)の一覧を配置します。<br>
+        実寸(mm)に合わせたSVG・PDFファイルを書き出します(どちらも同じ内容で、画像ではなくベクターデータです)。右下に、⑤で登録した色(未登録なら③で指定した色)の一覧を配置します。<br>
         ポリストーン等(筆彩色)は、形状の輪郭線と、⑤で登録した色どうしの境目(仕切り線)を、それぞれ右下の色一覧と同じ色の塗りとしてベクトル化します。<br>
         金属プレート・ダイキャストの凸凹色入れは、仕切り(壁)を仕切り幅に合わせた2本線でアウトライン化し、色が入る凹部分は右下の色一覧と同じ色で塗りつぶします(色入れ無しは2本線のみ)。<br>
-        <span style="color:#a15c00;">※ ピクセル画像の輪郭をそのままなぞる単純な変換のため、曲線部分はやや直線的(階段状)になります。滑らかな清書が必要な場合は、書き出したSVGを別途Illustrator等で仕上げてください。</span>
+        <span style="color:#a15c00;">※ ピクセル画像の輪郭をそのままなぞる単純な変換のため、曲線部分はやや直線的(階段状)になります。滑らかな清書が必要な場合は、書き出したSVG/PDFを別途Illustrator等で仕上げてください。</span>
       </p>
-      <button type="button" class="btn btn-primary btn-block" onclick="runSvgExport()">SVGを書き出す</button>
+      <div style="display:flex; gap:8px;">
+        <button type="button" class="btn btn-primary btn-block" onclick="runSvgExport()" style="flex:1;">SVGを書き出す</button>
+        <button type="button" class="btn btn-primary btn-block" onclick="runPdfExport()" style="flex:1;">PDFを書き出す</button>
+      </div>
       <div id="svgExportStatus" class="status"></div>
       <div id="svgExportResultsArea"></div>
     </div>
@@ -821,7 +825,7 @@
           note: '文字・細い線の最小幅の目安です。成形で形状も仕上げるため側面はきれいに仕上がりますが、型から抜きやすくするため側面にわずかな勾配がつき、断面が台形に近くなります。' },
         { id: 'solid', label: '立体成形', checkType: 'material', minWidthMm: 1.0,
           note: '突起・凹みの最小幅の目安です。硬い金型なのでアンダーカット(引っかかり形状)は基本的に抜けません。' },
-        { id: 'enamel', label: '凸凹色入れ有り(2色以上)', checkType: 'wall', minWidthMm: 0.5,
+        { id: 'enamel', label: '凸凹色入れ有り(2色以上)', checkType: 'wall', minWidthMm: 0.6,
           note: '色と色の間の仕切り(陽線、金属色の凸)の最小幅です。金型に彫り込んで色を流し込むため、金属プレートの型押しと同程度の太さが必要です(エッチングほど細かくは表現できません)。' },
         { id: 'solid_nocolor', label: '凸凹色入れ無し(立体・メッキ1色)', checkType: 'material', minWidthMm: 1.0,
           note: '立体的な凸凹(模様・キャラクター等)はあるが、色分けはせずメッキ仕上げ一色のみにする場合の、突起・凹みの最小幅の目安です。⑥の仕切り線プレビューでは、製品全体がそのまま指定した金属色(シルバー等)で表示されます。' },
@@ -843,9 +847,9 @@
           note: '彫刻(凹)の細い線・文字の最小幅です。これより細い部分は、実際には線どうしがつながって太い塊になり、デザインより黒色部分が広くなります。対応素材: 真鍮・ステンレスのみ。' },
         { id: 'engrave_press_mono', label: '単色彫刻(型押し・1色のみ色入れ)', checkType: 'material', minWidthMm: 0.5,
           note: '彫刻(凹)の細い線・文字の最小幅です。これより細い部分は、実際には線どうしがつながって太い塊になり、デザインより黒色部分が広くなります。対応素材: 真鍮・ステンレス・鉄。' },
-        { id: 'enamel_etch', label: '凸凹色入れ有り(エッチング加工・2色以上)', checkType: 'wall', minWidthMm: 0.3,
+        { id: 'enamel_etch', label: '凸凹色入れ有り(エッチング加工・2色以上)', checkType: 'wall', minWidthMm: 0.5,
           note: '色と色の間の仕切り(陽線、金属色の凸)の最小幅です。型押しより細かい表現が可能ですが、凹みは浅くなります。対応素材: 真鍮・ステンレスのみ。' },
-        { id: 'enamel_press', label: '凸凹色入れ有り(型押し加工・2色以上)', checkType: 'wall', minWidthMm: 0.5,
+        { id: 'enamel_press', label: '凸凹色入れ有り(型押し加工・2色以上)', checkType: 'wall', minWidthMm: 0.6,
           note: '色と色の間の仕切り(陽線、金属色の凸)の最小幅です。エッチングより凹みを深くできますが、表現できる細かさはやや劣ります。対応素材: 真鍮・ステンレス・鉄。' },
         { id: 'solid_nocolor', label: '凸凹色入れ無し(立体・メッキ1色)', checkType: 'material', minWidthMm: 0.5,
           note: '立体的な凸凹(模様等)はあるが、色分けはせずメッキ仕上げ一色のみにする場合の、突起・凹みの最小幅の目安です。⑥の仕切り線プレビューでは、製品全体がそのまま指定した金属色(シルバー等)で表示されます。' },
@@ -866,10 +870,10 @@
     {
       id: 'softpvc', name: 'ソフトPVC', note: '色を流し込む場合、色と色の間には金型側の仕切り(0.5mm)が必ず必要です。金型側が凸のため、成形品の表面ではその部分が逆に凹になります。', colorMode: 'flow',
       variants: [
-        { id: 'front2d', label: '表面：平面2D(色流し込み)', checkType: 'wall', minWidthMm: 0.5, note: '色と色の間の仕切り(成形品では凹)の最小幅です。' },
-        { id: 'front3d', label: '表面：半立体3D(色流し込み)', checkType: 'wall', minWidthMm: 0.5, note: '色と色の間の仕切り(成形品では凹)の最小幅です。立体的な盛り上がり自体の最小幅は別途ご確認ください。' },
-        { id: 'back2d', label: '裏面：2D(色流し込み)', checkType: 'wall', minWidthMm: 0.5, note: '色と色の間の仕切り(成形品では凹)の最小幅です。' },
-        { id: 'back3d', label: '裏面：3D(色流し込み)', checkType: 'wall', minWidthMm: 0.5, note: '色と色の間の仕切り(成形品では凹)の最小幅です。' },
+        { id: 'front2d', label: '表面：平面2D(色流し込み)', checkType: 'wall', minWidthMm: 0.3, note: '色と色の間の仕切り(成形品では凹)の最小幅です。' },
+        { id: 'front3d', label: '表面：半立体3D(色流し込み)', checkType: 'wall', minWidthMm: 0.3, note: '色と色の間の仕切り(成形品では凹)の最小幅です。立体的な盛り上がり自体の最小幅は別途ご確認ください。' },
+        { id: 'back2d', label: '裏面：2D(色流し込み)', checkType: 'wall', minWidthMm: 0.3, note: '色と色の間の仕切り(成形品では凹)の最小幅です。' },
+        { id: 'back3d', label: '裏面：3D(色流し込み)', checkType: 'wall', minWidthMm: 0.3, note: '色と色の間の仕切り(成形品では凹)の最小幅です。' },
         { id: 'frontprint', label: '表面：印刷', checkType: 'material', minWidthMm: 0.3, note: '印刷なので仕切りは不要です。' },
         { id: 'backprint', label: '裏面：印刷', checkType: 'material', minWidthMm: 0.3, note: '印刷なので仕切りは不要です。' }
       ]
@@ -2168,9 +2172,12 @@
     const off = { x: Math.max(0, bbox.minX - margin), y: Math.max(0, bbox.minY - margin) };
     const realW = (bbox.width + margin * 2) * mmPerPxScaled, realH = (bbox.height + margin * 2) * mmPerPxScaled;
 
-    const paths = []; // { d, stroke, width, label }
+    const paths = []; // { loops, d, fill, stroke, width, label }
     // 形状の輪郭線(外形)：常に出力する
-    paths.push({ d: loopsToSvgPathD(traceRectilinearContours(materialMask, w, h), mmPerPxScaled, off.x, off.y), stroke: '#000000', width: 0.15, label: '形状の輪郭線' });
+    (function() {
+      const loops = traceRectilinearContours(materialMask, w, h);
+      paths.push({ loops: loops, d: loopsToSvgPathD(loops, mmPerPxScaled, off.x, off.y), stroke: '#000000', width: 0.15, label: '形状の輪郭線' });
+    })();
 
     const needsWall = variant.checkType === 'wall' || variant.id === 'solid_nocolor';
     if (needsWall) {
@@ -2200,7 +2207,10 @@
           if (label >= 0 && paletteColors[label].asMetal) zone[i] = 1;
         }
       }
-      paths.push({ d: loopsToSvgPathD(traceRectilinearContours(zone, w, h), mmPerPxScaled, off.x, off.y), stroke: '#c81e3a', width: 0.1, label: '仕切り線(幅' + wallWidthMm.toFixed(2) + 'mm・内外2本線)' });
+      (function() {
+        const loops = traceRectilinearContours(zone, w, h);
+        paths.push({ loops: loops, d: loopsToSvgPathD(loops, mmPerPxScaled, off.x, off.y), stroke: '#c81e3a', width: 0.1, label: '仕切り線(幅' + wallWidthMm.toFixed(2) + 'mm・内外2本線)' });
+      })();
       if (labelMap) {
         // 色が入る凹部分：右下の色一覧と同じ色で、実際に色が入る範囲をベクトルの塗りとして表現する
         // (「凸(金属)にする」を付けた色は仕切り扱いなので、ここでは塗らない)
@@ -2210,7 +2220,8 @@
           const colorMask = new Uint8Array(w * h);
           for (let i = 0; i < w * h; i++) colorMask[i] = (materialMask[i] && !zone[i] && labelMap[i] === idx) ? 1 : 0;
           if (colorMask.reduce((a, x) => a + x, 0) < 4) return;
-          paths.push({ d: loopsToSvgPathD(traceRectilinearContours(colorMask, w, h), mmPerPxScaled, off.x, off.y), fill: hex, stroke: hex, width: 0.02, label: '色が入る部分(' + hex + ')' });
+          const loops = traceRectilinearContours(colorMask, w, h);
+          paths.push({ loops: loops, d: loopsToSvgPathD(loops, mmPerPxScaled, off.x, off.y), fill: hex, stroke: hex, width: 0.02, label: '色が入る部分(' + hex + ')' });
         });
       }
     } else if (method.colorMode === 'brush' && paletteColors.length) {
@@ -2222,7 +2233,8 @@
         const colorMask = new Uint8Array(w * h);
         for (let i = 0; i < w * h; i++) colorMask[i] = (materialMask[i] && labelMap[i] === idx) ? 1 : 0;
         if (colorMask.reduce((a, x) => a + x, 0) < 4) return;
-        paths.push({ d: loopsToSvgPathD(traceRectilinearContours(colorMask, w, h), mmPerPxScaled, off.x, off.y), fill: hex, stroke: '#000000', width: 0.04, label: '仕切り線・塗り(' + hex + ')' });
+        const loops = traceRectilinearContours(colorMask, w, h);
+        paths.push({ loops: loops, d: loopsToSvgPathD(loops, mmPerPxScaled, off.x, off.y), fill: hex, stroke: '#000000', width: 0.04, label: '仕切り線・塗り(' + hex + ')' });
       });
     }
 
@@ -2258,7 +2270,7 @@
       + pathsSvg + '\n'
       + legendSvg + '\n'
       + '</svg>';
-    return { svg: svg };
+    return { svg: svg, vector: { realW: realW, realH: realH, totalH: totalH, mmPerPxScaled: mmPerPxScaled, paths: paths, legendColors: legendColors } };
   }
 
   function runSvgExport() {
@@ -2290,6 +2302,125 @@
     statusEl.textContent = errCount
       ? '⚠️ ' + okCount + '件成功 / ' + errCount + '件エラー'
       : '✅ ' + okCount + '件のSVGを書き出しました。';
+  }
+
+  // 輪郭(ループ)の符号付き面積(シューレース公式)。正負の符号で「外形」か「穴」かを判定できる
+  // (traceRectilinearContoursは、材料が常に辺の同じ側にくる向きで辺をたどるため、
+  //  外形の輪郭と、その内側の穴の輪郭とで、必ず符号が逆になる)。
+  function loopSignedArea(loop) {
+    let sum = 0;
+    for (let i = 0; i < loop.length; i++) {
+      const p1 = loop[i], p2 = loop[(i + 1) % loop.length];
+      sum += p1[0] * p2[1] - p2[0] * p1[1];
+    }
+    return sum / 2;
+  }
+  function hexToRgbArr(hex) {
+    const n = parseInt(hex.replace('#', ''), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  // jsPDFのdoc.lines()は「直前の点からの相対移動」の配列を取るため、絶対座標配列から変換する
+  function loopToRelativeVectors(loop, scale, offX, offY) {
+    const pts = loop.map(function(p) { return [(p[0] - offX) * scale, (p[1] - offY) * scale]; });
+    const vecs = [];
+    for (let i = 1; i < pts.length; i++) vecs.push([pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]]);
+    vecs.push([pts[0][0] - pts[pts.length - 1][0], pts[0][1] - pts[pts.length - 1][1]]);
+    return { start: pts[0], vecs: vecs };
+  }
+
+  // 1つの面(view)の実寸PDFをjsPDFで組み立てる。⑧SVGと同じ輪郭データ(buildProductSvgのvector)を再利用する。
+  // 戻り値: { doc: jsPDFインスタンス } | { error: '...' }
+  function buildProductPdf(v) {
+    if (typeof window.jspdf === 'undefined') return { error: 'PDF生成用のライブラリの読み込みに失敗しました。ネットワーク環境をご確認のうえ、ページを再読み込みしてください。' };
+    const svgResult = buildProductSvg(v);
+    if (svgResult.error) return { error: svgResult.error };
+    const vec = svgResult.vector;
+    const legendColors = vec.legendColors;
+    const sw = Math.max(1.5, vec.realW * 0.06), gap = sw * 0.35;
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: [vec.realW, vec.totalH], orientation: vec.realW >= vec.totalH ? 'l' : 'p' });
+
+    // fill(色が指定されている)パスを先に描き、線だけのパス(輪郭・仕切り)を後から重ねて、
+    // 線がきれいに見えるようにする(⑧SVGと同じ重ね順)。
+    vec.paths.slice().sort(function(a, b) { return (a.fill ? 0 : 1) - (b.fill ? 0 : 1); }).forEach(function(p) {
+      if (!p.loops || !p.loops.length) return;
+      const outer = p.loops.filter(function(l) { return loopSignedArea(l) >= 0; });
+      const holes = p.loops.filter(function(l) { return loopSignedArea(l) < 0; });
+      doc.setLineWidth(p.width);
+      if (p.fill) {
+        const rgb = hexToRgbArr(p.fill);
+        doc.setFillColor(rgb[0], rgb[1], rgb[2]);
+        const strokeRgb = hexToRgbArr(p.stroke);
+        doc.setDrawColor(strokeRgb[0], strokeRgb[1], strokeRgb[2]);
+        // 外形を塗り、穴は背景色(白)で上から塗って打ち抜く(簡易的な穴あき表現)
+        outer.forEach(function(loop) {
+          const rv = loopToRelativeVectors(loop, 1, 0, 0);
+          doc.lines(rv.vecs, rv.start[0], rv.start[1], [1, 1], 'DF', true);
+        });
+        if (holes.length) {
+          doc.setFillColor(255, 255, 255);
+          holes.forEach(function(loop) {
+            const rv = loopToRelativeVectors(loop, 1, 0, 0);
+            doc.lines(rv.vecs, rv.start[0], rv.start[1], [1, 1], 'F', true);
+          });
+        }
+      } else {
+        const strokeRgb = hexToRgbArr(p.stroke);
+        doc.setDrawColor(strokeRgb[0], strokeRgb[1], strokeRgb[2]);
+        p.loops.forEach(function(loop) {
+          const rv = loopToRelativeVectors(loop, 1, 0, 0);
+          doc.lines(rv.vecs, rv.start[0], rv.start[1], [1, 1], 'S', true);
+        });
+      }
+    });
+
+    // 右下の色一覧(⑧SVGと同じ配置)
+    if (legendColors.length) {
+      const legendW = legendColors.length * (sw + gap) + gap;
+      const legendX = vec.realW - legendW - Math.max(0.5, vec.realW * 0.02);
+      const legendY = vec.realH + gap;
+      legendColors.forEach(function(hex, i) {
+        const x = legendX + gap + i * (sw + gap);
+        const rgb = hexToRgbArr(hex);
+        doc.setFillColor(rgb[0], rgb[1], rgb[2]);
+        doc.setDrawColor(51, 51, 51);
+        doc.setLineWidth(sw * 0.04);
+        doc.rect(x, legendY, sw, sw, 'DF');
+      });
+    }
+
+    return { doc: doc };
+  }
+
+  function runPdfExport() {
+    const targets = views.filter(v => v.img);
+    const statusEl = document.getElementById('svgExportStatus');
+    const area = document.getElementById('svgExportResultsArea');
+    area.innerHTML = '';
+    if (!targets.length) { statusEl.className = 'status err'; statusEl.textContent = '⚠️ 画像が読み込まれていません。'; return; }
+    let okCount = 0, errCount = 0;
+    targets.forEach(function(v, vi) {
+      const label = v.label || ('面' + (vi + 1));
+      const result = buildProductPdf(v);
+      const row = document.createElement('div');
+      row.className = 'card';
+      if (result.error) {
+        errCount++;
+        row.innerHTML = '<b>' + label + '</b><div class="empty-note">⚠️ ' + result.error + '</div>';
+      } else {
+        okCount++;
+        const fileName = (v.name || label).replace(/[^\w\-ぁ-んァ-ヶ一-龠]/g, '_') + '.pdf';
+        const blobUrl = result.doc.output('bloburl');
+        row.innerHTML = '<b>' + label + '</b> — 実寸PDFを書き出しました。<br>'
+          + '<a href="' + blobUrl + '" download="' + fileName + '" class="btn btn-outline" style="display:inline-block;margin-top:6px;">⬇ ' + fileName + ' をダウンロード</a>';
+      }
+      area.appendChild(row);
+    });
+    statusEl.className = errCount ? 'status err' : 'status ok';
+    statusEl.textContent = errCount
+      ? '⚠️ ' + okCount + '件成功 / ' + errCount + '件エラー'
+      : '✅ ' + okCount + '件のPDFを書き出しました。';
   }
 
   // 1件の仕切り線プレビュー結果を1枚のカードとして描画する共通処理
