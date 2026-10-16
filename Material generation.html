@@ -71,6 +71,8 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu G
 .s-row.sq>.s-cell.rt{flex:1 1 0;width:auto}
 .s-row.sq>.s-cell.rt .ph{flex:none;width:auto;aspect-ratio:1/1;height:min(100cqh,calc(0.58*(100cqw - 24px*(var(--n) - 1))/var(--n)))}
 .s-imgs.sq.h{flex-direction:row;justify-content:space-between}
+.s-imgs.fh{flex-direction:row}
+.s-imgs.fh>.ph{min-width:0}
 .s-imgs.sq.h>.ph{flex:none;aspect-ratio:1/1;width:min(100cqh,calc((100cqw - 24px*(var(--n) - 1))/var(--n)))}
 .s-cap{font-size:var(--fc,26px);line-height:1.5;color:var(--tc,#4a5568);font-weight:var(--fw,400);white-space:pre-wrap;flex:none}
 .s-cell{flex:1;display:flex;flex-direction:column;gap:8px;min-width:0;min-height:0}
@@ -161,7 +163,7 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu G
 
 <script>
 const LAYOUTS={'l-text':'テキスト左 / 画像右','l-image':'画像左 / テキスト右','text':'テキストのみ(2段組)','two':'テキスト左 / 画像2枚','row':'画像のみ 横並び(2〜5枚)','blocks':'段組み(画像行・テキストを自由に積む)'};
-const newPage=()=>({layout:'l-text',title:'タイトルを入力',subtitle:'サブタイトル',fl:'株式会社　大王製作所',fr:'',chat:true,imgs:['','','','',''],n:3,shape:'fit',ts:'auto',tc:'#4a5568',hc:'#2980b9',tb:false,nh:false,tp:'none',ni:1,blocks:[],items:[{h:'概要',t:'ここに説明文を入力します。'}]});
+const newPage=()=>({layout:'l-text',title:'タイトルを入力',subtitle:'サブタイトル',fl:'株式会社　大王製作所',fr:'',chat:true,imgs:['','','','',''],n:3,shape:'fit',ts:'auto',tc:'#4a5568',hc:'#2980b9',tb:false,nh:false,tp:'none',ni:1,dir:'v',blocks:[],items:[{h:'概要',t:'ここに説明文を入力します。'}]});
 const mediaTag=(s,th)=>{
  if(s.startsWith('yt:')){const id=s.slice(3);
   if(th)return `<div class="thumb ytb">▶ YouTube動画 (${id})</div>`;
@@ -223,7 +225,7 @@ function slideHTML(p,n,total){
  else if(p.layout==='row')body=`<div class="s-body">${grp(p,`<div class="s-row${p.shape==='square'?' sq':''}" style="--n:${p.n}">${Array.from({length:p.n},(_,k)=>img(k)).join('')}</div>`)}</div>`;
  else if(p.layout==='text')body=`<div class="s-body"><div class="s-text wide">${secs}</div></div>`;
  else if(p.layout==='two')body=`<div class="s-body"><div class="s-text">${secs}</div><div class="s-imgs${p.shape==='square'?' sq':''}" style="--n:2">${img(0)}${img(1)}</div></div>`;
- else body=`<div class="s-body ${p.layout}"><div class="s-text">${secs}</div><div class="s-imgs${p.shape==='square'?' sq':''}${sqn(p)>1?' h':''}" style="--n:${sqn(p)}">${Array.from({length:sqn(p)},(_,k)=>img(k)).join('')}</div></div>`;
+ else body=`<div class="s-body ${p.layout}"><div class="s-text">${secs}</div><div class="s-imgs${p.shape==='square'?' sq':''}${p.shape==='square'&&sqn(p)>1?' h':''}${p.shape!=='square'&&p.dir==='h'&&sqn(p)>1?' fh':''}" style="--n:${sqn(p)}">${Array.from({length:sqn(p)},(_,k)=>img(k)).join('')}</div></div>`;
  return `${hon?`<div class="s-banner" style="height:${hdr.h}px"><img src="${hdr.src}" style="object-position:50% ${hdr.y}%;-webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - ${hdr.f}px),transparent);mask-image:linear-gradient(to bottom,#000 calc(100% - ${hdr.f}px),transparent)">${hdr.t==='in'&&ht?`<div class="s-bt"><h1 class="s-title">${esc(p.title)}</h1><div class="s-sub">${esc(p.subtitle)}</div></div>`:''}</div>${hdr.t==='in'||!ht?'':`<div class="s-head cmp"><h1 class="s-title">${esc(p.title)}</h1><div class="s-sub">${esc(p.subtitle)}</div></div>`}`:(ht?`<div class="s-head"><h1 class="s-title">${esc(p.title)}</h1><div class="s-sub">${esc(p.subtitle)}</div></div>`:'')}${body}<div class="s-foot" style="background:${ftc};color:${ftx(ftc)}"><span>${esc(p.fl)}</span><span>${esc(p.fr)} ${n}/${total}</span></div>`;
 }
 function fit(){
@@ -247,7 +249,7 @@ function renderForm(){
  <div class="fg"><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" ${p.chat?'checked':''} onchange="setF('chat',this.checked)">💬 右下にチャットボックスを表示</label></div>
  <div class="fg"><label>タイトル(続きのページは空欄にすると、前のページの続きに見えます)</label><input type="text" value="${esc(p.title)}" oninput="setF('title',this.value)"></div>
  <div class="fg"><label>サブタイトル</label><input type="text" value="${esc(p.subtitle)}" oninput="setF('subtitle',this.value)"></div>
- ${cnt?`<div class="fg">${shapeSel(p.shape,'setShape(this.value)')}</div>`:''}${cnt&&(p.layout==='l-text'||p.layout==='l-image')&&p.shape==='square'?`<div class="fg">${niSel(p.ni,'setNi(this.value)')}</div>`:''}${p.layout==='row'?nSel(p):''}${Array.from({length:cnt},(_,k)=>imgField(k)).join('')}
+ ${cnt?`<div class="fg">${shapeSel(p.shape,'setShape(this.value)')}</div>`:''}${cnt&&(p.layout==='l-text'||p.layout==='l-image')?`<div class="fg">${niSel(p.ni,'setNi(this.value)')}${p.shape!=='square'&&sqn(p)>1?dirSel(p.dir,'setDir(this.value)'):''}</div>`:''}${p.layout==='row'?nSel(p):''}${Array.from({length:cnt},(_,k)=>imgField(k)).join('')}
  ${styleForm(p)}<div class="fg"><label>フッター背景色(全ページ共通)</label><input type="color" value="${ftc}" oninput="ftc=this.value;renderSlide()" style="width:100%;height:40px;border:0;padding:0;background:none"></div>
  <div class="fg"><label>フッター(左)</label><input type="text" value="${esc(p.fl)}" oninput="setF('fl',this.value)"></div>
  <div class="fg"><label>フッター(右)</label><input type="text" value="${esc(p.fr)}" oninput="setF('fr',this.value)"></div>
@@ -330,9 +332,12 @@ function checkAll(show){
 function printAll(){const bad=checkAll(false);if(bad.length&&!confirm('内容が収まっていないページがあります: '+bad.map(b=>b.n+'ページ').join('、')+'\n「全ページの収まりチェック」で対処方法を確認できます。このままPDF出力しますか？'))return;window.print()}
 const BK={img:'画像の行(2〜5枚)',text:'テキスト1行',tl:'テキスト左・画像右',il:'画像左・テキスト右',tw:'テキスト左・画像2枚',tt:'テキスト2段組'};
 let bkType='img';
-const sqn=o=>o.shape==='square'?Math.min(4,Math.max(1,parseInt(o.ni)||1)):1;
+const sqn=o=>Math.min(4,Math.max(1,parseInt(o.ni)||1));
 const cpos=b=>b.cpos||(b.cap?'below':'none');
-const niSel=(v,h)=>`<label>隣に並べる画像の枚数(正方形のとき)</label><select onchange="${h}">${[1,2,3,4].map(n=>`<option value="${n}" ${(parseInt(v)||1)===n?'selected':''}>${n}枚</option>`).join('')}</select>`;
+const dirSel=(v,h)=>`<label style="margin-top:8px">並べ方</label><select onchange="${h}"><option value="v" ${v!=='h'?'selected':''}>縦に並べる(幅いっぱい)</option><option value="h" ${v==='h'?'selected':''}>横に並べる</option></select>`;
+const setDir=v=>{pages[cur].dir=v==='h'?'h':'v';renderForm();renderSlide()};
+const setBdir=(i,v)=>{pages[cur].blocks[i].dir=v==='h'?'h':'v';renderForm();renderSlide()};
+const niSel=(v,h)=>`<label>画像の枚数(1〜4枚)</label><select onchange="${h}">${[1,2,3,4].map(n=>`<option value="${n}" ${(parseInt(v)||1)===n?'selected':''}>${n}枚</option>`).join('')}</select>`;
 const setNi=v=>{pages[cur].ni=+v;renderForm();renderSlide()};
 const setBni=(i,v)=>{pages[cur].blocks[i].ni=+v;renderForm();renderSlide()};
 const setBcpos=(i,v)=>{const b=pages[cur].blocks[i];b.cpos=v;b.cap=v==='below';b.caps=b.caps||['','','','',''];renderForm();renderSlide()};
@@ -351,19 +356,19 @@ function blkHTML(b){
  const secs=(b.items||[]).map(i=>`<div class="sec">${i.h?`<h3>${esc(i.h)}</h3>`:''}<p>${esc(i.t)}</p></div>`).join('');
  if(b.k==='tt')return `<div class="s-blk"><div class="s-text wide">${secs}</div></div>`;
  if(b.k==='tw')return `<div class="s-blk"><div class="s-text">${secs}</div><div class="s-imgs${b.shape==='square'?' sq':''}" style="--n:2">${phTag(b.imgs[0])}${phTag(b.imgs[1])}</div></div>`;
- return `<div class="s-blk${b.k==='il'?' l-image':''}"><div class="s-text">${secs}</div><div class="s-imgs${b.shape==='square'?' sq':''}${sqn(b)>1?' h':''}" style="--n:${sqn(b)}">${Array.from({length:sqn(b)},(_,k)=>phTag(b.imgs[k])).join('')}</div></div>`;
+ return `<div class="s-blk${b.k==='il'?' l-image':''}"><div class="s-text">${secs}</div><div class="s-imgs${b.shape==='square'?' sq':''}${b.shape==='square'&&sqn(b)>1?' h':''}${b.shape!=='square'&&b.dir==='h'&&sqn(b)>1?' fh':''}" style="--n:${sqn(b)}">${Array.from({length:sqn(b)},(_,k)=>phTag(b.imgs[k])).join('')}</div></div>`;
 }
 const bImgF=(i,k,b)=>`<label>画像・動画・GIF ${k+1}</label><input type="file" accept="image/*,video/*" onchange="setBImg(${i},${k},this)"><input type="text" style="margin-top:4px" placeholder="またはYouTubeのURLを貼り付け" onchange="setBYT(${i},${k},this.value)">${b.imgs[k]?mediaTag(b.imgs[k],true)+`<button class="btn del" style="margin-top:4px;padding:5px" onclick="pages[cur].blocks[${i}].imgs[${k}]='';renderForm();renderSlide()">画像を外す</button>`:''}`;
 function blkForm(b,i,ctl,rh){
  const items=(b.items||[]).map((it,j)=>`<div style="border-left:2px solid #667;padding-left:8px;margin:8px 0"><label>見出し(空欄可)</label><input type="text" value="${esc(it.h)}" oninput="pages[cur].blocks[${i}].items[${j}].h=this.value;renderSlide()"><label>本文</label><textarea oninput="pages[cur].blocks[${i}].items[${j}].t=this.value;renderSlide()">${esc(it.t)}</textarea><button class="btn del" style="padding:4px;margin-top:4px" onclick="delBItem(${i},${j})">この項目を削除</button></div>`).join('')+`<button class="btn add" style="padding:6px;margin-top:4px" onclick="addBItem(${i})">＋ 項目を追加</button>`;
- const img=b.k==='tt'?'':shapeSel(b.shape,'setBshape('+i+',this.value)')+((b.shape==='square'&&(b.k==='tl'||b.k==='il'))?niSel(b.ni,'setBni('+i+',this.value)'):'')+Array.from({length:sqn(b)},(_,k)=>bImgF(i,k,b)).join('')+(b.k==='tw'?bImgF(i,1,b):'')+`<div style="font-size:.75rem;color:#f1c40f;margin:4px 0">推奨: ${b.shape==='square'?Math.min(840,b.k==='tw'?Math.floor((rh-24)/2):rh)+'×'+Math.min(840,b.k==='tw'?Math.floor((rh-24)/2):rh):'840×'+(b.k==='tw'?Math.floor((rh-24)/2):rh)}px</div>`;
+ const img=b.k==='tt'?'':shapeSel(b.shape,'setBshape('+i+',this.value)')+((b.k==='tl'||b.k==='il')?niSel(b.ni,'setBni('+i+',this.value)')+(b.shape!=='square'&&sqn(b)>1?dirSel(b.dir,'setBdir('+i+',this.value)'):''):'')+Array.from({length:sqn(b)},(_,k)=>bImgF(i,k,b)).join('')+(b.k==='tw'?bImgF(i,1,b):'')+`<div style="font-size:.75rem;color:#f1c40f;margin:4px 0">推奨: ${b.shape==='square'?Math.min(840,b.k==='tw'?Math.floor((rh-24)/2):rh)+'×'+Math.min(840,b.k==='tw'?Math.floor((rh-24)/2):rh):'840×'+(b.k==='tw'?Math.floor((rh-24)/2):rh)}px</div>`;
  return `<div class="dyn"><button class="x" onclick="delBlock(${i})">削除</button>${ctl}${img}${items}</div>`;
 }
 const mkBlk=(k,items,imgs,shape,n)=>({k,n:n||3,imgs:(imgs||[]).concat(['','','','','']).slice(0,5),t:'',shape:shape||'fit',cap:false,caps:['','','','',''],items:items||[]});
 function toBlocks(p){
  if(p.layout==='blocks')return false;
  const it=p.items.map(x=>({h:x.h,t:x.t})),m={'l-text':'tl','l-image':'il',text:'tt',two:'tw'};
- p.blocks=m[p.layout]?[Object.assign(mkBlk(m[p.layout],it,p.imgs,p.shape),{ni:p.ni})]:[mkBlk('img',[],p.imgs,p.shape,p.n)];
+ p.blocks=m[p.layout]?[Object.assign(mkBlk(m[p.layout],it,p.imgs,p.shape),{ni:p.ni,dir:p.dir})]:[mkBlk('img',[],p.imgs,p.shape,p.n)];
  p.layout='blocks';return true;
 }
 function addLayout(){const conv=toBlocks(pages[cur]);addBlock(bkType);if(conv)note('このページを段組みに変換しました。上下の入れ替えは各段の「▲ 上へ」「▼ 下へ」で行えます。')}
@@ -387,6 +392,7 @@ function recSize(p,k){
  if(p.shape==='square'){const s=p.layout==='row'?Math.min(bodyH(p),Math.round((1720-24*(p.n-1))/p.n)):p.layout==='two'?Math.min(832,Math.floor((bodyH(p)-24)/2)):Math.min(Math.floor((832-24*(sqn(p)-1))/sqn(p)),bodyH(p));return s+'×'+s+'px(正方形)'+tail}
  if(p.layout==='row')return Math.round((1720-24*(p.n-1))/p.n)+'×'+bodyH(p)+'px'+tail;
  if(p.layout==='two')return '830×'+Math.floor((bodyH(p)-24)/2)+'px'+tail;
+ const n=sqn(p);if(n>1&&(p.layout==='l-text'||p.layout==='l-image'))return (p.dir==='h'?Math.floor((832-24*(n-1))/n)+'×'+bodyH(p):'830×'+Math.floor((bodyH(p)-24*(n-1))/n))+'px'+tail;
  return '830×'+bodyH(p)+'px'+tail;
 }
 const nSel=p=>`<div class="fg"><label>画像の枚数(2〜5枚・横並び)</label><select onchange="setN(+this.value)">${[2,3,4,5].map(n=>`<option ${p.n===n?'selected':''}>${n}</option>`).join('')}</select></div>`;
@@ -466,8 +472,8 @@ function normPage(o){
  p.layout=LAYOUTS[o.layout]?o.layout:'l-text';
  p.shape=o.shape==='square'?'square':'fit';
  const cc=v=>/^#[0-9a-fA-F]{6}$/.test(v||''),tn=parseInt(o.ts);
- p.ts=o.ts==='auto'||!(tn>=14&&tn<=48)?'auto':tn;p.tc=cc(o.tc)?o.tc:p.tc;p.hc=cc(o.hc)?o.hc:p.hc;p.tb=!!o.tb;p.nh=!!o.nh;p.tp=['below','right'].includes(o.tp)?o.tp:'none';p.ni=Math.min(4,Math.max(1,parseInt(o.ni)||1));p.chat=!!o.chat;p.title=s(o.title);p.subtitle=s(o.subtitle);p.fl=s(o.fl);p.fr=s(o.fr);
- p.blocks=Array.isArray(o.blocks)?o.blocks.filter(b=>b&&typeof b==='object').slice(0,12).map(b=>b.k==='img'?{k:'img',n:Math.min(5,Math.max(2,parseInt(b.n)||3)),imgs:[0,1,2,3,4].map(i=>Array.isArray(b.imgs)&&IMG_OK.test(s(b.imgs[i]))?b.imgs[i]:''),t:'',shape:b.shape==='square'?'square':'fit',cpos:['below','right'].includes(b.cpos)?b.cpos:(b.cap?'below':'none'),cap:!!b.cap||b.cpos==='below',caps:[0,1,2,3,4].map(i=>s(Array.isArray(b.caps)?b.caps[i]:'')),tp:['below','right'].includes(b.tp)?b.tp:'none',items:Array.isArray(b.items)?b.items.filter(x=>x&&typeof x==='object').slice(0,12).map(x=>({h:s(x.h),t:s(x.t)})):[]}:b.k==='tl'||b.k==='il'||b.k==='tw'||b.k==='tt'?{k:b.k,n:3,imgs:[0,1,2,3,4].map(i=>Array.isArray(b.imgs)&&IMG_OK.test(s(b.imgs[i]))?b.imgs[i]:''),t:'',shape:b.shape==='square'?'square':'fit',ni:Math.min(4,Math.max(1,parseInt(b.ni)||1)),cap:false,caps:['','','','',''],items:Array.isArray(b.items)?b.items.filter(x=>x&&typeof x==='object').slice(0,12).map(x=>({h:s(x.h),t:s(x.t)})):[]}:{k:'text',n:3,imgs:['','','','',''],t:s(b.t)}):[];
+ p.ts=o.ts==='auto'||!(tn>=14&&tn<=48)?'auto':tn;p.tc=cc(o.tc)?o.tc:p.tc;p.hc=cc(o.hc)?o.hc:p.hc;p.tb=!!o.tb;p.nh=!!o.nh;p.tp=['below','right'].includes(o.tp)?o.tp:'none';p.ni=Math.min(4,Math.max(1,parseInt(o.ni)||1));p.dir=o.dir==='h'?'h':'v';p.chat=!!o.chat;p.title=s(o.title);p.subtitle=s(o.subtitle);p.fl=s(o.fl);p.fr=s(o.fr);
+ p.blocks=Array.isArray(o.blocks)?o.blocks.filter(b=>b&&typeof b==='object').slice(0,12).map(b=>b.k==='img'?{k:'img',n:Math.min(5,Math.max(2,parseInt(b.n)||3)),imgs:[0,1,2,3,4].map(i=>Array.isArray(b.imgs)&&IMG_OK.test(s(b.imgs[i]))?b.imgs[i]:''),t:'',shape:b.shape==='square'?'square':'fit',cpos:['below','right'].includes(b.cpos)?b.cpos:(b.cap?'below':'none'),cap:!!b.cap||b.cpos==='below',caps:[0,1,2,3,4].map(i=>s(Array.isArray(b.caps)?b.caps[i]:'')),tp:['below','right'].includes(b.tp)?b.tp:'none',items:Array.isArray(b.items)?b.items.filter(x=>x&&typeof x==='object').slice(0,12).map(x=>({h:s(x.h),t:s(x.t)})):[]}:b.k==='tl'||b.k==='il'||b.k==='tw'||b.k==='tt'?{k:b.k,n:3,imgs:[0,1,2,3,4].map(i=>Array.isArray(b.imgs)&&IMG_OK.test(s(b.imgs[i]))?b.imgs[i]:''),t:'',shape:b.shape==='square'?'square':'fit',ni:Math.min(4,Math.max(1,parseInt(b.ni)||1)),dir:b.dir==='h'?'h':'v',cap:false,caps:['','','','',''],items:Array.isArray(b.items)?b.items.filter(x=>x&&typeof x==='object').slice(0,12).map(x=>({h:s(x.h),t:s(x.t)})):[]}:{k:'text',n:3,imgs:['','','','',''],t:s(b.t)}):[];
  p.n=Math.min(5,Math.max(2,parseInt(o.n)||3));p.imgs=[0,1,2,3,4].map(k=>Array.isArray(o.imgs)&&IMG_OK.test(s(o.imgs[k]))?o.imgs[k]:'');
  p.items=Array.isArray(o.items)?o.items.filter(i=>i&&typeof i==='object').map(i=>({h:s(i.h),t:s(i.t)})):[];
  return p;
