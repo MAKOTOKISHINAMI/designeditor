@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>資料生成システム (iPad完全対応)</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f6f9;
+            color: #333;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* --- 左側：管理画面 --- */
+        .admin-panel {
+            width: 400px;
+            height: 100vh;
+            background: #2c3e50;
+            color: #fff;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            position: fixed;
+            left: 0;
+            top: 0;
+            box-shadow: 3px 0 10px rgba(0,0,0,0.2);
+            z-index: 100;
+        }
+        .admin-panel.hidden {
+            transform: translateX(-400px);
+        }
+        .admin-panel h2 {
+            margin-top: 0;
+            border-bottom: 2px solid #34495e;
+            padding-bottom: 10px;
+            font-size: 1.2rem;
+        }
+        
+        .ctrl-box {
+            background: #34495e;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+        .page-indicator {
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+        }
+        .flex-btn-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .btn {
+            flex: 1;
+            padding: 12px 8px;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        .btn-nav { background: #3498db; color: white; }
+        .btn-nav:disabled { background: #7f8c8d; cursor: not-allowed; }
+        .btn-add { background: #2ecc71; color: white; }
+        .btn-del { background: #e74c3c; color: white; }
+        .btn-action { background: #e67e22; color: white; width: 100%; margin-bottom: 8px; padding: 12px; }
+        .btn-print { background: #1abc9c; color: white; width: 100%; padding: 12px; font-size: 1rem; }
+
+        /* 入力フォーム */
+        .form-group {
+            margin-bottom: 15px;
+            background: #34495e;
+            padding: 12px;
+            border-radius: 6px;
+            box-sizing: border-box;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.85rem;
+            color: #bdc3c7;
+            font-weight: bold;
+        }
+        .form-group input[type="text"],
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #4f5d73;
+            border-radius: 4px;
+            background: #2c3e50;
+            color: #fff;
+            box-sizing: border-box;
+            font-size: 0.9rem;
+        }
+        .form-group textarea {
+            height: 70px;
+        }
+        
+        .dynamic-item-box {
+            background: #1a252f;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 10px;
+            position: relative;
+            border-left: 4px solid #e67e22;
+        }
+        .btn-remove-item {
+            position: absolute;
+            right: 8px;
+            top: 8px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            padding: 4px 8px;
+        }
+
+        /* --- 右側：プレビュー画面 --- */
+        .preview-container {
+            margin-left: 400px;
+            padding: 20px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            box-sizing: border-box;
+            transition: margin-left 0.3s ease;
+            position: relative;
+            overflow: auto;
+        }
+        .preview-container.full-width {
+            margin-left: 0;
+        }
+        
+        .toggle-panel-btn {
+            position: fixed;
+            left: 20px;
+            top: 20px;
+            z-index: 200;
+            background: #2c3e50;
+            color: white;
+            border: 2px solid #34495e;
+            padding: 12px 18px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        }
+
+        /* スライド画面 */
+        .slide-page {
+            width: 960px;
+            height: 540px;
+            background: #ffffff;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            padding: 40px 50px;
+            box-sizing: border-box;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .slide-header {
+            border-left: 6px solid #2980b9;
+            padding-left: 15px;
+            margin-bottom: 20px;
+        }
+        .slide-title { font-size: 2.1rem; margin: 0; color: #2c3e50; font-weight: 700; }
+        .slide-subtitle { font-size: 1rem; color: #7f8c8d; margin-top: 5px; }
+
+        .slide-content {
+            display: flex;
+            gap: 25px;
+            flex-grow: 1;
+            align-items: stretch;
+            overflow: hidden;
+        }
+
+        .layout-left-text { flex-direction: row; }
+        .layout-left-image { flex-direction: row-reverse; }
+        .layout-text-only { flex-direction: column; }
+
+        .text-side { flex: 1; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+        .image-side { flex: 1; display: flex; justify-content: center; align-items: center; background: #f8f9fa; border-radius: 6px; border: 2px dashed #e2e8f0; overflow: hidden; }
+        .image-side img { width: 100%; height: 100%; object-fit: cover; }
+        
+        /* 複数画像並び用 */
+        .images-flex-container { display: flex; gap: 15px; width: 100%; height: 90%; justify-content: center; align-items: center; }
+        .grid-img-box { flex: 1; height: 100%; background: #f8f9fa; border: 2px dashed #e2e8f0; border-radius: 6px; display: flex; flex-direction: column; justify-content: center; align-items: center; overflow: hidden; position: relative; }
+        .grid-img-box img { width: 100%; height: 100%; object-fit: cover; }
+        .grid-img-label { position: absolute; bottom: 8px; background: rgba(0,0,0,0.6); color: white; padding: 3px 10px; font-size: 0.75rem; border-radius: 4px; }
+
+        .section-title { font-size: 1rem; color: #2980b9; margin: 0 0 5px 0; font-weight: bold; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
+        .text-desc { font-size: 0.9rem; line-height: 1.5; color: #4a5568; margin: 0; white-space: pre-wrap; }
+
+        .slide-footer {
+            position: absolute;
+            bottom: 20px;
+            left: 50px;
+            right: 50px;
+            display: flex;
+            justify-content: space-between;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 10px;
+            font-size: 0.8rem;
+            color: #a0aec0;
+        }
+
+        /* --- 💬 画面右下：常設チャットボックス --- */
+        .chat-box {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            width: 300px;
+            height: 350px;
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.15);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 150;
+            border: 1px solid #dcdde1;
+        }
+        .chat-header { background: #2980b9; color: white; padding: 12px; font-weight: bold; font-size: 0.85rem; }
+        .chat-messages { flex-grow: 1; padding: 10px; overflow-y: auto; background: #f5f6fa; font-size: 0.8rem; display: flex; flex-direction: column; gap: 8px; }
+        .msg { padding: 8px 12px; border-radius: 15px; max-width: 80%; line-height: 1.4; word-wrap: break-word; }
+        .msg.bot { background: #dcdde1; align-self: flex-start; color: #2f3640; border-top-left-radius: 0; }
+        .msg.user { background: #2980b9; align-self: flex-end; color: white; border-top-right-radius: 0; }
+        .chat-input-area { display: flex; border-top: 1px solid #dcdde1; background: white; }
+        .chat-input { flex-grow: 1; border: none; padding: 12px; font-size: 0.8rem; outline: none; }
+        .chat-send-btn { background: #2980b9; color: white; border: none; padding: 0 15px; cursor: pointer; font-size: 0.8rem; }
+
+        @media print {
+            .admin-panel, .toggle-panel-btn, .chat-box { display: none !important; }
+            .preview-container { margin-left: 0 !important; padding: 0 !important; display: block !important; }
+            .slide-page { width: 1920px !important; height: 1080px !important; box-shadow: none !important; border-radius: 0 !important; margin: 0 !important; display: flex !important; page-break-inside: avoid; page-break-after: always; }
+            @page { size: 1920px 1080px; margin: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 画面表示切替ボタン -->
+    <button class="toggle-panel-btn" onclick="toggleAdminPanel()">👁️ 画面表示切替</button>
+
+    <!-- 管理画面 -->
+    <div class="admin-panel" id="adminPanel">
+        <h2>🛠️ 資料生成システム</h2>
+        
+        <div class="ctrl-box">
+            <div class="page-indicator" id="page-nav-text">Page: 1 / 1</div>
+            <div class="flex-btn-group">
+                <button class="btn btn-nav" id="btn-prev" onclick="changePage(-1)">◀ 前へ</button>
+                <button class="btn btn-nav" id="btn-next" onclick="changePage(1)">次へ ▶</button>
+            </div>
+            <div class="flex-btn-group">
