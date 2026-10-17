@@ -358,7 +358,15 @@ function checkAll(show){
  if(show)$('chkBox').innerHTML=bad.length?bad.map(b=>`⚠ ${b.n}ページ: ${b.msg}`).join('<br><br>'):'✅ すべてのページが収まっています';
  return bad;
 }
-function printAll(){const bad=checkAll(false);if(bad.length&&!confirm('内容が収まっていないページがあります: '+bad.map(b=>b.n+'ページ').join('、')+'\n「全ページの収まりチェック」で対処方法を確認できます。このままPDF出力しますか？'))return;window.print()}
+const ask=m=>{const t=performance.now(),r=window.confirm(m);return r||performance.now()-t<40};
+let pwait=0;
+function printAll(){
+ const bad=checkAll(true);
+ if(bad.length&&!pwait){pwait=1;setTimeout(()=>{pwait=0},10000);note('内容が収まっていないページがあります。下の警告を確認してください。このまま出力するときは、もう一度ボタンを押してください。');return}
+ pwait=0;
+ try{buildPrint();note('印刷画面を開いています。「PDFに保存」を選んでください。開かないときは、HTMLファイルをブラウザで直接開いてください。');window.print()}
+ catch(e){note('印刷画面を開けませんでした。HTMLファイルをブラウザで直接開いて、もう一度お試しください。')}
+}
 const BK={img:'画像の行(2〜5枚)',text:'テキスト1行',tl:'テキスト左・画像右',il:'画像左・テキスト右',tw:'テキスト左・画像2枚',tt:'テキスト2段組'};
 let bkType='img';
 const sqn=o=>Math.min(4,Math.max(1,parseInt(o.ni)||1));
@@ -432,7 +440,7 @@ function addItem(){pages[cur].items.push({h:'新しい項目',t:''});renderForm(
 function delItem(i){pages[cur].items.splice(i,1);renderForm();renderSlide()}
 function go(d){cur=Math.max(0,Math.min(pages.length-1,cur+d));renderForm();renderSlide()}
 function addPage(){pages.splice(cur+1,0,newPage());cur++;renderForm();renderSlide()}
-function delPage(){if(pages.length===1){alert('最後の1ページは削除できません');return}if(!confirm('このページを削除しますか？'))return;pages.splice(cur,1);cur=Math.min(cur,pages.length-1);renderForm();renderSlide()}
+function delPage(){if(pages.length===1){alert('最後の1ページは削除できません');return}if(!ask('このページを削除しますか？'))return;pages.splice(cur,1);cur=Math.min(cur,pages.length-1);renderForm();renderSlide()}
 const isMob=()=>window.matchMedia('(max-width:900px)').matches;
 let mz=1;
 function updTog(){const h=$('admin').classList.contains('hidden');$('tog').textContent=isMob()?(h?'✏️ 管理画面に切り替え':'👁️ プレビューを見る'):'👁️ 画面表示切替'}
@@ -564,7 +572,7 @@ $('jsonIn').addEventListener('change',e=>{
    if(!Array.isArray(arr)||!arr.length)throw 0;
    const imp=arr.map(normPage);
    if(jsonMode==='replace'){
-    if(!confirm('現在の内容を破棄して読み込みますか？'))return;
+    if(!ask('現在の内容を破棄して読み込みますか？'))return;
     pages=imp;cur=0;setChat(j.chat,false);setHdrJ(j.hdr);if(/^#[0-9a-fA-F]{6}$/.test(j.ftc||''))ftc=j.ftc;
    }else{cur=pages.length;pages=pages.concat(imp);setChat(j.chat,true)}
    renderForm();renderSlide();updateChat();note(imp.length+'ページ読み込みました');
@@ -579,7 +587,8 @@ document.addEventListener('keydown',e=>{
  else if(e.key==='ArrowLeft'||e.key==='PageUp')go(-1);
 });
 window.addEventListener('resize',()=>{fit();updTog()});
-window.addEventListener('beforeprint',()=>{window._pr=1;$('printArea').innerHTML=pages.map((p,i)=>`<div class="slide">${slideHTML(p,i+1,pages.length)}${p.chat&&chatOpen?`<div class="chat">${chatInner(false)}</div>`:''}</div>`).join('');window._pr=0;const pa=$('printArea');pa.style.cssText='display:block;position:absolute;left:-99999px;top:0';pa.querySelectorAll('.slide').forEach((el,i)=>fitSlide(el,pages[i]));pa.style.cssText=''});
+function buildPrint(){window._pr=1;$('printArea').innerHTML=pages.map((p,i)=>`<div class="slide">${slideHTML(p,i+1,pages.length)}${p.chat&&chatOpen?`<div class="chat">${chatInner(false)}</div>`:''}</div>`).join('');window._pr=0;const pa=$('printArea');pa.style.cssText='display:block;position:absolute;left:-99999px;top:0';pa.querySelectorAll('.slide').forEach((el,i)=>fitSlide(el,pages[i]));pa.style.cssText=''}
+window.addEventListener('beforeprint',buildPrint);
 $('chat').innerHTML=chatInner(true);
 $('chat').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing&&e.target.id==='cIn')sendChat()});
 updateChat();renderForm();renderSlide();updTog();
