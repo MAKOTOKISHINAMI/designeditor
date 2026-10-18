@@ -127,6 +127,8 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu G
  .pwarn{position:fixed;top:64px;font-size:12px;max-width:92%;text-align:center}
  .tog{left:50%;bottom:14px;transform:translateX(-50%);padding:14px 22px;font-size:15px;border-radius:30px;box-shadow:0 4px 14px rgba(0,0,0,.3)}
 }
+body.viewonly .tog{opacity:.25}
+body.viewonly .tog:hover{opacity:1}
 #printArea{display:none}
 @media print{
  @page{size:1920px 1080px;margin:0}
@@ -152,6 +154,7 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu G
   <button class="btn nav" style="width:100%;margin-bottom:8px" onclick="checkAll(true)">🔍 全ページの収まりチェック</button>
   <button class="btn prt" onclick="printAll()">📄 全頁を一括PDF出力 (1920×1080)</button>
   <div class="row" style="margin:10px 0 0"><button class="btn act" style="margin:0" onclick="saveJSON()">💾 データ保存(JSON)</button></div>
+  <div class="row" style="margin:6px 0 0"><button class="btn act" style="margin:0;background:#16a085" onclick="saveHTML()">🌐 HTMLで保存(開くだけで見られる)</button></div>
   <div class="row" style="margin:0"><button class="btn act" style="margin:0" onclick="pickJSON('replace')">📂 JSON読込(置換)</button><button class="btn act" style="margin:0" onclick="pickJSON('append')">＋ JSON追加読込</button></div>
   <input type="file" id="jsonIn" accept=".json,application/json" hidden>
   <div id="chkBox" style="font-size:.8rem;color:#ff9f9f;margin-top:6px;line-height:1.5"></div>
@@ -562,6 +565,38 @@ function normPage(o){
  p.n=Math.min(5,Math.max(2,parseInt(o.n)||3));p.imgs=[0,1,2,3,4].map(k=>Array.isArray(o.imgs)&&IMG_OK.test(s(o.imgs[k]))?o.imgs[k]:'');
  p.items=Array.isArray(o.items)?o.items.filter(i=>i&&typeof i==='object').map(i=>({h:s(i.h),t:s(i.t)})):[];
  return p;
+}
+function applyData(j){
+ const arr=Array.isArray(j)?j:j.pages;
+ pages=arr.map(normPage);cur=Math.max(0,Math.min(pages.length-1,parseInt(j.cur)||0));
+ setChat(j.chat,false);setHdrJ(j.hdr);
+ if(/^#[0-9a-fA-F]{6}$/.test(j.ftc||''))ftc=j.ftc;
+ renderForm();renderSlide();updateChat();
+}
+async function saveFile(name,data,mime){
+ try{
+  const d=window.claude?await claude.use('downloads'):null;
+  if(d){await d.save({filename:name,data});note('保存しました')}
+  else{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type:mime}));a.download=name;a.click();note('保存しました')}
+ }catch(e){if(!e||e.code!=='declined')note('保存できませんでした'+(e&&e.code?': '+e.code:''))}
+}
+async function saveHTML(){
+ const scr=[...document.querySelectorAll('script')].find(s=>s.textContent.includes('function samplePages'));
+ if(!scr){note('このページからはHTMLを作れませんでした。JSON保存をお使いください。');return}
+ const data={format:'fhd-slides',version:3,cur,pages,chat,ftc,hdr:{on:hdr.on,h:hdr.h,t:hdr.t,y:hdr.y,f:hdr.f,src:hdr.src===HDR_DEFAULT?'':hdr.src}};
+ const json=JSON.stringify(data).replace(/</g,'\\u003c');
+ let js=scr.textContent;
+ const k0=js.indexOf('\nwindow.__DATA__=');if(k0>=0)js=js.slice(0,k0);
+ const a=js.indexOf('function samplePages(){'),b=js.indexOf('\nlet pages=samplePages()');
+ if(a>=0&&b>a)js=js.slice(0,a)+'function samplePages(){return [newPage()]}'+js.slice(b);
+ js+=`\nwindow.__DATA__=${json};applyData(window.__DATA__);document.body.classList.add('viewonly');$('admin').classList.add('hidden');$('preview').classList.add('full');updTog();fit();\n`;
+ const c=document.documentElement.cloneNode(true);
+ c.querySelectorAll('script').forEach(s=>{if(s.textContent.includes('function samplePages'))s.textContent='/*__JS__*/';else s.remove()});
+ c.querySelectorAll('meta[http-equiv]').forEach(m=>m.remove());
+ ['form','sBody','printArea','measure','addLayoutBox','chkBox','warnBox','msg','pWarn'].forEach(id=>{const e=c.querySelector('#'+id);if(e)e.innerHTML=''});
+ c.querySelector('body').className='';
+ const html='<!DOCTYPE html>\n'+c.outerHTML.replace('/*__JS__*/',()=>js);
+ await saveFile('slides_'+new Date().toISOString().slice(0,10)+'.html',html,'text/html');
 }
 async function saveJSON(){
  const name='slides_'+new Date().toISOString().slice(0,10)+'.json';
