@@ -57,6 +57,8 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu G
 .s-stack{display:flex;flex-direction:column;gap:16px;flex:1;min-height:0;width:100%}
 .s-blk{display:flex;gap:40px;flex:1 1 0;min-height:0}
 .s-blk.l-image{flex-direction:row-reverse}
+.s-blk.tt{flex:0 0 auto}
+.s-blk.tt>.s-text{overflow:visible}
 .s-grp{display:flex;flex-direction:column;gap:16px;flex:1 1 0;min-height:0;min-width:0}
 .s-grp>.s-row{flex:1;min-height:0}
 .s-grp>.s-text{flex:none;overflow:visible}
@@ -399,7 +401,7 @@ function itemsEd(i){
 }
 function blkHTML(b){
  const secs=(b.items||[]).map(i=>`<div class="sec">${i.h?`<h3>${esc(i.h)}</h3>`:''}<p>${esc(i.t)}</p></div>`).join('');
- if(b.k==='tt')return `<div class="s-blk"><div class="s-text wide">${secs}</div></div>`;
+ if(b.k==='tt')return `<div class="s-blk tt"><div class="s-text wide">${secs}</div></div>`;
  if(b.k==='tw')return `<div class="s-blk"><div class="s-text">${secs}</div><div class="s-imgs${b.shape==='square'?' sq':''}" style="--n:2">${phTag(b.imgs[0])}${phTag(b.imgs[1])}</div></div>`;
  return `<div class="s-blk${b.k==='il'?' l-image':''}"><div class="s-text">${secs}</div><div class="s-imgs${b.shape==='square'?' sq':''}${b.shape==='square'&&sqn(b)>1?' h':''}${b.shape!=='square'&&b.dir==='h'&&sqn(b)>1?' fh':''}" style="--n:${sqn(b)}">${Array.from({length:sqn(b)},(_,k)=>phTag(b.imgs[k])).join('')}</div></div>`;
 }
@@ -502,8 +504,9 @@ function kbAsk(q){
  const {items,secs}=kbParse();
  if(!items.length)return '';
  q=q.replace(/欠点|弱点|短所|難点/g,'デメリット').replace(/利点|長所|強み/g,'メリット').replace(/特徴/g,'特長');
+ const qs=norm(q).replace(/(ですか|ますか|でしょうか|教えてください|教えて|ください|とは|って何|は何|何ですか|について|に関して|ありますか)/g,'').replace(/[はをがにでともへや？?]+$/,'');
  const qb=new Set();
- q.split(/(ですか|ますか|でしょうか|教えてください|教えて|ください|とは|って何|は何|何ですか|について|に関して|ありますか)/).forEach(p=>bigrams(p).forEach(x=>qb.add(x)));
+ q.split(/(?:ですか|ますか|でしょうか|教えてください|教えて|ください|とは|って何|は何|何ですか|について|に関して|ありますか)/).forEach(p=>bigrams(p.length>2?p.replace(/[はをがにでともへや]+$/,''):p).forEach(x=>qb.add(x)));
  if(!qb.size)return '';
  const docs=items.map(it=>({it,tb:bigrams(it.t),bb:bigrams(it.b),sb:bigrams(it.s?it.s.t:'')})).concat(secs.map(s=>({sec:s,tb:bigrams(s.t),bb:new Set()})));
  const df=new Map();
@@ -511,8 +514,8 @@ function kbAsk(q){
  const N=docs.length,idf=x=>Math.log((N+1)/((df.get(x)||0)+0.5));
  let tot=0;qb.forEach(x=>{if(df.has(x))tot+=idf(x)});
  if(tot<=0)return '';
- const need=Math.min(2,qb.size);
- const sc=docs.map(d=>{let v=0,n=0;qb.forEach(x=>{if(!df.has(x))return;const w=d.tb.has(x)?2:d.bb.has(x)?1:(d.sb&&d.sb.has(x))?1:0;if(w){n++;v+=idf(x)*w}});let r=n>=need?v/(2*tot)*(d.sec?0.9:1):0;if(r>0&&d.it&&d.it.t&&norm(d.it.t).length>=2&&norm(q).includes(norm(d.it.t))){r+=0.35;if(d.it.s&&norm(q).includes(norm(d.it.s.t.split('・')[0])))r+=0.15}return {d,v:r}}).sort((a,b)=>b.v-a.v);
+ const need=qb.size>=3?2:1;
+ const sc=docs.map(d=>{let v=0,n=0;qb.forEach(x=>{if(!df.has(x))return;const w=d.tb.has(x)?2:d.bb.has(x)?1:(d.sb&&d.sb.has(x))?1:0;if(w){n++;v+=idf(x)*w}});let r=n>=need?v/(2*tot)*(d.sec?0.9:1):0;const tn=norm(d.it?d.it.t:'').replace(/(とは|について)$/,'');if(r>0&&tn.length>=2&&qs.includes(tn)){r+=0.35*Math.max(0.5,Math.min(1,tn.length/Math.max(1,qs.length)));if(d.it.s&&qs.includes(norm(d.it.s.t.split('・')[0])))r+=0.15}return {d,v:r}}).sort((a,b)=>b.v-a.v);
  const top=sc[0];
  if(!top||top.v<0.22)return '';
  let r;
