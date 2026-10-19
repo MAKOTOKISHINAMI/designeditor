@@ -130,12 +130,15 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu G
 body.viewonly .tog{opacity:.25}
 body.viewonly .tog:hover{opacity:1}
 #printArea{display:none}
+@media (min-width:901px){body.fullv .tog{left:10px;bottom:10px;padding:6px 10px;font-size:.72rem}}
 @media print{
- @page{size:1920px 1080px;margin:0}
+ @page{size:A4 landscape;margin:0}
  body{height:auto;overflow:visible;background:#fff}
  body>*:not(#printArea){display:none!important}
  #printArea{display:block}
- #printArea .slide{transform:none!important;box-shadow:none;page-break-after:always;break-after:page}
+ #printArea .pp{width:297mm;height:210mm;overflow:hidden;position:relative;page-break-after:always;break-after:page}
+ #printArea .pp:last-child{page-break-after:auto;break-after:auto}
+ #printArea .slide{position:absolute;left:0;top:0;transform:scale(.58464)!important;transform-origin:0 0;box-shadow:none}
 }
 </style>
 </head>
@@ -267,10 +270,21 @@ function slideHTML(p,n,total){
  return `${hon?`<div class="s-banner" style="height:${hdr.h}px"><img src="${hdr.src}" style="object-position:50% ${hdr.y}%;-webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - ${hdr.f}px),transparent);mask-image:linear-gradient(to bottom,#000 calc(100% - ${hdr.f}px),transparent)">${hdr.t==='in'&&ht?`<div class="s-bt"><h1 class="s-title">${esc(p.title)}</h1><div class="s-sub">${esc(p.subtitle)}</div></div>`:''}</div>${hdr.t==='in'||!ht?'':`<div class="s-head cmp"><h1 class="s-title">${esc(p.title)}</h1><div class="s-sub">${esc(p.subtitle)}</div></div>`}`:(ht?`<div class="s-head"><h1 class="s-title">${esc(p.title)}</h1><div class="s-sub">${esc(p.subtitle)}</div></div>`:'')}${body}<div class="s-foot" style="background:${ftc};color:${ftx(ftc)}"><span>${esc(p.fl)}</span><span>${esc(p.fr)} ${n}/${total}</span></div>`;
 }
 function fit(){
- const pv=$('preview'),w=pv.clientWidth-40,h=pv.clientHeight-90,s=isMob()?Math.max(0.05,(pv.clientWidth-28)/1920*mz):Math.min(w/1920,h/1080);
- $('frame').style.width=1920*s+'px';$('frame').style.height=1080*s+'px';
- $('slide').style.transform=`scale(${s})`;
+ const pv=$('preview'),sl=$('slide'),fr=$('frame'),full=pv.classList.contains('full')&&!isMob();
+ let SW=1920,SH=1080,s;
+ if(isMob()){s=Math.max(0.05,(pv.clientWidth-28)/1920*mz)}
+ else if(full){
+  const vw=pv.clientWidth||1920,vh=pv.clientHeight||1080,r=vw/vh;
+  if(r>=16/9){SW=Math.round(1080*r)}else{SH=Math.round(1920/r)}
+  s=Math.min(vw/SW,vh/SH);fr.style.width=vw+'px';fr.style.height=vh+'px';
+ }else{
+  const w=pv.clientWidth-40,h=pv.clientHeight-90;s=Math.min(w/1920,h/1080);
+ }
+ if(!full){fr.style.width=1920*s+'px';fr.style.height=1080*s+'px'}
+ sl.style.width=SW+'px';sl.style.height=SH+'px';sl.style.transform=`scale(${s})`;
+ runFit();
 }
+
 function renderSlide(){$('sBody').innerHTML=slideHTML(pages[cur],cur+1,pages.length);applyChat();navUpd();runFit();fit()}
 function applyChat(){const on=pages[cur].chat;$('chat').style.display=on&&chatOpen?'flex':'none';$('chatFab').style.display=on&&!chatOpen?'flex':'none'}
 function toggleChat(){chatOpen=!chatOpen;applyChat();if(chatOpen){const i=$('cIn');if(i)i.focus()}}
@@ -456,7 +470,7 @@ function addPage(){pages.splice(cur+1,0,newPage());cur++;renderForm();renderSlid
 function delPage(){if(pages.length===1){alert('最後の1ページは削除できません');return}if(!ask('このページを削除しますか？'))return;pages.splice(cur,1);cur=Math.min(cur,pages.length-1);renderForm();renderSlide()}
 const isMob=()=>window.matchMedia('(max-width:900px)').matches;
 let mz=1;
-function updTog(){const h=$('admin').classList.contains('hidden');$('tog').textContent=isMob()?(h?'✏️ 管理画面に切り替え':'👁️ プレビューを見る'):'👁️ 画面表示切替'}
+function updTog(){const h=$('admin').classList.contains('hidden');document.body.classList.toggle('fullv',h&&!isMob());$('tog').textContent=isMob()?(h?'✏️ 管理画面に切り替え':'👁️ プレビューを見る'):'👁️ 画面表示切替'}
 function zoom(d){mz=Math.min(4,Math.max(1,Math.round(mz*(d>0?1.4:1/1.4)*100)/100));fit()}
 function togglePanel(){$('admin').classList.toggle('hidden');$('preview').classList.toggle('full');updTog();fit();setTimeout(fit,320)}
 /* --- チャットボックス --- */
@@ -633,7 +647,7 @@ document.addEventListener('keydown',e=>{
  else if(e.key==='ArrowLeft'||e.key==='PageUp')go(-1);
 });
 window.addEventListener('resize',()=>{fit();updTog()});
-function buildPrint(){window._pr=1;$('printArea').innerHTML=pages.map((p,i)=>`<div class="slide">${slideHTML(p,i+1,pages.length)}${p.chat&&chatOpen?`<div class="chat">${chatInner(false)}</div>`:''}</div>`).join('');window._pr=0;const pa=$('printArea');pa.style.cssText='display:block;position:absolute;left:-99999px;top:0';pa.querySelectorAll('.slide').forEach((el,i)=>fitSlide(el,pages[i]));pa.style.cssText=''}
+function buildPrint(){window._pr=1;$('printArea').innerHTML=pages.map((p,i)=>`<div class="pp"><div class="slide" style="width:1920px;height:1358px">${slideHTML(p,i+1,pages.length)}${p.chat&&chatOpen?`<div class="chat">${chatInner(false)}</div>`:''}</div></div>`).join('');window._pr=0;const pa=$('printArea');pa.style.cssText='display:block;position:absolute;left:-99999px;top:0';pa.querySelectorAll('.slide').forEach((el,i)=>fitSlide(el,pages[i]));pa.style.cssText=''}
 window.addEventListener('beforeprint',buildPrint);
 $('chat').innerHTML=chatInner(true);
 $('chat').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing&&e.target.id==='cIn')sendChat()});
