@@ -129,6 +129,62 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu G
 }
 body.viewonly .tog{opacity:.25}
 body.viewonly .tog:hover{opacity:1}
+.s-ban{display:flex;gap:24px;height:var(--bh);flex:none}
+.s-bn{flex:1 1 0;min-width:0;border-radius:28px;overflow:hidden;position:relative;display:block;text-decoration:none}
+.s-bimg{position:absolute;inset:0}
+.s-bimg img,.s-bimg video{width:100%;height:100%;object-fit:cover;display:block}
+.s-btx{position:absolute;inset:0;padding:24px 32px;display:flex;flex-direction:column;font-size:var(--fc,26px);font-weight:700;white-space:pre-wrap;line-height:1.4}
+a.s-bn:hover{filter:brightness(.96)}
+.s-band{margin:0 -100px;padding:20px 100px;flex:1 1 0;min-height:0;display:flex;flex-direction:column}
+.s-band>.s-stack{flex:1}
+.s-slw{position:relative;flex:1;min-height:0;min-width:0;display:flex}
+.s-slw>.s-row{flex:1;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;min-width:0}
+.s-slw>.s-row::-webkit-scrollbar{display:none}
+.s-row.slider>.ph,.s-row.slider>.s-cell{flex:0 0 calc((100% - 24px*(var(--vis) - 1))/var(--vis));scroll-snap-align:start}
+.s-arr{position:absolute;top:50%;transform:translateY(-50%);width:56px;height:56px;border-radius:50%;border:0;background:rgba(44,62,80,.7);color:#fff;font-size:24px;cursor:pointer;z-index:3}
+.s-arr.l{left:12px}.s-arr.r{right:12px}
+.chat.fixed{position:fixed;right:16px;bottom:16px;width:min(380px,92vw);height:min(520px,72vh);z-index:300;border-radius:14px}
+.chat.fixed .c-head{font-size:16px;padding:12px 16px}
+.chat.fixed .c-msgs{font-size:14px;padding:12px;gap:10px}
+.chat.fixed .cm{padding:9px 14px;border-radius:18px}
+.chat.fixed .c-in input{font-size:14px;padding:12px}
+.chat.fixed .c-in button{font-size:14px;padding:0 16px}
+.chat.fixed .c-x{font-size:24px}
+.fab.fixed{position:fixed;right:16px;bottom:16px;width:56px;height:56px;z-index:300}
+#site{display:none}
+body.scroll #site{display:block}
+body.scroll #frame,body.scroll .pnav,body.scroll .pwarn{display:none!important}
+body.scroll .preview{display:block;overflow-x:hidden;overflow-y:auto;padding:0;background:#fff}
+.site{--fp:clamp(16px,1.35vw,24px);--fh:clamp(19px,1.7vw,30px);--fc:clamp(15px,1.25vw,22px);--fc2:clamp(14px,1.1vw,20px);color:#2c3e50;background:#fff;text-align:left}
+.site-hdr{position:relative;overflow:hidden}
+.site-hdr img{width:100%;height:100%;object-fit:cover;display:block}
+.site-nav{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.96);display:flex;gap:22px;padding:12px clamp(16px,5vw,80px);overflow-x:auto;white-space:nowrap;border-bottom:1px solid #e2e8f0;font-size:clamp(13px,1.1vw,17px)}
+.site-nav a{color:#2980b9;text-decoration:none;font-weight:700}
+.site .sp{max-width:1400px;margin:0 auto;padding:clamp(28px,4vw,64px) clamp(16px,5vw,80px);display:flex;flex-direction:column;gap:clamp(14px,2vw,28px);position:relative}
+.site .s-head{margin-bottom:0}
+.site .s-title{font-size:clamp(24px,3vw,46px)}
+.site .s-sub{font-size:clamp(14px,1.4vw,22px)}
+.site .s-body{display:flex;gap:clamp(16px,3vw,48px);flex:none;min-height:0}
+.site .s-body.l-image{flex-direction:row-reverse}
+.site .s-text{overflow:visible;flex:1 1 0}
+.site .s-text.wide{columns:2;column-gap:clamp(16px,3vw,48px)}
+.site .s-imgs{flex:1 1 0;min-height:clamp(220px,28vw,520px)}
+.site .s-row,.site .s-slw{flex:none;height:clamp(200px,24vw,460px)}
+.site .s-stack{flex:none;gap:clamp(12px,1.6vw,26px);height:auto}
+.site .s-blk{flex:none;min-height:clamp(200px,24vw,420px)}
+.site .s-band{margin:0 calc(-1*clamp(16px,5vw,80px));padding:clamp(20px,3vw,48px) clamp(16px,5vw,80px);flex:none}
+.site .s-ban{height:clamp(calc(var(--bh)*.45),var(--bhv),var(--bh))}
+.site-foot{display:flex;justify-content:space-between;gap:16px;padding:22px clamp(16px,5vw,80px);font-size:clamp(13px,1.1vw,17px)}
+@media (max-width:820px){
+ .site .s-body,.site .s-body.l-image,.site .s-blk,.site .s-blk.l-image{flex-direction:column}
+ .site .s-text.wide{columns:1}
+ .site .s-row:not(.slider){flex-wrap:wrap;height:auto}
+ .site .s-row:not(.slider)>.ph,.site .s-row:not(.slider)>.s-cell{flex:1 1 44%;min-height:150px}
+ .site .s-ban{flex-direction:column;height:auto}
+ .site .s-bn{min-height:calc(var(--bh)*.5)}
+ .site .s-imgs{min-height:200px}
+}
+@media print{.s-arr{display:none!important}}
 #printArea{display:none}
 @media (min-width:901px){body.fullv .tog{left:10px;bottom:10px;padding:6px 10px;font-size:.72rem}}
 @media print{
@@ -166,12 +222,12 @@ body.viewonly .tog:hover{opacity:1}
  <div id="form"></div>
 </div>
 
-<div id="measure" style="position:absolute;left:-99999px;top:0;width:1920px;height:1080px"></div><div class="preview" id="preview"><div class="pwarn" id="pWarn"></div><div class="pnav"><button id="pPrev" onclick="go(-1)" title="前へ (←)">◀</button><span id="pNum"></span><button id="pNext" onclick="go(1)" title="次へ (→)">▶</button><button class="zm" onclick="zoom(-1)" title="縮小">－</button><button class="zm" onclick="zoom(1)" title="拡大">＋</button></div><div id="frame"><div class="slide" id="slide"><div id="sBody" style="display:contents"></div><div class="chat" id="chat" style="display:none"></div><button class="fab" id="chatFab" onclick="toggleChat()" title="チャットを開く"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMCIgdmlld0JveD0iMCAwIDU0MSA1MDEiIHJvbGU9ImltZyIgYXJpYS1sYWJlbD0i44Kq44Os44Oz44K46Imy44Gu44Ot44K0Ij4KICA8cGF0aCBmaWxsPSIjRkY2MTQyIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik0gMjIyLDM4IEwgMjE1LDM5IEwgMjE0LDQxIEwgMjA5LDQyIEwgMjAzLDUwIEwgMjAzLDYyIEwgMjA1LDYzIEwgMjA2LDcwIEwgMjA1LDgwIEwgMjAzLDgxIEwgMjAyLDg2IEwgMTkzLDk1IEwgMTg5LDk2IEwgMTg1LDEwMCBMIDE4MCwxMDEgTCAxNzYsMTA0IEwgMTcxLDEwNCBMIDE3MCwxMDYgTCAxNDgsMTA3IEwgMTQ3LDEwOSBMIDE0MywxMDkgTCAxNDIsMTA3IEwgMTE3LDEwNiBMIDExNiwxMDQgTCAxMDcsMTAzIEwgNzgsMTAzIEwgNzEsMTA0IEwgNzAsMTA2IEwgNjEsMTA3IEwgNjAsMTA5IEwgNTQsMTEwIEwgNTMsMTEyIEwgNDEsMTE4IEwgMzUsMTI0IEwgMzQsMTI4IEwgMzAsMTMwIEwgMjksMTM3IEwgMjcsMTM4IEwgMjcsMTU2IEwgMjksMTU3IEwgMjksMTYyIEwgMzIsMTY0IEwgMzIsMTY4IEwgNDAsMTc1IEwgNDEsMTc5IEwgNDUsMTgwIEwgNDcsMTgzIEwgNTAsMTgzIEwgNTIsMTg2IEwgNTQsMTg2IEwgNTcsMTg5IEwgNjAsMTg5IEwgNjQsMTkzIEwgNzMsMTk0IEwgNzQsMTk2IEwgODUsMTk3IEwgODYsMTk5IEwgOTksMjAwIEwgMTAwLDIwMiBMIDExNiwyMDYgTCAxMjAsMjEwIEwgMTI1LDIxMSBMIDEyNiwyMTMgTCAxMzMsMjE2IEwgMTM1LDIxOSBMIDE0NCwyMjMgTCAxNjIsMjQzIEwgMTY2LDI1MyBMIDE2OCwyNTQgTCAxNjksMjU5IEwgMTcxLDI2MCBMIDE3MiwyNjcgTCAxNzQsMjY4IEwgMTc1LDI3NyBMIDE3NywyNzggTCAxNzgsMjg5IEwgMTc3LDMxOSBMIDE3NSwzMjAgTCAxNzQsMzMxIEwgMTcyLDMzMiBMIDE3MSwzNDEgTCAxNjksMzQyIEwgMTY4LDM0OCBMIDE2NSwzNTIgTCAxNjUsMzU4IEwgMTYzLDM1OSBMIDE2MiwzNzYgTCAxNjAsMzc3IEwgMTYwLDM4OCBMIDE2MiwzODkgTCAxNjMsNDA4IEwgMTY1LDQwOSBMIDE2Niw0MTggTCAxNjgsNDE5IEwgMTY5LDQyNSBMIDE3NCw0MzEgTCAxNzUsNDM2IEwgMTgwLDQ0MCBMIDE4MCw0NDIgTCAxODgsNDQ5IEwgMTkyLDQ1NSBMIDE5Niw0NTYgTCAyMDIsNDYxIEwgMjA3LDQ2MiBMIDIwOCw0NjQgTCAyMTQsNDY1IEwgMjE1LDQ2NyBMIDIxOSw0NjcgTCAyMjAsNDY5IEwgMjQ0LDQ3MCBMIDI1Myw0NjkgTCAyNTQsNDY3IEwgMjU5LDQ2NyBMIDI2MCw0NjUgTCAyNjUsNDY0IEwgMjY2LDQ2MiBMIDI3Miw0NjEgTCAyNzcsNDU2IEwgMjgxLDQ1NSBMIDI4NSw0NTAgTCAyODcsNDUwIEwgMjg4LDQ0NiBMIDI5NSw0NDEgTCAyOTYsNDM3IEwgMzAxLDQzMiBMIDMwMiw0MjYgTCAzMDQsNDI1IEwgMzA3LDQxNiBMIDMwOSw0MTUgTCAzMTAsNDA2IEwgMzEyLDQwNSBMIDMxMywzOTIgTCAzMTUsMzkxIEwgMzE2LDM4MiBMIDMxOCwzODEgTCAzMTgsMzc3IEwgMzIxLDM3MyBMIDMyMiwzNjggTCAzMjQsMzY3IEwgMzI3LDM2MCBMIDMzMCwzNTggTCAzMzAsMzU1IEwgMzM2LDM1MCBMIDMzNiwzNDggTCAzMzksMzQ3IEwgMzQ3LDMzOSBMIDM1MiwzMzcgTCAzNTQsMzM0IEwgMzYxLDMzMyBMIDM2NSwzMzAgTCAzNzIsMzMwIEwgMzczLDMyOCBMIDM5MywzMjggTCAzOTQsMzMwIEwgNDA2LDMzMSBMIDQwNywzMzMgTCA0MjAsMzM3IEwgNDI4LDM0NCBMIDQzMiwzNDUgTCA0MzQsMzQ4IEwgNDQ2LDM1NCBMIDQ1MCwzNTggTCA0NTgsMzU5IEwgNDU5LDM2MSBMIDQ3NSwzNjEgTCA0NzYsMzU5IEwgNDgwLDM1OSBMIDQ4MiwzNTYgTCA0ODQsMzU2IEwgNDg5LDM1MSBMIDQ5MCwzNDYgTCA0OTIsMzQ1IEwgNDkyLDM0MCBMIDQ5NCwzMzkgTCA0OTQsMzIwIEwgNDkyLDMxOSBMIDQ5MiwzMTQgTCA0OTAsMzEzIEwgNDg3LDMwMCBMIDQ4NCwyOTcgTCA0ODEsMjg5IEwgNDc4LDI4NyBMIDQ3NywyODMgTCA0NjEsMjY3IEwgNDYwLDI2NCBMIDQ1NiwyNjMgTCA0MzYsMjQzIEwgNDM2LDI0MSBMIDQzMywyMzkgTCA0MzIsMjM1IEwgNDI5LDIzMyBMIDQyNiwyMjYgTCA0MjQsMjI1IEwgNDIzLDIyMCBMIDQyMSwyMTkgTCA0MjAsMjEyIEwgNDE4LDIxMSBMIDQxOCwyMDcgTCA0MTYsMjA2IEwgNDE1LDE4NCBMIDQxOCwxNzcgTCA0MjksMTY2IEwgNDMwLDE1MyBMIDQyMywxMzggTCA0MTYsMTMyIEwgNDE2LDEzMCBMIDQxNCwxMzAgTCA0MTMsMTI3IEwgNDA1LDEyMyBMIDQwMywxMjAgTCA0MDAsMTIwIEwgMzk2LDExNiBMIDM5MCwxMTUgTCAzODYsMTEyIEwgMzQ4LDExMyBMIDM0MCwxMTIgTCAzMzksMTEwIEwgMzMzLDEwOSBMIDMzMiwxMDcgTCAzMjUsMTA2IEwgMzI0LDEwNCBMIDMxOSwxMDMgTCAzMTgsMTAxIEwgMzExLDk4IEwgMzA3LDkzIEwgMzAzLDkyIEwgMjk2LDg0IEwgMjk0LDg0IEwgMjkzLDgxIEwgMjkxLDgxIEwgMjkwLDc4IEwgMjg1LDc0IEwgMjgxLDY0IEwgMjcwLDUzIEwgMjY2LDUyIEwgMjYxLDQ3IEwgMjU2LDQ2IEwgMjU1LDQ0IEwgMjUxLDQ0IEwgMjQ3LDQxIEwgMjQyLDQxIEwgMjQxLDM5IFogTSAyMzYsMzMxIEwgMjQ1LDMzMSBMIDI0NiwzMzMgTCAyNTMsMzMzIEwgMjU2LDMzNiBMIDI2MSwzMzcgTCAyNjMsMzQxIEwgMjczLDM0OSBMIDI3NCwzNTQgTCAyNzYsMzU1IEwgMjc3LDM2NCBMIDI3OSwzNjUgTCAyNzksMzgyIEwgMjc3LDM4MyBMIDI3NiwzOTMgTCAyNzQsMzk0IEwgMjczLDM5OCBMIDI2MSw0MTEgTCAyNTcsNDEyIEwgMjU2LDQxNCBMIDI1Miw0MTQgTCAyNTEsNDE2IEwgMjQ1LDQxNyBMIDIzMSw0MTYgTCAyMzAsNDE0IEwgMjI2LDQxNCBMIDIyNCw0MTEgTCAyMjIsNDExIEwgMjE4LDQwNiBMIDIxMSw0MDEgTCAyMDQsMzg0IEwgMjA0LDM2NSBMIDIwNSwzNjAgTCAyMDcsMzU5IEwgMjA4LDM1MiBMIDIxOSwzMzkgTCAyMjEsMzM5IEwgMjI2LDMzNCBMIDIzNSwzMzMgWiBNIDQyOCwyNzcgTCA0MzUsMjc2IEwgNDM2LDI3NCBMIDQzOCwyNzQgTCA0MzksMjc2IEwgNDQ3LDI3NyBMIDQ2MSwyODkgTCA0NjIsMjkzIEwgNDY3LDI5OCBMIDQ2OCwzMDUgTCA0NzAsMzA2IEwgNDcwLDMyMSBMIDQ2MywzMjkgTCA0NDcsMzI4IEwgNDMzLDMxNiBMIDQzMiwzMTIgTCA0MjcsMzA3IEwgNDIzLDI5MyBMIDQyNCwyODMgTCA0MjYsMjgyIFogTSAyODgsMzA3IEwgMjg3LDI4MCBMIDI4OCwyNzQgTCAyOTAsMjczIEwgMjkwLDI2OSBMIDI5MiwyNjggTCAyOTMsMjYzIEwgMjk1LDI2MiBMIDI5OSwyNTQgTCAzMDIsMjUzIEwgMzAyLDI1MSBMIDMwNiwyNDggTCAzMTMsMjQ1IEwgMzE0LDI0MyBMIDMyNCwyNDIgTCAzMjUsMjQwIEwgMzM5LDI0MCBMIDM0MCwyNDIgTCAzNTIsMjQzIEwgMzU2LDI0NyBMIDM2MSwyNDggTCAzNjIsMjUwIEwgMzY5LDI1MyBMIDM3NCwyNTkgTCAzNzcsMjYwIEwgMzc3LDI2MiBMIDM4MCwyNjMgTCAzODAsMjY1IEwgMzg0LDI2NiBMIDM4NSwyNzAgTCAzOTMsMjc4IEwgMzkzLDI4MiBMIDM4MSwyOTQgTCAzNzcsMjk1IEwgMzc1LDI5OCBMIDM2OCwzMDEgTCAzNjQsMzA1IEwgMzU2LDMwNiBMIDM1NSwzMDggTCAzNDUsMzA5IEwgMzQ0LDMxMSBMIDMzNiwzMTIgTCAzMDMsMzEyIEwgMjk2LDMxMSBMIDI5NSwzMDkgTCAyOTEsMzA5IFogTSAxNjgsMTc5IEwgMTczLDE3OSBMIDE3NCwxNzcgTCAxOTgsMTc3IEwgMTk5LDE3OSBMIDIxMCwxODAgTCAyMTEsMTgyIEwgMjE5LDE4MyBMIDIyNSwxODggTCAyMzAsMTg5IEwgMjMyLDE5MyBMIDIzNSwxOTMgTCAyNDksMjA3IEwgMjQ5LDIxMCBMIDI1MiwyMTIgTCAyNTIsMjE0IEwgMjU2LDIxOCBMIDI1NywyMjMgTCAyNTksMjI0IEwgMjYyLDI0OCBMIDI2MCwyNDkgTCAyNTksMjYyIEwgMjU3LDI2MyBMIDI1NiwyNjggTCAyNTIsMjcyIEwgMjUxLDI3NiBMIDI0MSwyODYgTCAyMzQsMjg1IEwgMjI3LDI3OCBMIDIyMywyNzcgTCAyMTksMjcyIEwgMjE1LDI3MSBMIDIxMCwyNjQgTCAyMDEsMjU2IEwgMjAxLDI1NCBMIDE5OCwyNTMgTCAxOTgsMjUxIEwgMTkzLDI0NyBMIDE5MywyNDQgTCAxODUsMjM2IEwgMTg0LDIzMSBMIDE4MiwyMzAgTCAxODEsMjI2IEwgMTc3LDIyMiBMIDE3NiwyMTcgTCAxNzQsMjE2IEwgMTczLDIwNyBMIDE3MSwyMDYgTCAxNzAsMTk3IEwgMTY4LDE5NiBaIE0gMzY1LDE2NiBMIDM4MywxNjUgTCAzOTAsMTc0IEwgMzkxLDE3OSBMIDM5MywxODAgTCAzOTQsMTg1IEwgMzk2LDE4NiBMIDM5NywxOTEgTCAzOTksMTkyIEwgNDAwLDE5OSBMIDQwNCwyMDQgTCA0MDUsMjE2IEwgNDA3LDIxNyBMIDQwOCwyNDMgTCA0MDYsMjQ5IEwgMzk3LDI0OCBMIDM4OSwyNDEgTCAzODQsMjQwIEwgMzc5LDIzNSBMIDM3NywyMzUgTCAzNzYsMjMyIEwgMzc0LDIzMiBMIDM3MywyMjkgTCAzNzAsMjI4IEwgMzY5LDIyNCBMIDM2NCwyMjAgTCAzNjQsMjE4IEwgMzU4LDIxMSBMIDM1OCwyMDcgTCAzNTYsMjA2IEwgMzU1LDIwMCBMIDM1MywxOTkgTCAzNTMsMTgwIEwgMzU1LDE3OSBMIDM1OSwxNzAgTCAzNjQsMTY4IFogTSAyNzIsMTY3IEwgMjc5LDE2MiBMIDI4NCwxNjIgTCAyODUsMTYwIEwgMjkzLDE2MCBMIDI5NCwxNjIgTCAzMDQsMTYzIEwgMzA1LDE2NSBMIDMxMCwxNjYgTCAzMjIsMTc4IEwgMzIzLDE4MyBMIDMyNSwxODQgTCAzMjUsMjAzIEwgMzIwLDIwNyBMIDMxOCwyMTEgTCAzMTUsMjEyIEwgMjk5LDIxMiBMIDI5NCwyMTEgTCAyOTAsMjA3IEwgMjg1LDIwNiBMIDI3MywxOTQgTCAyNzIsMTg5IEwgMjcwLDE4OCBMIDI3MCwxODQgTCAyNjgsMTgzIEwgMjY4LDE3NSBMIDI3MCwxNzQgTCAyNzAsMTcwIEwgMjcyLDE2OSBaIE0gMzc5LDEyNyBMIDM4NywxMjUgTCAzOTksMTI5IEwgNDA0LDEzMyBMIDQwNSwxMzYgTCA0MDgsMTM3IEwgNDA4LDEzOSBMIDQxMywxNDQgTCA0MTMsMTUyIEwgNDA3LDE1NyBMIDQwMCwxNTcgTCAzOTksMTU1IEwgMzkwLDE1MiBMIDM3OSwxNDAgWiBNIDY2LDE0MyBMIDY4LDE0MiBMIDY4LDEzOCBMIDgxLDEyNiBMIDkxLDEyNSBMIDkyLDEyMyBMIDEwNSwxMjMgTCAxMDYsMTI1IEwgMTE3LDEyNiBMIDExOCwxMjggTCAxMjQsMTI5IEwgMTM1LDE0MyBMIDEzNSwxNTYgTCAxMzQsMTU5IEwgMTI3LDE2NiBMIDEyMSwxNjcgTCAxMTcsMTcwIEwgMTExLDE3MCBMIDExMCwxNzIgTCA5OCwxNzIgTCA5NywxNzAgTCA4NiwxNjkgTCA4NSwxNjcgTCA3NSwxNjMgTCA2OCwxNTQgTCA2OCwxNTAgTCA2NiwxNDkgWiBNIDI3NiwxMDAgTCAyODIsOTkgTCAyODgsMTAwIEwgMjg5LDEwMiBMIDI5OSwxMDMgTCAzMDAsMTA1IEwgMzA3LDEwNiBMIDMwOCwxMDggTCAzMTUsMTA5IEwgMzE2LDExMSBMIDMyNywxMTUgTCAzNDAsMTI1IEwgMzQ5LDEyOSBMIDM1NCwxMzYgTCAzNTksMTM4IEwgMzU5LDE0MiBMIDM1MiwxNDkgTCAzNDcsMTUwIEwgMzQ2LDE1MiBMIDMyNiwxNTIgTCAzMjUsMTUwIEwgMzE2LDE0OSBMIDMxNSwxNDcgTCAzMTAsMTQ2IEwgMzA5LDE0NCBMIDMwMywxNDMgTCAyNzksMTE5IEwgMjc4LDExMiBMIDI3NiwxMTEgWiBNIDI1OSwxMTggTCAyNTksMTM0IEwgMjU3LDEzNSBMIDI1NCwxNDMgTCAyNDIsMTUyIEwgMjM2LDE1MyBMIDIzNSwxNTUgTCAyMjksMTU1IEwgMjI4LDE1NyBMIDIwOCwxNTcgTCAyMDcsMTU1IEwgMjAwLDE1NSBMIDE5OSwxNTMgTCAxODMsMTQ5IEwgMTgyLDE0NyBMIDE3NywxNDYgTCAxNzMsMTQyIEwgMTc5LDEzMCBMIDE4NCwxMjYgTCAxODQsMTI0IEwgMTkwLDExOSBMIDE5MiwxMTUgTCAyMDEsMTExIEwgMjA2LDEwNiBMIDIxMywxMDUgTCAyMTQsMTAzIEwgMjIxLDEwMiBMIDIyMiwxMDAgTCAyMzMsOTkgTCAyMzQsOTcgTCAyNDQsOTcgTCAyNDgsMTAxIEwgMjQ5LDEwNSBMIDI1NCwxMDkgTCAyNTcsMTE3IFogTSAyMjUsNTYgTCAyMjksNTIgTCAyNDcsNTIgTCAyNDgsNTQgTCAyNTgsNTggTCAyNjAsNjIgTCAyNjUsNjYgTCAyNjYsNzUgTCAyNjQsNzggTCAyNTksNzkgTCAyNTgsODEgTCAyNDksODEgTCAyNDgsNzkgTCAyNDAsNzggTCAyMjcsNjggTCAyMjcsNjYgTCAyMjUsNjUgWiIvPgo8L3N2Zz4K" alt="チャットを開く"></button></div></div></div>
+<div id="measure" style="position:absolute;left:-99999px;top:0;width:1920px;height:1080px"></div><div class="preview" id="preview"><div class="pwarn" id="pWarn"></div><div class="pnav"><button id="pPrev" onclick="go(-1)" title="前へ (←)">◀</button><span id="pNum"></span><button id="pNext" onclick="go(1)" title="次へ (→)">▶</button><button class="zm" onclick="zoom(-1)" title="縮小">－</button><button class="zm" onclick="zoom(1)" title="拡大">＋</button></div><div id="site" class="site"></div><div id="frame"><div class="slide" id="slide"><div id="sBody" style="display:contents"></div><div class="chat" id="chat" style="display:none"></div><button class="fab" id="chatFab" onclick="toggleChat()" title="チャットを開く"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMCIgdmlld0JveD0iMCAwIDU0MSA1MDEiIHJvbGU9ImltZyIgYXJpYS1sYWJlbD0i44Kq44Os44Oz44K46Imy44Gu44Ot44K0Ij4KICA8cGF0aCBmaWxsPSIjRkY2MTQyIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik0gMjIyLDM4IEwgMjE1LDM5IEwgMjE0LDQxIEwgMjA5LDQyIEwgMjAzLDUwIEwgMjAzLDYyIEwgMjA1LDYzIEwgMjA2LDcwIEwgMjA1LDgwIEwgMjAzLDgxIEwgMjAyLDg2IEwgMTkzLDk1IEwgMTg5LDk2IEwgMTg1LDEwMCBMIDE4MCwxMDEgTCAxNzYsMTA0IEwgMTcxLDEwNCBMIDE3MCwxMDYgTCAxNDgsMTA3IEwgMTQ3LDEwOSBMIDE0MywxMDkgTCAxNDIsMTA3IEwgMTE3LDEwNiBMIDExNiwxMDQgTCAxMDcsMTAzIEwgNzgsMTAzIEwgNzEsMTA0IEwgNzAsMTA2IEwgNjEsMTA3IEwgNjAsMTA5IEwgNTQsMTEwIEwgNTMsMTEyIEwgNDEsMTE4IEwgMzUsMTI0IEwgMzQsMTI4IEwgMzAsMTMwIEwgMjksMTM3IEwgMjcsMTM4IEwgMjcsMTU2IEwgMjksMTU3IEwgMjksMTYyIEwgMzIsMTY0IEwgMzIsMTY4IEwgNDAsMTc1IEwgNDEsMTc5IEwgNDUsMTgwIEwgNDcsMTgzIEwgNTAsMTgzIEwgNTIsMTg2IEwgNTQsMTg2IEwgNTcsMTg5IEwgNjAsMTg5IEwgNjQsMTkzIEwgNzMsMTk0IEwgNzQsMTk2IEwgODUsMTk3IEwgODYsMTk5IEwgOTksMjAwIEwgMTAwLDIwMiBMIDExNiwyMDYgTCAxMjAsMjEwIEwgMTI1LDIxMSBMIDEyNiwyMTMgTCAxMzMsMjE2IEwgMTM1LDIxOSBMIDE0NCwyMjMgTCAxNjIsMjQzIEwgMTY2LDI1MyBMIDE2OCwyNTQgTCAxNjksMjU5IEwgMTcxLDI2MCBMIDE3MiwyNjcgTCAxNzQsMjY4IEwgMTc1LDI3NyBMIDE3NywyNzggTCAxNzgsMjg5IEwgMTc3LDMxOSBMIDE3NSwzMjAgTCAxNzQsMzMxIEwgMTcyLDMzMiBMIDE3MSwzNDEgTCAxNjksMzQyIEwgMTY4LDM0OCBMIDE2NSwzNTIgTCAxNjUsMzU4IEwgMTYzLDM1OSBMIDE2MiwzNzYgTCAxNjAsMzc3IEwgMTYwLDM4OCBMIDE2MiwzODkgTCAxNjMsNDA4IEwgMTY1LDQwOSBMIDE2Niw0MTggTCAxNjgsNDE5IEwgMTY5LDQyNSBMIDE3NCw0MzEgTCAxNzUsNDM2IEwgMTgwLDQ0MCBMIDE4MCw0NDIgTCAxODgsNDQ5IEwgMTkyLDQ1NSBMIDE5Niw0NTYgTCAyMDIsNDYxIEwgMjA3LDQ2MiBMIDIwOCw0NjQgTCAyMTQsNDY1IEwgMjE1LDQ2NyBMIDIxOSw0NjcgTCAyMjAsNDY5IEwgMjQ0LDQ3MCBMIDI1Myw0NjkgTCAyNTQsNDY3IEwgMjU5LDQ2NyBMIDI2MCw0NjUgTCAyNjUsNDY0IEwgMjY2LDQ2MiBMIDI3Miw0NjEgTCAyNzcsNDU2IEwgMjgxLDQ1NSBMIDI4NSw0NTAgTCAyODcsNDUwIEwgMjg4LDQ0NiBMIDI5NSw0NDEgTCAyOTYsNDM3IEwgMzAxLDQzMiBMIDMwMiw0MjYgTCAzMDQsNDI1IEwgMzA3LDQxNiBMIDMwOSw0MTUgTCAzMTAsNDA2IEwgMzEyLDQwNSBMIDMxMywzOTIgTCAzMTUsMzkxIEwgMzE2LDM4MiBMIDMxOCwzODEgTCAzMTgsMzc3IEwgMzIxLDM3MyBMIDMyMiwzNjggTCAzMjQsMzY3IEwgMzI3LDM2MCBMIDMzMCwzNTggTCAzMzAsMzU1IEwgMzM2LDM1MCBMIDMzNiwzNDggTCAzMzksMzQ3IEwgMzQ3LDMzOSBMIDM1MiwzMzcgTCAzNTQsMzM0IEwgMzYxLDMzMyBMIDM2NSwzMzAgTCAzNzIsMzMwIEwgMzczLDMyOCBMIDM5MywzMjggTCAzOTQsMzMwIEwgNDA2LDMzMSBMIDQwNywzMzMgTCA0MjAsMzM3IEwgNDI4LDM0NCBMIDQzMiwzNDUgTCA0MzQsMzQ4IEwgNDQ2LDM1NCBMIDQ1MCwzNTggTCA0NTgsMzU5IEwgNDU5LDM2MSBMIDQ3NSwzNjEgTCA0NzYsMzU5IEwgNDgwLDM1OSBMIDQ4MiwzNTYgTCA0ODQsMzU2IEwgNDg5LDM1MSBMIDQ5MCwzNDYgTCA0OTIsMzQ1IEwgNDkyLDM0MCBMIDQ5NCwzMzkgTCA0OTQsMzIwIEwgNDkyLDMxOSBMIDQ5MiwzMTQgTCA0OTAsMzEzIEwgNDg3LDMwMCBMIDQ4NCwyOTcgTCA0ODEsMjg5IEwgNDc4LDI4NyBMIDQ3NywyODMgTCA0NjEsMjY3IEwgNDYwLDI2NCBMIDQ1NiwyNjMgTCA0MzYsMjQzIEwgNDM2LDI0MSBMIDQzMywyMzkgTCA0MzIsMjM1IEwgNDI5LDIzMyBMIDQyNiwyMjYgTCA0MjQsMjI1IEwgNDIzLDIyMCBMIDQyMSwyMTkgTCA0MjAsMjEyIEwgNDE4LDIxMSBMIDQxOCwyMDcgTCA0MTYsMjA2IEwgNDE1LDE4NCBMIDQxOCwxNzcgTCA0MjksMTY2IEwgNDMwLDE1MyBMIDQyMywxMzggTCA0MTYsMTMyIEwgNDE2LDEzMCBMIDQxNCwxMzAgTCA0MTMsMTI3IEwgNDA1LDEyMyBMIDQwMywxMjAgTCA0MDAsMTIwIEwgMzk2LDExNiBMIDM5MCwxMTUgTCAzODYsMTEyIEwgMzQ4LDExMyBMIDM0MCwxMTIgTCAzMzksMTEwIEwgMzMzLDEwOSBMIDMzMiwxMDcgTCAzMjUsMTA2IEwgMzI0LDEwNCBMIDMxOSwxMDMgTCAzMTgsMTAxIEwgMzExLDk4IEwgMzA3LDkzIEwgMzAzLDkyIEwgMjk2LDg0IEwgMjk0LDg0IEwgMjkzLDgxIEwgMjkxLDgxIEwgMjkwLDc4IEwgMjg1LDc0IEwgMjgxLDY0IEwgMjcwLDUzIEwgMjY2LDUyIEwgMjYxLDQ3IEwgMjU2LDQ2IEwgMjU1LDQ0IEwgMjUxLDQ0IEwgMjQ3LDQxIEwgMjQyLDQxIEwgMjQxLDM5IFogTSAyMzYsMzMxIEwgMjQ1LDMzMSBMIDI0NiwzMzMgTCAyNTMsMzMzIEwgMjU2LDMzNiBMIDI2MSwzMzcgTCAyNjMsMzQxIEwgMjczLDM0OSBMIDI3NCwzNTQgTCAyNzYsMzU1IEwgMjc3LDM2NCBMIDI3OSwzNjUgTCAyNzksMzgyIEwgMjc3LDM4MyBMIDI3NiwzOTMgTCAyNzQsMzk0IEwgMjczLDM5OCBMIDI2MSw0MTEgTCAyNTcsNDEyIEwgMjU2LDQxNCBMIDI1Miw0MTQgTCAyNTEsNDE2IEwgMjQ1LDQxNyBMIDIzMSw0MTYgTCAyMzAsNDE0IEwgMjI2LDQxNCBMIDIyNCw0MTEgTCAyMjIsNDExIEwgMjE4LDQwNiBMIDIxMSw0MDEgTCAyMDQsMzg0IEwgMjA0LDM2NSBMIDIwNSwzNjAgTCAyMDcsMzU5IEwgMjA4LDM1MiBMIDIxOSwzMzkgTCAyMjEsMzM5IEwgMjI2LDMzNCBMIDIzNSwzMzMgWiBNIDQyOCwyNzcgTCA0MzUsMjc2IEwgNDM2LDI3NCBMIDQzOCwyNzQgTCA0MzksMjc2IEwgNDQ3LDI3NyBMIDQ2MSwyODkgTCA0NjIsMjkzIEwgNDY3LDI5OCBMIDQ2OCwzMDUgTCA0NzAsMzA2IEwgNDcwLDMyMSBMIDQ2MywzMjkgTCA0NDcsMzI4IEwgNDMzLDMxNiBMIDQzMiwzMTIgTCA0MjcsMzA3IEwgNDIzLDI5MyBMIDQyNCwyODMgTCA0MjYsMjgyIFogTSAyODgsMzA3IEwgMjg3LDI4MCBMIDI4OCwyNzQgTCAyOTAsMjczIEwgMjkwLDI2OSBMIDI5MiwyNjggTCAyOTMsMjYzIEwgMjk1LDI2MiBMIDI5OSwyNTQgTCAzMDIsMjUzIEwgMzAyLDI1MSBMIDMwNiwyNDggTCAzMTMsMjQ1IEwgMzE0LDI0MyBMIDMyNCwyNDIgTCAzMjUsMjQwIEwgMzM5LDI0MCBMIDM0MCwyNDIgTCAzNTIsMjQzIEwgMzU2LDI0NyBMIDM2MSwyNDggTCAzNjIsMjUwIEwgMzY5LDI1MyBMIDM3NCwyNTkgTCAzNzcsMjYwIEwgMzc3LDI2MiBMIDM4MCwyNjMgTCAzODAsMjY1IEwgMzg0LDI2NiBMIDM4NSwyNzAgTCAzOTMsMjc4IEwgMzkzLDI4MiBMIDM4MSwyOTQgTCAzNzcsMjk1IEwgMzc1LDI5OCBMIDM2OCwzMDEgTCAzNjQsMzA1IEwgMzU2LDMwNiBMIDM1NSwzMDggTCAzNDUsMzA5IEwgMzQ0LDMxMSBMIDMzNiwzMTIgTCAzMDMsMzEyIEwgMjk2LDMxMSBMIDI5NSwzMDkgTCAyOTEsMzA5IFogTSAxNjgsMTc5IEwgMTczLDE3OSBMIDE3NCwxNzcgTCAxOTgsMTc3IEwgMTk5LDE3OSBMIDIxMCwxODAgTCAyMTEsMTgyIEwgMjE5LDE4MyBMIDIyNSwxODggTCAyMzAsMTg5IEwgMjMyLDE5MyBMIDIzNSwxOTMgTCAyNDksMjA3IEwgMjQ5LDIxMCBMIDI1MiwyMTIgTCAyNTIsMjE0IEwgMjU2LDIxOCBMIDI1NywyMjMgTCAyNTksMjI0IEwgMjYyLDI0OCBMIDI2MCwyNDkgTCAyNTksMjYyIEwgMjU3LDI2MyBMIDI1NiwyNjggTCAyNTIsMjcyIEwgMjUxLDI3NiBMIDI0MSwyODYgTCAyMzQsMjg1IEwgMjI3LDI3OCBMIDIyMywyNzcgTCAyMTksMjcyIEwgMjE1LDI3MSBMIDIxMCwyNjQgTCAyMDEsMjU2IEwgMjAxLDI1NCBMIDE5OCwyNTMgTCAxOTgsMjUxIEwgMTkzLDI0NyBMIDE5MywyNDQgTCAxODUsMjM2IEwgMTg0LDIzMSBMIDE4MiwyMzAgTCAxODEsMjI2IEwgMTc3LDIyMiBMIDE3NiwyMTcgTCAxNzQsMjE2IEwgMTczLDIwNyBMIDE3MSwyMDYgTCAxNzAsMTk3IEwgMTY4LDE5NiBaIE0gMzY1LDE2NiBMIDM4MywxNjUgTCAzOTAsMTc0IEwgMzkxLDE3OSBMIDM5MywxODAgTCAzOTQsMTg1IEwgMzk2LDE4NiBMIDM5NywxOTEgTCAzOTksMTkyIEwgNDAwLDE5OSBMIDQwNCwyMDQgTCA0MDUsMjE2IEwgNDA3LDIxNyBMIDQwOCwyNDMgTCA0MDYsMjQ5IEwgMzk3LDI0OCBMIDM4OSwyNDEgTCAzODQsMjQwIEwgMzc5LDIzNSBMIDM3NywyMzUgTCAzNzYsMjMyIEwgMzc0LDIzMiBMIDM3MywyMjkgTCAzNzAsMjI4IEwgMzY5LDIyNCBMIDM2NCwyMjAgTCAzNjQsMjE4IEwgMzU4LDIxMSBMIDM1OCwyMDcgTCAzNTYsMjA2IEwgMzU1LDIwMCBMIDM1MywxOTkgTCAzNTMsMTgwIEwgMzU1LDE3OSBMIDM1OSwxNzAgTCAzNjQsMTY4IFogTSAyNzIsMTY3IEwgMjc5LDE2MiBMIDI4NCwxNjIgTCAyODUsMTYwIEwgMjkzLDE2MCBMIDI5NCwxNjIgTCAzMDQsMTYzIEwgMzA1LDE2NSBMIDMxMCwxNjYgTCAzMjIsMTc4IEwgMzIzLDE4MyBMIDMyNSwxODQgTCAzMjUsMjAzIEwgMzIwLDIwNyBMIDMxOCwyMTEgTCAzMTUsMjEyIEwgMjk5LDIxMiBMIDI5NCwyMTEgTCAyOTAsMjA3IEwgMjg1LDIwNiBMIDI3MywxOTQgTCAyNzIsMTg5IEwgMjcwLDE4OCBMIDI3MCwxODQgTCAyNjgsMTgzIEwgMjY4LDE3NSBMIDI3MCwxNzQgTCAyNzAsMTcwIEwgMjcyLDE2OSBaIE0gMzc5LDEyNyBMIDM4NywxMjUgTCAzOTksMTI5IEwgNDA0LDEzMyBMIDQwNSwxMzYgTCA0MDgsMTM3IEwgNDA4LDEzOSBMIDQxMywxNDQgTCA0MTMsMTUyIEwgNDA3LDE1NyBMIDQwMCwxNTcgTCAzOTksMTU1IEwgMzkwLDE1MiBMIDM3OSwxNDAgWiBNIDY2LDE0MyBMIDY4LDE0MiBMIDY4LDEzOCBMIDgxLDEyNiBMIDkxLDEyNSBMIDkyLDEyMyBMIDEwNSwxMjMgTCAxMDYsMTI1IEwgMTE3LDEyNiBMIDExOCwxMjggTCAxMjQsMTI5IEwgMTM1LDE0MyBMIDEzNSwxNTYgTCAxMzQsMTU5IEwgMTI3LDE2NiBMIDEyMSwxNjcgTCAxMTcsMTcwIEwgMTExLDE3MCBMIDExMCwxNzIgTCA5OCwxNzIgTCA5NywxNzAgTCA4NiwxNjkgTCA4NSwxNjcgTCA3NSwxNjMgTCA2OCwxNTQgTCA2OCwxNTAgTCA2NiwxNDkgWiBNIDI3NiwxMDAgTCAyODIsOTkgTCAyODgsMTAwIEwgMjg5LDEwMiBMIDI5OSwxMDMgTCAzMDAsMTA1IEwgMzA3LDEwNiBMIDMwOCwxMDggTCAzMTUsMTA5IEwgMzE2LDExMSBMIDMyNywxMTUgTCAzNDAsMTI1IEwgMzQ5LDEyOSBMIDM1NCwxMzYgTCAzNTksMTM4IEwgMzU5LDE0MiBMIDM1MiwxNDkgTCAzNDcsMTUwIEwgMzQ2LDE1MiBMIDMyNiwxNTIgTCAzMjUsMTUwIEwgMzE2LDE0OSBMIDMxNSwxNDcgTCAzMTAsMTQ2IEwgMzA5LDE0NCBMIDMwMywxNDMgTCAyNzksMTE5IEwgMjc4LDExMiBMIDI3NiwxMTEgWiBNIDI1OSwxMTggTCAyNTksMTM0IEwgMjU3LDEzNSBMIDI1NCwxNDMgTCAyNDIsMTUyIEwgMjM2LDE1MyBMIDIzNSwxNTUgTCAyMjksMTU1IEwgMjI4LDE1NyBMIDIwOCwxNTcgTCAyMDcsMTU1IEwgMjAwLDE1NSBMIDE5OSwxNTMgTCAxODMsMTQ5IEwgMTgyLDE0NyBMIDE3NywxNDYgTCAxNzMsMTQyIEwgMTc5LDEzMCBMIDE4NCwxMjYgTCAxODQsMTI0IEwgMTkwLDExOSBMIDE5MiwxMTUgTCAyMDEsMTExIEwgMjA2LDEwNiBMIDIxMywxMDUgTCAyMTQsMTAzIEwgMjIxLDEwMiBMIDIyMiwxMDAgTCAyMzMsOTkgTCAyMzQsOTcgTCAyNDQsOTcgTCAyNDgsMTAxIEwgMjQ5LDEwNSBMIDI1NCwxMDkgTCAyNTcsMTE3IFogTSAyMjUsNTYgTCAyMjksNTIgTCAyNDcsNTIgTCAyNDgsNTQgTCAyNTgsNTggTCAyNjAsNjIgTCAyNjUsNjYgTCAyNjYsNzUgTCAyNjQsNzggTCAyNTksNzkgTCAyNTgsODEgTCAyNDksODEgTCAyNDgsNzkgTCAyNDAsNzggTCAyMjcsNjggTCAyMjcsNjYgTCAyMjUsNjUgWiIvPgo8L3N2Zz4K" alt="チャットを開く"></button></div></div></div>
 <div id="printArea"></div>
 
 <script>
 const LAYOUTS={'l-text':'テキスト左 / 画像右','l-image':'画像左 / テキスト右','text':'テキストのみ(2段組)','two':'テキスト左 / 画像2枚','row':'画像のみ 横並び(2〜5枚)','blocks':'段組み(画像行・テキストを自由に積む)'};
-const newPage=()=>({layout:'l-text',title:'タイトルを入力',subtitle:'サブタイトル',fl:'株式会社　大王製作所',fr:'',chat:true,imgs:['','','','',''],n:3,shape:'fit',ts:'auto',tc:'#4a5568',hc:'#2980b9',tb:false,nh:false,tp:'none',ni:1,dir:'v',blocks:[],items:[{h:'概要',t:'ここに説明文を入力します。'}]});
+const newPage=()=>({layout:'l-text',title:'タイトルを入力',subtitle:'サブタイトル',fl:'株式会社　大王製作所',fr:'',chat:true,imgs:['','','','',''],n:3,shape:'fit',ts:'auto',tc:'#4a5568',hc:'#2980b9',tb:false,nh:false,tp:'none',ni:1,dir:'v',sl:false,vis:3,blocks:[],items:[{h:'概要',t:'ここに説明文を入力します。'}]});
 const mediaTag=(s,th)=>{
  if(s.startsWith('yt:')){const id=s.slice(3);
   if(th)return `<div class="thumb ytb">▶ YouTube動画 (${id})</div>`;
@@ -257,19 +313,21 @@ const HDR_DEFAULT='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAQDAw
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
-function slideHTML(p,n,total){
+function slideHTML(p,n,total,site){
  const hon=hdr.on&&!p.nh,ht=p.title||p.subtitle;
  const secs=p.items.map(i=>`<div class="sec">${i.h?`<h3>${esc(i.h)}</h3>`:''}<p>${esc(i.t)}</p></div>`).join('');
  const img=k=>`<div class="ph${p.imgs[k]?' has':''}">${p.imgs[k]?mediaTag(p.imgs[k]):'画像・動画'}</div>`;
  let body;
- if(p.layout==='blocks')body=`<div class="s-body"><div class="s-stack">${p.blocks.map(b=>b.k==='img'?grp(b,`<div class="s-row${b.shape==='square'?' sq':''}${cpos(b)==='below'?' cp':''}" style="--n:${b.n}">${Array.from({length:b.n},(_,k)=>cpos(b)!=='none'?`<div class="s-cell${cpos(b)==='right'?' rt':''}">${phTag(b.imgs[k])}<div class="s-cap2">${esc((b.caps||[])[k]||'')}</div></div>`:phTag(b.imgs[k])).join('')}</div>`):b.k==='text'?`<div class="s-cap">${esc(b.t)}</div>`:blkHTML(b)).join('')}</div></div>`;
- else if(p.layout==='row')body=`<div class="s-body">${grp(p,`<div class="s-row${p.shape==='square'?' sq':''}" style="--n:${p.n}">${Array.from({length:p.n},(_,k)=>img(k)).join('')}</div>`)}</div>`;
+ if(p.layout==='blocks')body=`<div class="s-body"><div class="s-stack">${blocksHTML(p.blocks)}</div></div>`;
+ else if(p.layout==='row')body=`<div class="s-body">${imgRow(p,Array.from({length:p.n},(_,k)=>img(k)).join(''))}</div>`;
  else if(p.layout==='text')body=`<div class="s-body"><div class="s-text wide">${secs}</div></div>`;
  else if(p.layout==='two')body=`<div class="s-body"><div class="s-text">${secs}</div><div class="s-imgs${p.shape==='square'?' sq':''}" style="--n:2">${img(0)}${img(1)}</div></div>`;
  else body=`<div class="s-body ${p.layout}"><div class="s-text">${secs}</div><div class="s-imgs${p.shape==='square'?' sq':''}${p.shape==='square'&&sqn(p)>1?' h':''}${p.shape!=='square'&&p.dir==='h'&&sqn(p)>1?' fh':''}" style="--n:${sqn(p)}">${Array.from({length:sqn(p)},(_,k)=>img(k)).join('')}</div></div>`;
+ if(site)return `${ht?`<div class="s-head"><h1 class="s-title">${esc(p.title)}</h1><div class="s-sub">${esc(p.subtitle)}</div></div>`:''}${body}`;
  return `${hon?`<div class="s-banner" style="height:${hdr.h}px"><img src="${hdr.src}" style="object-position:50% ${hdr.y}%;-webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - ${hdr.f}px),transparent);mask-image:linear-gradient(to bottom,#000 calc(100% - ${hdr.f}px),transparent)">${hdr.t==='in'&&ht?`<div class="s-bt"><h1 class="s-title">${esc(p.title)}</h1><div class="s-sub">${esc(p.subtitle)}</div></div>`:''}</div>${hdr.t==='in'||!ht?'':`<div class="s-head cmp"><h1 class="s-title">${esc(p.title)}</h1><div class="s-sub">${esc(p.subtitle)}</div></div>`}`:(ht?`<div class="s-head"><h1 class="s-title">${esc(p.title)}</h1><div class="s-sub">${esc(p.subtitle)}</div></div>`:'')}${body}<div class="s-foot" style="background:${ftc};color:${ftx(ftc)}"><span>${esc(p.fl)}</span><span>${esc(p.fr)} ${n}/${total}</span></div>`;
 }
 function fit(){
+ if(mode==='scroll')return;
  const pv=$('preview'),sl=$('slide'),fr=$('frame'),full=pv.classList.contains('full')&&!isMob();
  let SW=1920,SH=1080,s;
  if(isMob()){s=Math.max(0.05,(pv.clientWidth-28)/1920*mz)}
@@ -285,8 +343,8 @@ function fit(){
  runFit();
 }
 
-function renderSlide(){$('sBody').innerHTML=slideHTML(pages[cur],cur+1,pages.length);applyChat();navUpd();runFit();fit()}
-function applyChat(){const on=pages[cur].chat;$('chat').style.display=on&&chatOpen?'flex':'none';$('chatFab').style.display=on&&!chatOpen?'flex':'none'}
+function renderSlide(){if(mode==='scroll'){renderSite();navUpd();return}$('sBody').innerHTML=slideHTML(pages[cur],cur+1,pages.length);applyChat();navUpd();runFit();fit()}
+function applyChat(){const on=mode==='scroll'?pages.some(p=>p.chat):pages[cur].chat;$('chat').style.display=on&&chatOpen?'flex':'none';$('chatFab').style.display=on&&!chatOpen?'flex':'none'}
 function toggleChat(){chatOpen=!chatOpen;applyChat();if(chatOpen){const i=$('cIn');if(i)i.focus()}}
 function renderForm(){
  const p=pages[cur];
@@ -297,11 +355,11 @@ function renderForm(){
  const imgField=k=>`<div class="fg"><label>画像・動画・GIF ${k+1}</label><input type="file" accept="image/*,video/*" onchange="setImg(${k},this)"><input type="text" style="margin-top:6px" placeholder="またはYouTubeのURLを貼り付け" onchange="setYT(${k},this.value)"><div style="font-size:.75rem;color:#f1c40f;margin:4px 0">推奨: ${recSize(p,k)}</div>${p.imgs[k]?`${mediaTag(p.imgs[k],true)}<button class="btn del" style="margin-top:6px;padding:6px" onclick="clearImg(${k})">画像を外す</button>`:''}</div>`;
  const cnt=p.layout==='row'?p.n:p.layout==='two'?2:(p.layout==='text'||p.layout==='blocks')?0:sqn(p);
  $('form').innerHTML=`
- ${hdrForm()}${footForm(p)}${p.layout==='blocks'?`<div class="fg"><label>レイアウト</label><div style="font-size:.8rem;line-height:1.5">段組み(各段のレイアウトは、下の各段の「この段のレイアウト」で変更できます)</div></div>`:`<div class="fg"><label>レイアウト</label><select onchange="setF('layout',this.value);renderForm()">${opts}</select></div>`}
+ ${modeForm()}${hdrForm()}${footForm(p)}${p.layout==='blocks'?`<div class="fg"><label>レイアウト</label><div style="font-size:.8rem;line-height:1.5">段組み(各段のレイアウトは、下の各段の「この段のレイアウト」で変更できます)</div></div>`:`<div class="fg"><label>レイアウト</label><select onchange="setF('layout',this.value);renderForm()">${opts}</select></div>`}
  <div class="fg"><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" ${p.chat?'checked':''} onchange="setF('chat',this.checked)">💬 右下にチャットボックスを表示</label></div>
  <div class="fg"><label>タイトル(続きのページは空欄にすると、前のページの続きに見えます)</label><input type="text" value="${esc(p.title)}" oninput="setF('title',this.value)"></div>
  <div class="fg"><label>サブタイトル</label><input type="text" value="${esc(p.subtitle)}" oninput="setF('subtitle',this.value)"></div>
- ${cnt?`<div class="fg">${shapeSel(p.shape,'setShape(this.value)')}</div>`:''}${cnt&&(p.layout==='l-text'||p.layout==='l-image')?`<div class="fg">${niSel(p.ni,'setNi(this.value)')}${p.shape!=='square'&&sqn(p)>1?dirSel(p.dir,'setDir(this.value)'):''}</div>`:''}${p.layout==='row'?nSel(p):''}${Array.from({length:cnt},(_,k)=>imgField(k)).join('')}
+ ${cnt?`<div class="fg">${shapeSel(p.shape,'setShape(this.value)')}</div>`:''}${cnt&&(p.layout==='l-text'||p.layout==='l-image')?`<div class="fg">${niSel(p.ni,'setNi(this.value)')}${p.shape!=='square'&&sqn(p)>1?dirSel(p.dir,'setDir(this.value)'):''}</div>`:''}${p.layout==='row'?nSel(p)+slideCtlP(p):''}${Array.from({length:cnt},(_,k)=>imgField(k)).join('')}
  ${styleForm(p)}
  ${p.layout==='blocks'?blockForm(p):p.layout==='row'?'<div class="fg" style="font-size:.8rem">このレイアウトは画像のみ表示です。テキストを足すときは「＋ レイアウトを追加」を使ってください。</div>':p.items.map((it,i)=>`<div class="dyn"><button class="x" onclick="delItem(${i})">削除</button>
   <label>見出し ${i+1}</label><input type="text" value="${esc(it.h)}" oninput="setItem(${i},'h',this.value)">
@@ -314,20 +372,123 @@ const defBlocks=()=>[{k:'img',n:5},{k:'text',t:'テキストを入力'},{k:'img'
 function recH(p){const b=p.blocks,ni=b.filter(x=>x.k!=='text').length,nt=b.length-ni,nc=b.filter(x=>x.k==='img'&&cpos(x)==='below').length;return ni?Math.max(40,Math.floor((bodyH(p)-nt*45-nc*38-16*(b.length-1))/ni)):0}
 function blockForm(p){
  const rh=recH(p);
- return `<div class="fg" style="font-size:.8rem">段を上から順に積み重ねます。1ページの高さは固定なので、段が増えるほど画像の高さは小さくなります。</div>`+p.blocks.map((b,i)=>{
+ return `<div class="fg" style="font-size:.8rem">段を上から順に積み重ねます。1ページの高さは固定なので、段が増えるほど画像の高さは小さくなります。</div>`+p.blocks.map((b,i)=>blkWrap(i,(()=>{
   const ctl=`<div style="display:flex;gap:4px;margin-bottom:6px"><button class="btn nav" style="padding:4px" onclick="mvBlock(${i},-1)">▲ 上へ</button><button class="btn nav" style="padding:4px" onclick="mvBlock(${i},1)">▼ 下へ</button><span style="flex:3;font-size:.8rem;color:#e67e22;font-weight:700;align-self:center">${i+1}段目</span></div><label>この段のレイアウト</label><select onchange="setBk(${i},this.value)">${Object.entries(BK).map(([k,v])=>`<option value="${k}" ${b.k===k?'selected':''}>${v}</option>`).join('')}</select>`;
   if(b.k==='text')return `<div class="dyn"><button class="x" onclick="delBlock(${i})">削除</button>${ctl}<textarea oninput="pages[cur].blocks[${i}].t=this.value;renderSlide()">${esc(b.t)}</textarea></div>`;
+  if(b.k==='banner')return bannerForm(b,i,ctl);
+  if(b.k==='band')return bandForm(b,i,ctl);
   if(b.k!=='img'&&b.k!=='text')return blkForm(b,i,ctl,rh);
   const w=Math.round((1720-24*(b.n-1))/b.n);
-  return `<div class="dyn"><button class="x" onclick="delBlock(${i})">削除</button>${ctl}<label>画像の枚数</label><select onchange="setBn(${i},+this.value)">${[2,3,4,5].map(n=>`<option ${b.n===n?'selected':''}>${n}</option>`).join('')}</select>${shapeSel(b.shape,'setBshape('+i+',this.value)')}<label>各画像のテキスト</label><select onchange="setBcpos(${i},this.value)"><option value="none" ${cpos(b)==='none'?'selected':''}>なし</option><option value="below" ${cpos(b)==='below'?'selected':''}>画像の下</option><option value="right" ${cpos(b)==='right'?'selected':''}>画像の右(横)</option></select>${Array.from({length:b.n},(_,k)=>`<label>画像・動画・GIF ${k+1}</label><input type="file" accept="image/*,video/*" onchange="setBImg(${i},${k},this)"><input type="text" style="margin-top:4px" placeholder="またはYouTubeのURLを貼り付け" onchange="setBYT(${i},${k},this.value)">${b.imgs[k]?mediaTag(b.imgs[k],true)+`<button class="btn del" style="margin-top:4px;padding:5px" onclick="pages[cur].blocks[${i}].imgs[${k}]='';renderForm();renderSlide()">画像を外す</button>`:''}${cpos(b)!=='none'?`<input type="text" style="margin-top:4px" placeholder="画像${k+1}のテキスト" value="${esc((b.caps||[])[k]||'')}" oninput="pages[cur].blocks[${i}].caps[${k}]=this.value;renderSlide()">`:''}`).join('')}<div style="font-size:.75rem;color:#f1c40f;margin-top:6px">推奨: ${b.shape==='square'?Math.min(w,rh)+'×'+Math.min(w,rh):w+'×'+rh}px(テキスト1行想定)</div></div>`;
- }).join('')+`<label style="margin-top:8px">追加する段の種類</label><select onchange="bkType=this.value">${Object.entries(BK).map(([k,v])=>`<option value="${k}" ${bkType===k?'selected':''}>${v}</option>`).join('')}</select><button class="btn add" style="width:100%;margin-top:6px" onclick="addBlock(bkType)">＋ 段を追加</button>`;
+  return `<div class="dyn"><button class="x" onclick="delBlock(${i})">削除</button>${ctl}<label>画像の枚数</label><select onchange="setBn(${i},+this.value)">${[2,3,4,5].map(n=>`<option ${b.n===n?'selected':''}>${n}</option>`).join('')}</select>${shapeSel(b.shape,'setBshape('+i+',this.value)')}${slideCtl(b,i)}<label>各画像のテキスト</label><select onchange="setBcpos(${i},this.value)"><option value="none" ${cpos(b)==='none'?'selected':''}>なし</option><option value="below" ${cpos(b)==='below'?'selected':''}>画像の下</option><option value="right" ${cpos(b)==='right'?'selected':''}>画像の右(横)</option></select>${Array.from({length:b.n},(_,k)=>`<label>画像・動画・GIF ${k+1}</label><input type="file" accept="image/*,video/*" onchange="setBImg(${i},${k},this)"><input type="text" style="margin-top:4px" placeholder="またはYouTubeのURLを貼り付け" onchange="setBYT(${i},${k},this.value)">${b.imgs[k]?mediaTag(b.imgs[k],true)+`<button class="btn del" style="margin-top:4px;padding:5px" onclick="pages[cur].blocks[${i}].imgs[${k}]='';renderForm();renderSlide()">画像を外す</button>`:''}${cpos(b)!=='none'?`<input type="text" style="margin-top:4px" placeholder="画像${k+1}のテキスト" value="${esc((b.caps||[])[k]||'')}" oninput="pages[cur].blocks[${i}].caps[${k}]=this.value;renderSlide()">`:''}`).join('')}<div style="font-size:.75rem;color:#f1c40f;margin-top:6px">推奨: ${b.shape==='square'?Math.min(w,rh)+'×'+Math.min(w,rh):w+'×'+rh}px(テキスト1行想定)</div></div>`;
+ })())).join('')+`<label style="margin-top:8px">追加する段の種類</label><select onchange="bkType=this.value">${Object.entries(BK).map(([k,v])=>`<option value="${k}" ${bkType===k?'selected':''}>${v}</option>`).join('')}</select><button class="btn add" style="width:100%;margin-top:6px" onclick="addBlock(bkType)">＋ 段を追加</button>`;
 }
-const addBlock=k=>{pages[cur].blocks.push(Object.assign({k,n:3,cap:false,caps:['','','','',''],imgs:['','','','',''],t:k==='text'?'テキストを入力':'',items:k==='img'||k==='text'?[]:[{h:'見出し',t:'ここにテキストを入力'}]}));renderForm();renderSlide()};
-const delBlock=i=>{pages[cur].blocks.splice(i,1);renderForm();renderSlide()};
+const addBlock=k=>{pages[cur].blocks.push(mkNew(k));renderForm();renderSlide()};
+const delBlock=i=>{const bl=pages[cur].blocks;for(let j=0;j<i;j++){if(bl[j].k==='band'&&(parseInt(bl[j].span)||0)>=i-j){bl[j].span--;break}}bl.splice(i,1);renderForm();renderSlide()};
 function mvBlock(i,d){const b=pages[cur].blocks,j=i+d;if(j<0||j>=b.length)return;[b[i],b[j]]=[b[j],b[i]];renderForm();renderSlide()}
 const setBn=(i,n)=>{pages[cur].blocks[i].n=n;renderForm();renderSlide()};
 const setBcap=(i,v)=>{const b=pages[cur].blocks[i];b.cap=v;b.caps=b.caps||['','','','',''];renderForm();renderSlide()};
 function setBImg(i,k,el){const f=el.files[0];if(!f)return;if(f.size>30*1048576){alert('30MBを超えるファイルは読み込めません');el.value='';return}const r=new FileReader();r.onload=()=>{if(!IMG_OK.test(r.result)){alert('対応形式: png / jpg / gif / webp / svg / mp4 / webm / mov');el.value='';return}pages[cur].blocks[i].imgs[k]=r.result;renderForm();renderSlide()};r.readAsDataURL(f)}
+/* --- ホームページ機能・バナー・背景ボックス・スライダー --- */
+let mode='slide';
+const okColor=c=>/^#[0-9a-fA-F]{6}$/.test(c||'')?c:'#e9eef3';
+const okLink=u=>/^(https?:\/\/|mailto:|tel:)/i.test(String(u||'').trim())?String(u).trim():'';
+const defBans=()=>[0,1,2,3,4].map(()=>({img:'',bg:'#dfe6ec',t:'',tc:'#2c3e50',ha:'center',va:'middle',link:''}));
+const normBan=b=>{
+ const s=v=>typeof v==='string'?v:'';
+ const bans=[0,1,2,3,4].map(k=>{const a=(Array.isArray(b.bans)&&b.bans[k])||{};
+  return {img:/^data:image\/(png|jpe?g|gif|webp|svg\+xml);base64,[A-Za-z0-9+\/=]+$/.test(s(a.img))?a.img:'',bg:okColor(a.bg),t:s(a.t).slice(0,500),tc:okColor(a.tc||'#2c3e50'),ha:['left','center','right'].includes(a.ha)?a.ha:'center',va:['top','middle','bottom'].includes(a.va)?a.va:'middle',link:okLink(a.link)}});
+ return {k:'banner',n:3,imgs:['','','','',''],t:'',items:[],bn:Math.min(5,Math.max(1,parseInt(b.bn)||1)),bh:Math.min(1200,Math.max(60,parseInt(b.bh)||320)),bans};
+};
+function rowCells(b){return Array.from({length:b.n},(_,k)=>cpos(b)!=='none'?`<div class="s-cell${cpos(b)==='right'?' rt':''}">${phTag(b.imgs[k])}<div class="s-cap2">${esc((b.caps||[])[k]||'')}</div></div>`:phTag(b.imgs[k])).join('')}
+function imgRow(o,cells){
+ const n=o.n;
+ if(o.sl&&n>1){const v=Math.max(1,Math.min(n-1,parseInt(o.vis)||Math.min(3,n-1)));
+  return `<div class="s-slw"><div class="s-row slider${cpos(o)==='below'?' cp':''}" style="--n:${n};--vis:${v}">${cells}</div><button class="s-arr l" onclick="slideBy(this,-1)">◀</button><button class="s-arr r" onclick="slideBy(this,1)">▶</button></div>`}
+ return `<div class="s-row${o.shape==='square'?' sq':''}${cpos(o)==='below'?' cp':''}" style="--n:${n}">${cells}</div>`;
+}
+function slideBy(btn,d){const r=btn.parentElement.querySelector('.s-row'),c=r.firstElementChild;if(!c)return;r.scrollBy({left:d*(c.offsetWidth+24),behavior:'smooth'})}
+function bannerHTML(b){
+ const n=Math.max(1,Math.min(5,parseInt(b.bn)||1)),h=Math.max(60,Math.min(1200,parseInt(b.bh)||320));
+ const cells=Array.from({length:n},(_,k)=>{
+  const a=(b.bans||[])[k]||{};
+  const ha={left:'flex-start',center:'center',right:'flex-end'}[a.ha]||'center',va={top:'flex-start',middle:'center',bottom:'flex-end'}[a.va]||'center',ta=a.ha==='left'?'left':a.ha==='right'?'right':'center';
+  const inner=`${a.img?`<div class="s-bimg">${mediaTag(a.img)}</div>`:''}<div class="s-btx" style="justify-content:${va};align-items:${ha};text-align:${ta};color:${okColor(a.tc||'#2c3e50')}">${esc(a.t||'')}</div>`;
+  const l=okLink(a.link),st=`background:${okColor(a.bg)}`;
+  return l?`<a class="s-bn" style="${st}" href="${esc(l)}" target="_blank" rel="noopener noreferrer">${inner}</a>`:`<div class="s-bn" style="${st}">${inner}</div>`;
+ }).join('');
+ return `<div class="s-ban" style="--bh:${h}px;--bhv:${(h/19.2).toFixed(2)}vw">${cells}</div>`;
+}
+function blockHTML(b){
+ if(b.k==='img')return grp(b,imgRow(b,rowCells(b)));
+ if(b.k==='text')return `<div class="s-cap">${esc(b.t)}</div>`;
+ if(b.k==='banner')return bannerHTML(b);
+ return blkHTML(b);
+}
+function blocksHTML(bl){
+ let out='',i=0;
+ while(i<bl.length){const b=bl[i];
+  if(b.k==='band'){const n=Math.max(0,Math.min(parseInt(b.span)||0,bl.length-i-1));
+   out+=`<div class="s-band" style="background:${okColor(b.bg)}"><div class="s-stack">${bl.slice(i+1,i+1+n).map(blockHTML).join('')}</div></div>`;i+=n+1}
+  else{out+=blockHTML(b);i++}}
+ return out;
+}
+const mkNew=k=>{const b={k,n:3,cap:false,caps:['','','','',''],imgs:['','','','',''],t:k==='text'?'テキストを入力':'',items:(k==='img'||k==='text'||k==='banner'||k==='band')?[]:[{h:'見出し',t:'ここにテキストを入力'}]};
+ if(k==='banner'){b.bn=3;b.bh=320;b.bans=defBans();b.bans[0].t='バナーのテキスト';b.bans[0].bg='#fde3c8';b.bans[1].bg='#d6ecf3';b.bans[2].bg='#e6e0f3'}
+ if(k==='band'){b.bg='#eef3f7';b.span=0}
+ return b};
+const bandDepth=bl=>{const d=bl.map(()=>0);for(let i=0;i<bl.length;i++){if(bl[i].k==='band'){const n=Math.max(0,Math.min(parseInt(bl[i].span)||0,bl.length-i-1));for(let j=1;j<=n;j++)d[i+j]=1}}return d};
+const blkWrap=(i,h)=>bandDepth(pages[cur].blocks)[i]?`<div style="margin-left:10px;border-left:3px solid #8e44ad;padding-left:6px">${h}</div>`:h;
+const clr=(v,onin)=>`<input type="color" value="${v}" oninput="${onin}" style="width:100%;height:32px;border:0;padding:0;background:none">`;
+const optS=(arr,cur)=>arr.map(([v,t])=>`<option value="${v}" ${cur===v?'selected':''}>${t}</option>`).join('');
+function bannerForm(b,i,ctl){
+ const n=Math.max(1,Math.min(5,parseInt(b.bn)||1)),w=Math.round((1720-24*(n-1))/n);
+ const cells=Array.from({length:n},(_,k)=>{
+  const a=(b.bans||[])[k]||{},P=`pages[cur].blocks[${i}].bans[${k}]`;
+  return `<div style="border-left:2px solid #f39c12;padding-left:8px;margin:8px 0"><label>バナー ${k+1}</label>
+  <label>背景色</label>${clr(okColor(a.bg),P+".bg=this.value;renderSlide()")}
+  <label>画像・GIF(任意)</label><input type="file" accept="image/*" onchange="setBanImg(${i},${k},this)">${a.img?mediaTag(a.img,true)+`<button class="btn del" style="margin-top:4px;padding:5px" onclick="${P}.img='';renderForm();renderSlide()">画像を外す</button>`:''}
+  <label>テキスト</label><textarea oninput="${P}.t=this.value;renderSlide()">${esc(a.t||'')}</textarea>
+  <label>文字色</label>${clr(okColor(a.tc||'#2c3e50'),P+".tc=this.value;renderSlide()")}
+  <label>文字の位置(横)</label><select onchange="${P}.ha=this.value;renderSlide()">${optS([['left','左'],['center','中央'],['right','右']],a.ha||'center')}</select>
+  <label>文字の位置(縦)</label><select onchange="${P}.va=this.value;renderSlide()">${optS([['top','上'],['middle','中央'],['bottom','下']],a.va||'middle')}</select>
+  <label>リンク(https://〜)</label><input type="text" value="${esc(a.link||'')}" placeholder="https://example.com" onchange="${P}.link=this.value.trim();renderSlide()"></div>`}).join('');
+ return `<div class="dyn" style="border-left-color:#f39c12"><button class="x" onclick="delBlock(${i})">削除</button>${ctl}
+ <label>バナーの数(横に1〜5個)</label><select onchange="setBanN(${i},+this.value)">${[1,2,3,4,5].map(v=>`<option ${n===v?'selected':''}>${v}</option>`).join('')}</select>
+ <label>バナーの高さ(px)</label><input type="text" value="${b.bh||320}" onchange="setBanH(${i},this.value)">
+ <div style="font-size:.75rem;color:#f1c40f;margin:4px 0">幅は画面いっぱいに自動(1つあたり約${w}px)。高さは数値で調整できます。</div>${cells}</div>`;
+}
+function bandForm(b,i,ctl){
+ const len=pages[cur].blocks.length,n=Math.max(0,Math.min(parseInt(b.span)||0,len-i-1));
+ return `<div class="dyn" style="border-left-color:#8e44ad;background:#241a2e"><button class="x" onclick="delBlock(${i})">削除</button>${ctl}
+ <div style="font-size:.78rem;color:#d2b4de;margin:4px 0;line-height:1.5">背景色ボックス(横フルサイズ)。背景色を変えるための枠です。この下に並ぶ段が、箱の中に入ります。</div>
+ <label>背景色</label>${clr(okColor(b.bg),`pages[cur].blocks[${i}].bg=this.value;renderSlide()`)}
+ <label>箱の中に入れる段の数</label><select onchange="setBandSpan(${i},+this.value)">${Array.from({length:len-i},(_,v)=>`<option ${n===v?'selected':''}>${v}</option>`).join('')}</select>
+ <button class="btn add" style="width:100%;margin-top:6px;background:#8e44ad" onclick="addInBand(${i})">＋ この箱の中にレイアウトを追加</button></div>`;
+}
+const setBanN=(i,n)=>{pages[cur].blocks[i].bn=n;renderForm();renderSlide()};
+const setBanH=(i,v)=>{pages[cur].blocks[i].bh=Math.min(1200,Math.max(60,parseInt(v)||320));renderForm();renderSlide()};
+function setBanImg(i,k,el){const f=el.files[0];if(!f)return;if(f.size>10*1048576){alert('10MB以下の画像を選んでください');el.value='';return}const r=new FileReader();r.onload=()=>{if(!/^data:image\/(png|jpe?g|gif|webp|svg\+xml);base64,/.test(r.result)){alert('画像ファイル(png/jpg/gif/webp/svg)を選んでください');el.value='';return}pages[cur].blocks[i].bans[k].img=r.result;renderForm();renderSlide()};r.readAsDataURL(f)}
+const setBandSpan=(i,v)=>{pages[cur].blocks[i].span=v;renderForm();renderSlide()};
+function addInBand(i){const bl=pages[cur].blocks,b=bl[i],n=Math.max(0,Math.min(parseInt(b.span)||0,bl.length-i-1));bl.splice(i+n+1,0,mkNew(bkType==='band'?'text':bkType));b.span=n+1;renderForm();renderSlide()}
+const slideCtl=(b,i)=>`<label style="display:flex;gap:6px;align-items:center;margin-top:6px"><input type="checkbox" ${b.sl?'checked':''} onchange="setBsl(${i},this.checked)">横にスライドできるようにする</label>${b.sl?`<label>同時に見せる枚数</label><select onchange="setBvis(${i},+this.value)">${[1,2,3,4].filter(v=>v<b.n).map(v=>`<option ${(parseInt(b.vis)||Math.min(3,b.n-1))===v?'selected':''}>${v}</option>`).join('')}</select>`:''}`;
+const setBsl=(i,v)=>{const b=pages[cur].blocks[i];b.sl=v;if(v&&!b.vis)b.vis=Math.min(3,b.n-1);renderForm();renderSlide()};
+const setBvis=(i,v)=>{pages[cur].blocks[i].vis=v;renderForm();renderSlide()};
+const slideCtlP=p=>`<label style="display:flex;gap:6px;align-items:center;margin-top:6px"><input type="checkbox" ${p.sl?'checked':''} onchange="setSl(this.checked)">横にスライドできるようにする</label>${p.sl?`<label>同時に見せる枚数</label><select onchange="setVis(+this.value)">${[1,2,3,4].filter(v=>v<p.n).map(v=>`<option ${(parseInt(p.vis)||Math.min(3,p.n-1))===v?'selected':''}>${v}</option>`).join('')}</select>`:''}`;
+const setSl=v=>{const p=pages[cur];p.sl=v;if(v&&!p.vis)p.vis=Math.min(3,p.n-1);renderForm();renderSlide()};
+const setVis=v=>{pages[cur].vis=v;renderForm();renderSlide()};
+const modeForm=()=>`<div class="fg"><label>表示方式(最初に選びます)</label><label style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><input type="radio" name="mode" ${mode==='slide'?'checked':''} onchange="setMode('slide')">スライド式(1ページずつ表示)</label><label style="display:flex;gap:8px;align-items:center"><input type="radio" name="mode" ${mode==='scroll'?'checked':''} onchange="setMode('scroll')">縦スクロール式(ホームページ)</label>${mode==='scroll'?'<div style="font-size:.75rem;color:#bdc3c7;margin-top:8px;line-height:1.5">全ページを縦に並べた1つのページになります。ヘッダー画像はいちばん上に1回、フッターは最後に1回だけ表示します。各ページのタイトルは、上のメニューのリンクになります。</div>':''}</div>`;
+function setMode(m){mode=m;document.body.classList.toggle('scroll',m==='scroll');moveChat();renderForm();renderSlide();fit()}
+function moveChat(){const c=$('chat'),f=$('chatFab');if(mode==='scroll'){document.body.appendChild(c);document.body.appendChild(f);c.classList.add('fixed');f.classList.add('fixed')}else{$('slide').appendChild(c);$('slide').appendChild(f);c.classList.remove('fixed');f.classList.remove('fixed')}applyChat()}
+function siteGo(i){const e=document.getElementById('sec'+i);if(e)e.scrollIntoView({behavior:'smooth',block:'start'})}
+function renderSite(){
+ const pv=$('preview'),st=pv.scrollTop,first=pages[0]||{fl:'',fr:''};
+ const nav=pages.map((p,i)=>p.title?`<a href="#sec${i}" onclick="siteGo(${i});return false">${esc(p.title)}</a>`:'').join('');
+ const head=hdr.on?`<div class="site-hdr" style="height:min(${hdr.h}px,${(hdr.h/19.2).toFixed(2)}vw)"><img src="${hdr.src}" alt="" style="object-position:50% ${hdr.y}%;-webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - ${hdr.f}px),transparent);mask-image:linear-gradient(to bottom,#000 calc(100% - ${hdr.f}px),transparent)"></div>`:'';
+ const secs=pages.map((p,i)=>{const fs=p.ts!=='auto'?`;--fp:${p.ts}px;--fh:${Math.round(p.ts*1.21)}px;--fc:${Math.round(p.ts*0.93)}px`:'';
+  return `<section class="sp" id="sec${i}" style="--tc:${p.tc};--hc:${p.hc};--fw:${p.tb?700:400}${fs}">${slideHTML(p,i+1,pages.length,true)}</section>`}).join('');
+ $('site').innerHTML=`${head}<nav class="site-nav">${nav}</nav>${secs}<footer class="site-foot" style="background:${ftc};color:${ftx(ftc)}"><span>${esc(first.fl)}</span><span>${esc(first.fr)}</span></footer>`;
+ pv.scrollTop=st;applyChat();
+}
 const sec={h:false,f:false};
 const togBox=(k,t,inner)=>`<div class="fg" style="padding:0;overflow:hidden"><button class="btn nav" style="width:100%;border-radius:0;text-align:left;padding:12px 14px;font-size:.9rem;background:#3d566e" onclick="sec['${k}']=!sec['${k}'];renderForm()">${sec[k]?'▼':'▶'} ${t}</button>${sec[k]?`<div style="padding:10px">${inner}</div>`:''}</div>`;
 function footForm(p){return togBox('f','フッターの設定',`<div class="fg"><label>フッター背景色(全ページ共通)</label><input type="color" value="${ftc}" oninput="ftc=this.value;renderSlide()" style="width:100%;height:40px;border:0;padding:0;background:none"></div>
@@ -360,7 +521,7 @@ function fitSlide(root,p){
  const bad=()=>{let o=false;
   root.querySelectorAll('.s-text').forEach(e=>{if(e.scrollHeight>e.clientHeight+1||e.scrollWidth>e.clientWidth+1)o=true});
   const st=root.querySelector('.s-stack');
-  if(st){if(st.scrollHeight>st.clientHeight+1)o=true;root.querySelectorAll('.s-stack>.s-row,.s-stack>.s-blk,.s-grp>.s-row').forEach(r=>{if(r.clientHeight<140)o=true})}
+  if(st){if(st.scrollHeight>st.clientHeight+1)o=true;root.querySelectorAll('.s-stack>.s-row,.s-stack>.s-blk,.s-grp>.s-row,.s-stack>.s-slw,.s-body>.s-slw').forEach(r=>{if(r.clientHeight<140)o=true})}
   return o};
  const manual=p.ts!=='auto'&&p.ts;
  const fs=[28,26,24,22,20,18];
@@ -375,7 +536,7 @@ function showWarn(r){
  if(!r.ok){w.innerHTML=`<div style="background:#c0392b;color:#fff;padding:10px;border-radius:6px;font-size:.8rem;margin-bottom:10px;line-height:1.5">⚠ ${r.msg}</div>`;b.textContent='⚠ このページは内容が収まっていません';b.style.display='block'}
  else{b.style.display='none';w.innerHTML=!r.manual&&(r.b<28||r.f<1)?`<div style="border:1px solid #f1c40f;color:#f1c40f;padding:8px 10px;border-radius:6px;font-size:.78rem;margin-bottom:10px">ℹ 自動調整: 文字${r.b}px${r.f<1?'、画像幅を約'+Math.round(r.f/(1+r.f)/0.5*100)+'%に縮小':''}</div>`:''}
 }
-function runFit(){showWarn(fitSlide($('slide'),pages[cur]))}
+function runFit(){if(mode==='scroll'){showWarn({ok:true,manual:true});return}showWarn(fitSlide($('slide'),pages[cur]))}
 function checkAll(show){
  const m=$('measure');window._pr=1;
  m.innerHTML=pages.map((p,i)=>`<div class="slide">${slideHTML(p,i+1,pages.length)}</div>`).join('');
@@ -394,7 +555,7 @@ function printAll(){
  try{buildPrint();note('印刷画面を開いています。「PDFに保存」を選んでください。開かないときは、HTMLファイルをブラウザで直接開いてください。');window.print()}
  catch(e){note('印刷画面を開けませんでした。HTMLファイルをブラウザで直接開いて、もう一度お試しください。')}
 }
-const BK={img:'画像の行(2〜5枚)',text:'テキスト1行',tl:'テキスト左・画像右',il:'画像左・テキスト右',tw:'テキスト左・画像2枚',tt:'テキスト2段組'};
+const BK={img:'画像の行(2〜5枚)',text:'テキスト1行',tl:'テキスト左・画像右',il:'画像左・テキスト右',tw:'テキスト左・画像2枚',tt:'テキスト2段組',banner:'角丸バナー(横に1〜5個)',band:'背景色ボックス(横フルサイズ)'};
 let bkType='img';
 const sqn=o=>Math.min(4,Math.max(1,parseInt(o.ni)||1));
 const cpos=b=>b.cpos||(b.cap?'below':'none');
@@ -441,6 +602,8 @@ function setBk(i,k){
  if(k===old)return;
  const txt=old==='text'?(b.t||''):(b.items||[]).map(x=>x.t).filter(Boolean).join('\n');
  b.k=k;
+ if(k==='banner'&&!b.bans)Object.assign(b,{bn:3,bh:320,bans:defBans()});
+ if(k==='band'){b.bg=b.bg||'#eef3f7';b.span=b.span||0}
  if(k==='text')b.t=txt||'テキストを入力';
  else if(k!=='img'&&!(b.items&&b.items.length))b.items=[{h:'',t:txt||'ここにテキストを入力'}];
  if(k==='img'&&!b.n)b.n=3;
@@ -465,7 +628,7 @@ function setImg(k,el){const f=el.files[0];if(!f)return;if(f.size>30*1048576){ale
 function clearImg(k){pages[cur].imgs[k]='';renderForm();renderSlide()}
 function addItem(){pages[cur].items.push({h:'新しい項目',t:''});renderForm();renderSlide()}
 function delItem(i){pages[cur].items.splice(i,1);renderForm();renderSlide()}
-function go(d){cur=Math.max(0,Math.min(pages.length-1,cur+d));renderForm();renderSlide()}
+function go(d){cur=Math.max(0,Math.min(pages.length-1,cur+d));renderForm();renderSlide();if(mode==='scroll')siteGo(cur)}
 function addPage(){pages.splice(cur+1,0,newPage());cur++;renderForm();renderSlide()}
 function delPage(){if(pages.length===1){alert('最後の1ページは削除できません');return}if(!ask('このページを削除しますか？'))return;pages.splice(cur,1);cur=Math.min(cur,pages.length-1);renderForm();renderSlide()}
 const isMob=()=>window.matchMedia('(max-width:900px)').matches;
@@ -574,8 +737,8 @@ function normPage(o){
  p.layout=LAYOUTS[o.layout]?o.layout:'l-text';
  p.shape=o.shape==='square'?'square':'fit';
  const cc=v=>/^#[0-9a-fA-F]{6}$/.test(v||''),tn=parseInt(o.ts);
- p.ts=o.ts==='auto'||!(tn>=14&&tn<=48)?'auto':tn;p.tc=cc(o.tc)?o.tc:p.tc;p.hc=cc(o.hc)?o.hc:p.hc;p.tb=!!o.tb;p.nh=!!o.nh;p.tp=['below','right'].includes(o.tp)?o.tp:'none';p.ni=Math.min(4,Math.max(1,parseInt(o.ni)||1));p.dir=o.dir==='h'?'h':'v';p.chat=!!o.chat;p.title=s(o.title);p.subtitle=s(o.subtitle);p.fl=s(o.fl);p.fr=s(o.fr);
- p.blocks=Array.isArray(o.blocks)?o.blocks.filter(b=>b&&typeof b==='object').slice(0,12).map(b=>b.k==='img'?{k:'img',n:Math.min(5,Math.max(2,parseInt(b.n)||3)),imgs:[0,1,2,3,4].map(i=>Array.isArray(b.imgs)&&IMG_OK.test(s(b.imgs[i]))?b.imgs[i]:''),t:'',shape:b.shape==='square'?'square':'fit',cpos:['below','right'].includes(b.cpos)?b.cpos:(b.cap?'below':'none'),cap:!!b.cap||b.cpos==='below',caps:[0,1,2,3,4].map(i=>s(Array.isArray(b.caps)?b.caps[i]:'')),tp:['below','right'].includes(b.tp)?b.tp:'none',items:Array.isArray(b.items)?b.items.filter(x=>x&&typeof x==='object').slice(0,12).map(x=>({h:s(x.h),t:s(x.t)})):[]}:b.k==='tl'||b.k==='il'||b.k==='tw'||b.k==='tt'?{k:b.k,n:3,imgs:[0,1,2,3,4].map(i=>Array.isArray(b.imgs)&&IMG_OK.test(s(b.imgs[i]))?b.imgs[i]:''),t:'',shape:b.shape==='square'?'square':'fit',ni:Math.min(4,Math.max(1,parseInt(b.ni)||1)),dir:b.dir==='h'?'h':'v',cap:false,caps:['','','','',''],items:Array.isArray(b.items)?b.items.filter(x=>x&&typeof x==='object').slice(0,12).map(x=>({h:s(x.h),t:s(x.t)})):[]}:{k:'text',n:3,imgs:['','','','',''],t:s(b.t)}):[];
+ p.ts=o.ts==='auto'||!(tn>=14&&tn<=48)?'auto':tn;p.tc=cc(o.tc)?o.tc:p.tc;p.hc=cc(o.hc)?o.hc:p.hc;p.tb=!!o.tb;p.nh=!!o.nh;p.tp=['below','right'].includes(o.tp)?o.tp:'none';p.ni=Math.min(4,Math.max(1,parseInt(o.ni)||1));p.dir=o.dir==='h'?'h':'v';p.sl=!!o.sl;p.vis=Math.min(4,Math.max(1,parseInt(o.vis)||3));p.chat=!!o.chat;p.title=s(o.title);p.subtitle=s(o.subtitle);p.fl=s(o.fl);p.fr=s(o.fr);
+ p.blocks=Array.isArray(o.blocks)?o.blocks.filter(b=>b&&typeof b==='object').slice(0,24).map(b=>b.k==='banner'?normBan(b):b.k==='band'?{k:'band',bg:okColor(b.bg),span:Math.max(0,Math.min(24,parseInt(b.span)||0)),n:3,imgs:['','','','',''],t:'',items:[]}:b.k==='img'?{k:'img',sl:!!b.sl,vis:Math.min(4,Math.max(1,parseInt(b.vis)||3)),n:Math.min(5,Math.max(2,parseInt(b.n)||3)),imgs:[0,1,2,3,4].map(i=>Array.isArray(b.imgs)&&IMG_OK.test(s(b.imgs[i]))?b.imgs[i]:''),t:'',shape:b.shape==='square'?'square':'fit',cpos:['below','right'].includes(b.cpos)?b.cpos:(b.cap?'below':'none'),cap:!!b.cap||b.cpos==='below',caps:[0,1,2,3,4].map(i=>s(Array.isArray(b.caps)?b.caps[i]:'')),tp:['below','right'].includes(b.tp)?b.tp:'none',items:Array.isArray(b.items)?b.items.filter(x=>x&&typeof x==='object').slice(0,12).map(x=>({h:s(x.h),t:s(x.t)})):[]}:b.k==='tl'||b.k==='il'||b.k==='tw'||b.k==='tt'?{k:b.k,n:3,imgs:[0,1,2,3,4].map(i=>Array.isArray(b.imgs)&&IMG_OK.test(s(b.imgs[i]))?b.imgs[i]:''),t:'',shape:b.shape==='square'?'square':'fit',ni:Math.min(4,Math.max(1,parseInt(b.ni)||1)),dir:b.dir==='h'?'h':'v',cap:false,caps:['','','','',''],items:Array.isArray(b.items)?b.items.filter(x=>x&&typeof x==='object').slice(0,12).map(x=>({h:s(x.h),t:s(x.t)})):[]}:{k:'text',n:3,imgs:['','','','',''],t:s(b.t)}):[];
  p.n=Math.min(5,Math.max(2,parseInt(o.n)||3));p.imgs=[0,1,2,3,4].map(k=>Array.isArray(o.imgs)&&IMG_OK.test(s(o.imgs[k]))?o.imgs[k]:'');
  p.items=Array.isArray(o.items)?o.items.filter(i=>i&&typeof i==='object').map(i=>({h:s(i.h),t:s(i.t)})):[];
  return p;
@@ -585,6 +748,7 @@ function applyData(j){
  pages=arr.map(normPage);cur=Math.max(0,Math.min(pages.length-1,parseInt(j.cur)||0));
  setChat(j.chat,false);setHdrJ(j.hdr);
  if(/^#[0-9a-fA-F]{6}$/.test(j.ftc||''))ftc=j.ftc;
+ mode=j.mode==='scroll'?'scroll':'slide';document.body.classList.toggle('scroll',mode==='scroll');moveChat();
  renderForm();renderSlide();updateChat();
 }
 async function saveFile(name,data,mime){
@@ -597,7 +761,7 @@ async function saveFile(name,data,mime){
 async function saveHTML(){
  const scr=[...document.querySelectorAll('script')].find(s=>s.textContent.includes('function samplePages'));
  if(!scr){note('このページからはHTMLを作れませんでした。JSON保存をお使いください。');return}
- const data={format:'fhd-slides',version:3,cur,pages,chat,ftc,hdr:{on:hdr.on,h:hdr.h,t:hdr.t,y:hdr.y,f:hdr.f,src:hdr.src===HDR_DEFAULT?'':hdr.src}};
+ const data={format:'fhd-slides',version:3,mode,cur,pages,chat,ftc,hdr:{on:hdr.on,h:hdr.h,t:hdr.t,y:hdr.y,f:hdr.f,src:hdr.src===HDR_DEFAULT?'':hdr.src}};
  const json=JSON.stringify(data).replace(/</g,'\\u003c');
  let js=scr.textContent;
  const k0=js.indexOf('\nwindow.__DATA__=');if(k0>=0)js=js.slice(0,k0);
@@ -607,14 +771,15 @@ async function saveHTML(){
  const c=document.documentElement.cloneNode(true);
  c.querySelectorAll('script').forEach(s=>{if(s.textContent.includes('function samplePages'))s.textContent='/*__JS__*/';else s.remove()});
  c.querySelectorAll('meta[http-equiv]').forEach(m=>m.remove());
- ['form','sBody','printArea','measure','addLayoutBox','chkBox','warnBox','msg','pWarn'].forEach(id=>{const e=c.querySelector('#'+id);if(e)e.innerHTML=''});
+ ['form','sBody','site','printArea','measure','addLayoutBox','chkBox','warnBox','msg','pWarn'].forEach(id=>{const e=c.querySelector('#'+id);if(e)e.innerHTML=''});
  c.querySelector('body').className='';
+ {const sl=c.querySelector('#slide'),ch=c.querySelector('#chat'),fb=c.querySelector('#chatFab');if(sl&&ch&&fb){sl.appendChild(ch);sl.appendChild(fb);ch.classList.remove('fixed');fb.classList.remove('fixed')}}
  const html='<!DOCTYPE html>\n'+c.outerHTML.replace('/*__JS__*/',()=>js);
  await saveFile('slides_'+new Date().toISOString().slice(0,10)+'.html',html,'text/html');
 }
 async function saveJSON(){
  const name='slides_'+new Date().toISOString().slice(0,10)+'.json';
- const data=JSON.stringify({format:'fhd-slides',version:3,pages,chat,ftc,hdr:{on:hdr.on,h:hdr.h,t:hdr.t,y:hdr.y,f:hdr.f,src:hdr.src===HDR_DEFAULT?'':hdr.src}},null,1);
+ const data=JSON.stringify({format:'fhd-slides',version:3,mode,pages,chat,ftc,hdr:{on:hdr.on,h:hdr.h,t:hdr.t,y:hdr.y,f:hdr.f,src:hdr.src===HDR_DEFAULT?'':hdr.src}},null,1);
  try{
   const d=window.claude?await claude.use('downloads'):null;
   if(d){await d.save({filename:name,data});note('保存しました')}
@@ -633,7 +798,7 @@ $('jsonIn').addEventListener('change',e=>{
    const imp=arr.map(normPage);
    if(jsonMode==='replace'){
     if(!ask('現在の内容を破棄して読み込みますか？'))return;
-    pages=imp;cur=0;setChat(j.chat,false);setHdrJ(j.hdr);if(/^#[0-9a-fA-F]{6}$/.test(j.ftc||''))ftc=j.ftc;
+    pages=imp;cur=0;setChat(j.chat,false);setHdrJ(j.hdr);if(/^#[0-9a-fA-F]{6}$/.test(j.ftc||''))ftc=j.ftc;if(j.mode==='scroll'||j.mode==='slide'){mode=j.mode;document.body.classList.toggle('scroll',mode==='scroll');moveChat()}
    }else{cur=pages.length;pages=pages.concat(imp);setChat(j.chat,true)}
    renderForm();renderSlide();updateChat();note(imp.length+'ページ読み込みました');
   }catch(err){note('読み込めませんでした。このシステムで保存したJSONを選んでください')}
@@ -642,7 +807,7 @@ $('jsonIn').addEventListener('change',e=>{
 });
 function navUpd(){$('pNum').textContent=(cur+1)+' / '+pages.length;$('pPrev').disabled=cur===0;$('pNext').disabled=cur===pages.length-1}
 document.addEventListener('keydown',e=>{
- if(/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)||e.isComposing)return;
+ if(mode==='scroll'||/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)||e.isComposing)return;
  if(e.key==='ArrowRight'||e.key==='PageDown')go(1);
  else if(e.key==='ArrowLeft'||e.key==='PageUp')go(-1);
 });
