@@ -1,0 +1,1003 @@
+{
+ "format": "fhd-slides",
+ "version": 3,
+ "mode": "scroll",
+ "pages": [
+  {
+   "layout": "blocks",
+   "shape": "fit",
+   "ts": "auto",
+   "tc": "#4a5568",
+   "hc": "#2980b9",
+   "tb": false,
+   "nh": false,
+   "tp": "none",
+   "ni": 1,
+   "dir": "v",
+   "chat": false,
+   "sl": false,
+   "vis": 3,
+   "title": "",
+   "subtitle": "",
+   "fl": "株式会社　大王製作所",
+   "fr": "サイドメニュー付きホームページの見本",
+   "blocks": [
+    {
+     "k": "cols",
+     "n": 3,
+     "imgs": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+     ],
+     "t": "",
+     "shape": "fit",
+     "ni": 1,
+     "dir": "v",
+     "cap": false,
+     "cpos": "none",
+     "caps": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+     ],
+     "tp": "none",
+     "items": [],
+     "sl": false,
+     "vis": 3,
+     "dv": "h",
+     "col": 0,
+     "cn": 2,
+     "span": 11,
+     "cs": [
+      {
+       "w": 360,
+       "bg": "",
+       "bc": "#cfd8dc",
+       "bw": 0,
+       "r": 0
+      },
+      {
+       "w": 360,
+       "bg": "",
+       "bc": "#cfd8dc",
+       "bw": 0,
+       "r": 0
+      },
+      {
+       "w": 360,
+       "bg": "",
+       "bc": "#cfd8dc",
+       "bw": 0,
+       "r": 0
+      }
+     ]
+    },
+    {
+     "k": "banner",
+     "n": 3,
+     "imgs": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+     ],
+     "t": "",
+     "shape": "fit",
+     "ni": 1,
+     "dir": "v",
+     "cap": false,
+     "cpos": "none",
+     "caps": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+     ],
+     "tp": "none",
+     "items": [],
+     "sl": false,
+     "vis": 3,
+     "dv": "h",
+     "col": 0,
+     "bn": 1,
+     "bh": 56,
+     "br": 0,
+     "bans": [
+      {
+       "img": "",
+       "bg": "#ffffff",
+       "t": "キーワードから探す",
+       "tc": "#999999",
+       "ha": "left",
+       "va": "middle",
+       "link": "https://example.com/search"
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      }
+     ]
+    },
+    {
+     "k": "banner",
+     "n": 3,
+     "imgs": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+     ],
+     "t": "",
+     "shape": "fit",
+     "ni": 1,
+     "dir": "v",
+     "cap": false,
+     "cpos": "none",
+     "caps": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+     ],
+     "tp": "none",
+     "items": [],
+     "sl": false,
+     "vis": 3,
+     "dv": "h",
+     "col": 0,
+     "bn": 1,
+     "bh": 100,
+     "br": 0,
+     "bans": [
+      {
+       "img": "",
+       "bg": "#333333",
+       "t": "カートをみる",
+       "tc": "#ffffff",
+       "ha": "center",
+       "va": "middle",
+       "link": "https://example.com/cart"
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      }
+     ]
+    },
+    {
+     "k": "text",
+     "n": 3,
+     "imgs": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+     ],
+     "t": "CONTENTS",
+     "shape": "fit",
+     "ni": 1,
+     "dir": "v",
+     "cap": false,
+     "cpos": "none",
+     "caps": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+     ],
+     "tp": "none",
+     "items": [],
+     "sl": false,
+     "vis": 3,
+     "dv": "h",
+     "col": 0
+    },
+    {
+     "k": "banner",
+     "n": 3,
+     "imgs": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+     ],
+     "t": "",
+     "shape": "fit",
+     "ni": 1,
+     "dir": "v",
+     "cap": false,
+     "cpos": "none",
+     "caps": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+     ],
+     "tp": "none",
+     "items": [],
+     "sl": false,
+     "vis": 3,
+     "dv": "h",
+     "col": 0,
+     "bn": 1,
+     "bh": 56,
+     "br": 0,
+     "bans": [
+      {
+       "img": "",
+       "bg": "#ffffff",
+       "t": "すべての商品を見る",
+       "tc": "#333333",
+       "ha": "left",
+       "va": "middle",
+       "link": "https://example.com/all"
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      }
+     ]
+    },
+    {
+     "k": "banner",
+     "n": 3,
+     "imgs": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+     ],
+     "t": "",
+     "shape": "fit",
+     "ni": 1,
+     "dir": "v",
+     "cap": false,
+     "cpos": "none",
+     "caps": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+     ],
+     "tp": "none",
+     "items": [],
+     "sl": false,
+     "vis": 3,
+     "dv": "h",
+     "col": 0,
+     "bn": 1,
+     "bh": 56,
+     "br": 0,
+     "bans": [
+      {
+       "img": "",
+       "bg": "#ffffff",
+       "t": "新商品一覧を見る",
+       "tc": "#333333",
+       "ha": "left",
+       "va": "middle",
+       "link": "https://example.com/new"
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      }
+     ]
+    },
+    {
+     "k": "banner",
+     "n": 3,
+     "imgs": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+     ],
+     "t": "",
+     "shape": "fit",
+     "ni": 1,
+     "dir": "v",
+     "cap": false,
+     "cpos": "none",
+     "caps": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+     ],
+     "tp": "none",
+     "items": [],
+     "sl": false,
+     "vis": 3,
+     "dv": "h",
+     "col": 0,
+     "bn": 1,
+     "bh": 56,
+     "br": 0,
+     "bans": [
+      {
+       "img": "",
+       "bg": "#ffffff",
+       "t": "テーブル",
+       "tc": "#333333",
+       "ha": "left",
+       "va": "middle",
+       "link": "https://example.com/table"
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      }
+     ]
+    },
+    {
+     "k": "banner",
+     "n": 3,
+     "imgs": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+     ],
+     "t": "",
+     "shape": "fit",
+     "ni": 1,
+     "dir": "v",
+     "cap": false,
+     "cpos": "none",
+     "caps": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+     ],
+     "tp": "none",
+     "items": [],
+     "sl": false,
+     "vis": 3,
+     "dv": "h",
+     "col": 0,
+     "bn": 1,
+     "bh": 56,
+     "br": 0,
+     "bans": [
+      {
+       "img": "",
+       "bg": "#ffffff",
+       "t": "キッチン",
+       "tc": "#333333",
+       "ha": "left",
+       "va": "middle",
+       "link": "https://example.com/kitchen"
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      }
+     ]
+    },
+    {
+     "k": "banner",
+     "n": 3,
+     "imgs": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+     ],
+     "t": "",
+     "shape": "fit",
+     "ni": 1,
+     "dir": "v",
+     "cap": false,
+     "cpos": "none",
+     "caps": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+     ],
+     "tp": "none",
+     "items": [],
+     "sl": false,
+     "vis": 3,
+     "dv": "h",
+     "col": 0,
+     "bn": 1,
+     "bh": 56,
+     "br": 0,
+     "bans": [
+      {
+       "img": "",
+       "bg": "#ffffff",
+       "t": "アウトドア",
+       "tc": "#333333",
+       "ha": "left",
+       "va": "middle",
+       "link": "https://example.com/outdoor"
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      },
+      {
+       "img": "",
+       "bg": "#dfe6ec",
+       "t": "",
+       "tc": "#2c3e50",
+       "ha": "center",
+       "va": "middle",
+       "link": ""
+      }
+     ]
+    },
+    {
+     "k": "img",
+     "n": 1,
+     "imgs": [
+      "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxMTAwIDYyMCc+PHJlY3Qgd2lkdGg9JzExMDAnIGhlaWdodD0nNjIwJyBmaWxsPScjY2ZkNWRhJy8+PHRleHQgeD0nNTUwLjAnIHk9JzMyNC4wJyBmb250LXNpemU9Jzc3JyBmb250LXdlaWdodD0nNzAwJyBmaWxsPScjNGI1ODYyJyB0ZXh0LWFuY2hvcj0nbWlkZGxlJyBmb250LWZhbWlseT0nc2Fucy1zZXJpZic+44Oh44Kk44Oz55S75YOPPC90ZXh0Pjwvc3ZnPg==",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+     ],
+     "t": "",
+     "shape": "fit",
+     "ni": 1,
+     "dir": "v",
+     "cap": false,
+     "cpos": "none",
+     "caps": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+     ],
+     "tp": "none",
+     "items": [],
+     "sl": false,
+     "vis": 3,
+     "dv": "h",
+     "col": 1
+    },
+    {
+     "k": "img",
+     "n": 2,
+     "imgs": [
+      "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCA1NDAgMzAwJz48cmVjdCB3aWR0aD0nNTQwJyBoZWlnaHQ9JzMwMCcgZmlsbD0nI2NmZDVkYScvPjx0ZXh0IHg9JzI3MC4wJyB5PScxNjQuMCcgZm9udC1zaXplPSczNycgZm9udC13ZWlnaHQ9JzcwMCcgZmlsbD0nIzRiNTg2MicgdGV4dC1hbmNob3I9J21pZGRsZScgZm9udC1mYW1pbHk9J3NhbnMtc2VyaWYnPueUu+WDjzE8L3RleHQ+PC9zdmc+",
+      "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCA1NDAgMzAwJz48cmVjdCB3aWR0aD0nNTQwJyBoZWlnaHQ9JzMwMCcgZmlsbD0nI2NmZDVkYScvPjx0ZXh0IHg9JzI3MC4wJyB5PScxNjQuMCcgZm9udC1zaXplPSczNycgZm9udC13ZWlnaHQ9JzcwMCcgZmlsbD0nIzRiNTg2MicgdGV4dC1hbmNob3I9J21pZGRsZScgZm9udC1mYW1pbHk9J3NhbnMtc2VyaWYnPueUu+WDjzI8L3RleHQ+PC9zdmc+",
+      "",
+      "",
+      "",
+      "",
+      ""
+     ],
+     "t": "",
+     "shape": "fit",
+     "ni": 1,
+     "dir": "v",
+     "cap": false,
+     "cpos": "none",
+     "caps": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+     ],
+     "tp": "none",
+     "items": [],
+     "sl": false,
+     "vis": 3,
+     "dv": "h",
+     "col": 1
+    },
+    {
+     "k": "text",
+     "n": 3,
+     "imgs": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+     ],
+     "t": "メインカラムの続きの段(サイドメニューは、ここまで伸びます)",
+     "shape": "fit",
+     "ni": 1,
+     "dir": "v",
+     "cap": false,
+     "cpos": "none",
+     "caps": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+     ],
+     "tp": "none",
+     "items": [],
+     "sl": false,
+     "vis": 3,
+     "dv": "h",
+     "col": 1
+    },
+    {
+     "k": "text",
+     "n": 3,
+     "imgs": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+     ],
+     "t": "ここから下は、メインのみ(横幅いっぱい)",
+     "shape": "fit",
+     "ni": 1,
+     "dir": "v",
+     "cap": false,
+     "cpos": "none",
+     "caps": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+     ],
+     "tp": "none",
+     "items": [],
+     "sl": false,
+     "vis": 3,
+     "dv": "h",
+     "col": 0
+    }
+   ],
+   "n": 3,
+   "imgs": [
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    ""
+   ],
+   "items": []
+  }
+ ],
+ "chat": {
+  "title": "ご質問チャット",
+  "greet": "ご質問をどうぞ。",
+  "fallback": "該当する情報が見つかりませんでした。",
+  "faq": [
+   {
+    "k": "",
+    "a": ""
+   }
+  ],
+  "kb": ""
+ },
+ "ftc": "#7ec4d4",
+ "hdr": {
+  "on": true,
+  "h": 150,
+  "t": "below",
+  "y": 0,
+  "f": 50,
+  "src": ""
+ }
+}
