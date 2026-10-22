@@ -203,6 +203,11 @@ body.scroll .preview{display:block;overflow-x:hidden;overflow-y:auto;padding:0;b
 .site .s-col.sub{flex:0 0 var(--cwp,25%)}
 .site .s-row.vert{height:auto}
 .site .s-row.vert>.ph{flex:none;height:clamp(160px,18vw,320px)}
+body.loc #slide [data-loc],body.loc #site [data-loc]{cursor:pointer}
+.loc-h{outline:3px dashed #e67e22!important;outline-offset:-3px}
+.hl{animation:hl 2.2s ease 1}
+@keyframes hl{0%,70%{box-shadow:0 0 0 4px #f1c40f,0 0 20px 6px rgba(241,196,15,.9);background-color:rgba(241,196,15,.22)}100%{box-shadow:0 0 0 0 transparent}}
+body.loc iframe{pointer-events:none}
 #printArea{display:none}
 @media (min-width:901px){body.fullv .tog{left:10px;bottom:10px;padding:6px 10px;font-size:.72rem}}
 @media print{
@@ -333,16 +338,16 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 
 function slideHTML(p,n,total,site){
  const hon=hdr.on&&!p.nh,ht=p.title||p.subtitle;
- const secs=p.items.map(i=>`<div class="sec">${i.h?`<h3>${esc(i.h)}</h3>`:''}<p>${esc(i.t)}</p></div>`).join('');
- const img=k=>`<div class="ph${p.imgs[k]?' has':''}">${p.imgs[k]?mediaTag(p.imgs[k]):'画像・動画'}</div>`;
+ const secs=p.items.map((i,ix)=>`<div class="sec" data-loc="item:${ix}">${i.h?`<h3>${esc(i.h)}</h3>`:''}<p>${esc(i.t)}</p></div>`).join('');
+ const img=k=>`<div class="ph${p.imgs[k]?' has':''}" data-loc="img:${k}">${p.imgs[k]?mediaTag(p.imgs[k]):'画像・動画'}</div>`;
  let body;
- if(p.layout==='blocks')body=`<div class="s-body"><div class="s-stack">${blocksHTML(p.blocks)}</div></div>`;
+ if(p.layout==='blocks')body=`<div class="s-body"><div class="s-stack">${blocksHTML(markIdx(p.blocks))}</div></div>`;
  else if(p.layout==='row')body=`<div class="s-body">${imgRow(p,Array.from({length:p.n},(_,k)=>img(k)).join(''))}</div>`;
  else if(p.layout==='text')body=`<div class="s-body"><div class="s-text wide">${secs}</div></div>`;
  else if(p.layout==='two')body=`<div class="s-body"><div class="s-text">${secs}</div><div class="s-imgs${p.shape==='square'?' sq':''}" style="--n:2">${img(0)}${img(1)}</div></div>`;
  else body=`<div class="s-body ${p.layout}"><div class="s-text">${secs}</div><div class="s-imgs${p.shape==='square'?' sq':''}${p.shape==='square'&&sqn(p)>1?' h':''}${p.shape!=='square'&&p.dir==='h'&&sqn(p)>1?' fh':''}" style="--n:${sqn(p)}">${Array.from({length:sqn(p)},(_,k)=>img(k)).join('')}</div></div>`;
- if(site)return `${ht?`<div class="s-head"><h1 class="s-title">${esc(p.title)}</h1><div class="s-sub">${esc(p.subtitle)}</div></div>`:''}${body}`;
- return `${hon?`<div class="s-banner" style="height:${hdr.h}px"><img src="${hdr.src}" style="object-position:50% ${hdr.y}%;-webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - ${hdr.f}px),transparent);mask-image:linear-gradient(to bottom,#000 calc(100% - ${hdr.f}px),transparent)">${hdr.t==='in'&&ht?`<div class="s-bt"><h1 class="s-title">${esc(p.title)}</h1><div class="s-sub">${esc(p.subtitle)}</div></div>`:''}</div>${hdr.t==='in'||!ht?'':`<div class="s-head cmp"><h1 class="s-title">${esc(p.title)}</h1><div class="s-sub">${esc(p.subtitle)}</div></div>`}`:(ht?`<div class="s-head"><h1 class="s-title">${esc(p.title)}</h1><div class="s-sub">${esc(p.subtitle)}</div></div>`:'')}${body}<div class="s-foot" style="background:${ftc};color:${ftx(ftc)}"><span>${esc(p.fl)}</span><span>${esc(p.fr)} ${n}/${total}</span></div>`;
+ if(site)return `${ht?`<div class="s-head"><h1 class="s-title" data-loc="title">${esc(p.title)}</h1><div class="s-sub" data-loc="sub">${esc(p.subtitle)}</div></div>`:''}${body}`;
+ return `${hon?`<div class="s-banner" data-loc="hdr" style="height:${hdr.h}px"><img src="${hdr.src}" style="object-position:50% ${hdr.y}%;-webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - ${hdr.f}px),transparent);mask-image:linear-gradient(to bottom,#000 calc(100% - ${hdr.f}px),transparent)">${hdr.t==='in'&&ht?`<div class="s-bt"><h1 class="s-title" data-loc="title">${esc(p.title)}</h1><div class="s-sub" data-loc="sub">${esc(p.subtitle)}</div></div>`:''}</div>${hdr.t==='in'||!ht?'':`<div class="s-head cmp"><h1 class="s-title" data-loc="title">${esc(p.title)}</h1><div class="s-sub" data-loc="sub">${esc(p.subtitle)}</div></div>`}`:(ht?`<div class="s-head"><h1 class="s-title" data-loc="title">${esc(p.title)}</h1><div class="s-sub" data-loc="sub">${esc(p.subtitle)}</div></div>`:'')}${body}<div class="s-foot" data-loc="ftr" style="background:${ftc};color:${ftx(ftc)}"><span>${esc(p.fl)}</span><span>${esc(p.fr)} ${n}/${total}</span></div>`;
 }
 function fit(){
  if(mode==='scroll')return;
@@ -370,22 +375,22 @@ function renderForm(){
  $('addLayoutBox').innerHTML=`<div class="fg" style="padding:8px;margin-bottom:8px"><label>追加するレイアウトの種類</label><select onchange="bkType=this.value">${Object.entries(BK).map(([k,v])=>`<option value="${k}" ${bkType===k?'selected':''}>${v}</option>`).join('')}</select></div><button class="btn act" onclick="addLayout()">＋ レイアウトを追加(このページの下に積む)</button>`;
  $('prev').disabled=cur===0;$('next').disabled=cur===pages.length-1;$('mvPrev').disabled=cur===0;$('mvNext').disabled=cur===pages.length-1;
  const opts=Object.entries(LAYOUTS).map(([k,v])=>`<option value="${k}" ${p.layout===k?'selected':''}>${v}</option>`).join('');
- const imgField=k=>`<div class="fg"><label>画像・動画・GIF ${k+1}</label><input type="file" accept="image/*,video/*" onchange="setImg(${k},this)"><input type="text" style="margin-top:6px" placeholder="またはYouTubeのURLを貼り付け" onchange="setYT(${k},this.value)"><div style="font-size:.75rem;color:#f1c40f;margin:4px 0">推奨: ${recSize(p,k)}</div>${p.imgs[k]?`${mediaTag(p.imgs[k],true)}<button class="btn del" style="margin-top:6px;padding:6px" onclick="clearImg(${k})">画像を外す</button>`:''}</div>`;
+ const imgField=k=>`<div class="fg" data-fld="img:${k}"><label>画像・動画・GIF ${k+1}</label><input type="file" accept="image/*,video/*" onchange="setImg(${k},this)"><input type="text" style="margin-top:6px" placeholder="またはYouTubeのURLを貼り付け" onchange="setYT(${k},this.value)"><div style="font-size:.75rem;color:#f1c40f;margin:4px 0">推奨: ${recSize(p,k)}</div>${p.imgs[k]?`${mediaTag(p.imgs[k],true)}<button class="btn del" style="margin-top:6px;padding:6px" onclick="clearImg(${k})">画像を外す</button>`:''}</div>`;
  const cnt=p.layout==='row'?p.n:p.layout==='two'?2:(p.layout==='text'||p.layout==='blocks')?0:sqn(p);
  $('form').innerHTML=`
  ${modeForm()}${hdrForm()}${footForm(p)}${p.layout==='blocks'?`<div class="fg"><label>レイアウト</label><div style="font-size:.8rem;line-height:1.5">段組み(各段のレイアウトは、下の各段の「この段のレイアウト」で変更できます)</div></div>`:`<div class="fg"><label>レイアウト</label><select onchange="setF('layout',this.value);renderForm()">${opts}</select></div>`}
  <div class="fg"><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" ${p.chat?'checked':''} onchange="setF('chat',this.checked)">💬 右下にチャットボックスを表示</label></div>
- <div class="fg"><label>タイトル(続きのページは空欄にすると、前のページの続きに見えます)</label><input type="text" value="${esc(p.title)}" oninput="setF('title',this.value)"></div>
- <div class="fg"><label>サブタイトル</label><input type="text" value="${esc(p.subtitle)}" oninput="setF('subtitle',this.value)"></div>
+ <div class="fg" data-fld="title"><label>タイトル(続きのページは空欄にすると、前のページの続きに見えます)</label><input type="text" value="${esc(p.title)}" oninput="setF('title',this.value)"></div>
+ <div class="fg" data-fld="sub"><label>サブタイトル</label><input type="text" value="${esc(p.subtitle)}" oninput="setF('subtitle',this.value)"></div>
  ${cnt?`<div class="fg">${shapeSel(p.shape,'setShape(this.value)')}</div>`:''}${cnt&&(p.layout==='l-text'||p.layout==='l-image')?`<div class="fg">${niSel(p.ni,'setNi(this.value)')}${p.shape!=='square'&&sqn(p)>1?dirSel(p.dir,'setDir(this.value)'):''}</div>`:''}${p.layout==='row'?nSel(p)+slideCtlP(p):''}${Array.from({length:cnt},(_,k)=>imgField(k)).join('')}
  ${styleForm(p)}
- ${p.layout==='blocks'?blockForm(p):p.layout==='row'?'<div class="fg" style="font-size:.8rem">このレイアウトは画像のみ表示です。テキストを足すときは「＋ レイアウトを追加」を使ってください。</div>':p.items.map((it,i)=>`<div class="dyn"><button class="x" onclick="delItem(${i})">削除</button>
+ ${p.layout==='blocks'?blockForm(p):p.layout==='row'?'<div class="fg" style="font-size:.8rem">このレイアウトは画像のみ表示です。テキストを足すときは「＋ レイアウトを追加」を使ってください。</div>':p.items.map((it,i)=>`<div class="dyn" data-fld="item:${i}"><button class="x" onclick="delItem(${i})">削除</button>
   <label>見出し ${i+1}</label><input type="text" value="${esc(it.h)}" oninput="setItem(${i},'h',this.value)">
   <label style="margin-top:8px">本文</label><textarea oninput="setItem(${i},'t',this.value)">${esc(it.t)}</textarea></div>`).join('')}${p.layout==='row'||p.layout==='blocks'?'':'<button class="btn add" style="width:100%;margin-top:8px" onclick="addItem()">＋ テキスト項目を追加</button>'}${chatForm()}`;
 }
 const setF=(k,v)=>{pages[cur][k]=v;if(k==='layout'&&v==='blocks'&&!pages[cur].blocks.length)pages[cur].blocks=defBlocks();renderSlide()};
 const setItem=(i,k,v)=>{pages[cur].items[i][k]=v;renderSlide()};
-const phTag=s=>`<div class="ph${s?' has':''}">${s?mediaTag(s):'画像・動画'}</div>`;
+const phTag=(s,k)=>`<div class="ph${s?' has':''}"${k!=null?` data-loc="img:${k}"`:''}>${s?mediaTag(s):'画像・動画'}</div>`;
 const defBlocks=()=>[{k:'img',n:5},{k:'text',t:'テキストを入力'},{k:'img',n:3},{k:'text',t:'テキストを入力'},{k:'img',n:2},{k:'text',t:'テキストを入力'}].map(b=>Object.assign({n:3,imgs:['','','','','','',''],t:'',cap:false,caps:['','','','','','','']},b));
 function recH(p){const b=p.blocks,ni=b.filter(x=>x.k!=='text').length,nt=b.length-ni,nc=b.filter(x=>x.k==='img'&&cpos(x)==='below').length;return ni?Math.max(40,Math.floor((bodyH(p)-nt*45-nc*38-16*(b.length-1))/ni)):0}
 function blockForm(p){
@@ -398,7 +403,7 @@ function blockForm(p){
   if(b.k==='cols')return colsForm(b,i,ctl);
   if(b.k!=='img'&&b.k!=='text')return blkForm(b,i,ctl,rh);
   const w=Math.round((1720-24*(b.n-1))/b.n);
-  return `<div class="dyn"><button class="x" onclick="delBlock(${i})">削除</button>${ctl}<label>画像の枚数</label><select onchange="setBn(${i},+this.value)">${[1,2,3,4,5,6,7].map(n=>`<option ${b.n===n?'selected':''}>${n}</option>`).join('')}</select>${shapeSel(b.shape,'setBshape('+i+',this.value)')}${slideCtl(b,i)}<label>各画像のテキスト</label><select onchange="setBcpos(${i},this.value)"><option value="none" ${cpos(b)==='none'?'selected':''}>なし</option><option value="below" ${cpos(b)==='below'?'selected':''}>画像の下</option><option value="right" ${cpos(b)==='right'?'selected':''}>画像の右(横)</option></select>${Array.from({length:b.n},(_,k)=>`<label>画像・動画・GIF ${k+1}</label><input type="file" accept="image/*,video/*" onchange="setBImg(${i},${k},this)"><input type="text" style="margin-top:4px" placeholder="またはYouTubeのURLを貼り付け" onchange="setBYT(${i},${k},this.value)">${b.imgs[k]?mediaTag(b.imgs[k],true)+`<button class="btn del" style="margin-top:4px;padding:5px" onclick="pages[cur].blocks[${i}].imgs[${k}]='';renderForm();renderSlide()">画像を外す</button>`:''}${cpos(b)!=='none'?`<input type="text" style="margin-top:4px" placeholder="画像${k+1}のテキスト" value="${esc((b.caps||[])[k]||'')}" oninput="pages[cur].blocks[${i}].caps[${k}]=this.value;renderSlide()">`:''}`).join('')}<div style="font-size:.75rem;color:#f1c40f;margin-top:6px">推奨: ${b.shape==='square'?Math.min(w,rh)+'×'+Math.min(w,rh):w+'×'+rh}px(テキスト1行想定)</div></div>`;
+  return `<div class="dyn"><button class="x" onclick="delBlock(${i})">削除</button>${ctl}<label>画像の枚数</label><select onchange="setBn(${i},+this.value)">${[1,2,3,4,5,6,7].map(n=>`<option ${b.n===n?'selected':''}>${n}</option>`).join('')}</select>${shapeSel(b.shape,'setBshape('+i+',this.value)')}${slideCtl(b,i)}<label>各画像のテキスト</label><select onchange="setBcpos(${i},this.value)"><option value="none" ${cpos(b)==='none'?'selected':''}>なし</option><option value="below" ${cpos(b)==='below'?'selected':''}>画像の下</option><option value="right" ${cpos(b)==='right'?'selected':''}>画像の右(横)</option></select>${Array.from({length:b.n},(_,k)=>`<div data-fld="blk:${i}:img:${k}"><label>画像・動画・GIF ${k+1}</label><input type="file" accept="image/*,video/*" onchange="setBImg(${i},${k},this)"><input type="text" style="margin-top:4px" placeholder="またはYouTubeのURLを貼り付け" onchange="setBYT(${i},${k},this.value)">${b.imgs[k]?mediaTag(b.imgs[k],true)+`<button class="btn del" style="margin-top:4px;padding:5px" onclick="pages[cur].blocks[${i}].imgs[${k}]='';renderForm();renderSlide()">画像を外す</button>`:''}${cpos(b)!=='none'?`<input type="text" style="margin-top:4px" placeholder="画像${k+1}のテキスト" value="${esc((b.caps||[])[k]||'')}" oninput="pages[cur].blocks[${i}].caps[${k}]=this.value;renderSlide()">`:''}</div>`).join('')}<div style="font-size:.75rem;color:#f1c40f;margin-top:6px">推奨: ${b.shape==='square'?Math.min(w,rh)+'×'+Math.min(w,rh):w+'×'+rh}px(テキスト1行想定)</div></div>`;
  })())).join('')+`<label style="margin-top:8px">追加する段の種類</label><select onchange="bkType=this.value">${Object.entries(BK).map(([k,v])=>`<option value="${k}" ${bkType===k?'selected':''}>${v}</option>`).join('')}</select><button class="btn add" style="width:100%;margin-top:6px" onclick="addBlock(bkType)">＋ 段を追加</button>`;
 }
 const addBlock=k=>{pages[cur].blocks.push(mkNew(k));renderForm();renderSlide()};
@@ -418,7 +423,7 @@ const normBan=b=>{
   return {img:/^data:image\/(png|jpe?g|gif|webp|svg\+xml);base64,[A-Za-z0-9+\/=]+$/.test(s(a.img))?a.img:'',bg:okColor(a.bg),t:s(a.t).slice(0,500),tc:okColor(a.tc||'#2c3e50'),ha:['left','center','right'].includes(a.ha)?a.ha:'center',va:['top','middle','bottom'].includes(a.va)?a.va:'middle',link:okLink(a.link)}});
  return {k:'banner',br:(Number.isFinite(parseInt(b.br))?Math.min(120,Math.max(0,parseInt(b.br))):28),n:3,imgs:['','','','','','',''],t:'',items:[],bn:Math.min(7,Math.max(1,parseInt(b.bn)||1)),bh:Math.min(1200,Math.max(60,parseInt(b.bh)||320)),bans};
 };
-function rowCells(b){return Array.from({length:b.n},(_,k)=>cpos(b)!=='none'?`<div class="s-cell${cpos(b)==='right'?' rt':''}">${phTag(b.imgs[k])}<div class="s-cap2">${esc((b.caps||[])[k]||'')}</div></div>`:phTag(b.imgs[k])).join('')}
+function rowCells(b){return Array.from({length:b.n},(_,k)=>cpos(b)!=='none'?`<div class="s-cell${cpos(b)==='right'?' rt':''}">${phTag(b.imgs[k],k)}<div class="s-cap2">${esc((b.caps||[])[k]||'')}</div></div>`:phTag(b.imgs[k],k)).join('')}
 function imgRow(o,cells){
  const n=o.n;
  if(o.sl&&n>1&&o.dv!=='v'){const v=Math.max(1,Math.min(n-1,parseInt(o.vis)||Math.min(3,n-1)));
@@ -446,16 +451,16 @@ function bannerHTML(b){
   const ha={left:'flex-start',center:'center',right:'flex-end'}[a.ha]||'center',va={top:'flex-start',middle:'center',bottom:'flex-end'}[a.va]||'center',ta=a.ha==='left'?'left':a.ha==='right'?'right':'center';
   const inner=`${a.img?`<div class="s-bimg">${mediaTag(a.img)}</div>`:''}<div class="s-btx" style="justify-content:${va};align-items:${ha};text-align:${ta};color:${okColor(a.tc||'#2c3e50')}">${esc(a.t||'')}</div>`;
   const l=okLink(a.link),st=`background:${okColor(a.bg)}`;
-  return l?`<a class="s-bn" style="${st}" href="${esc(l)}" target="_blank" rel="noopener noreferrer">${inner}</a>`:`<div class="s-bn" style="${st}">${inner}</div>`;
+  return l?`<a class="s-bn" data-loc="ban:${k}" style="${st}" href="${esc(l)}" target="_blank" rel="noopener noreferrer">${inner}</a>`:`<div class="s-bn" data-loc="ban:${k}" style="${st}">${inner}</div>`;
  }).join('');
  const br=Number.isFinite(parseInt(b.br))?Math.min(120,Math.max(0,parseInt(b.br))):28;
  return `<div class="s-ban" style="--bh:${h}px;--bhv:${(h/19.2).toFixed(2)}vw;--br:${br}px">${cells}</div>`;
 }
+const markIdx=bl=>(bl.forEach((b,ix)=>Object.defineProperty(b,'_i',{value:ix,writable:true,configurable:true,enumerable:false})),bl);
+const locTag=(b,h)=>h.replace(/^<([a-zA-Z0-9]+)/,`<$1 data-loc="blk:${b._i}"`);
 function blockHTML(b){
- if(b.k==='img')return grp(b,imgRow(b,rowCells(b)));
- if(b.k==='text')return `<div class="s-cap">${esc(b.t)}</div>`;
- if(b.k==='banner')return bannerHTML(b);
- return blkHTML(b);
+ const h=b.k==='img'?grp(b,imgRow(b,rowCells(b))):b.k==='text'?`<div class="s-cap">${esc(b.t)}</div>`:b.k==='banner'?bannerHTML(b):blkHTML(b);
+ return locTag(b,h);
 }
 const isCont=b=>b.k==='band'||b.k==='cols';
 const ncol=(b,r)=>{r.col=Math.min(2,Math.max(0,parseInt(b.col)||0));return r};
@@ -480,7 +485,7 @@ function blocksHTML(bl){
  let out='',i=0;
  while(i<bl.length){const b=bl[i];
   if(isCont(b)){const n=Math.max(0,Math.min(parseInt(b.span)||0,bl.length-i-1)),ch=bl.slice(i+1,i+1+n);
-   out+=b.k==='band'?`<div class="s-band" style="background:${okColor(b.bg)}"><div class="s-stack">${blocksHTML(ch)}</div></div>`:colsHTML(b,ch);i+=n+1}
+   out+=locTag(b,b.k==='band'?`<div class="s-band" style="background:${okColor(b.bg)}"><div class="s-stack">${blocksHTML(ch)}</div></div>`:colsHTML(b,ch));i+=n+1}
   else{out+=blockHTML(b);i++}}
  return out;
 }
@@ -492,10 +497,10 @@ const mkNew=k=>{const b={k,n:3,cap:false,caps:['','','','','','',''],imgs:['',''
 const parentMap=bl=>{const p=bl.map(()=>-1);for(let k=0;k<bl.length;k++){if(isCont(bl[k])){const n=Math.max(0,Math.min(parseInt(bl[k].span)||0,bl.length-k-1));for(let j=1;j<=n;j++)p[k+j]=k}}return p};
 const blkWrap=(i,h)=>{
  const bl=pages[cur].blocks,pm=parentMap(bl);let d=0,k=i;while(pm[k]>=0){d++;k=pm[k]}
- if(!d)return h;
+ if(!d)return `<div data-fld="blk:${i}">${h}</div>`;
  const par=bl[pm[i]],isC=par.k==='cols',cn=par.cn===3?3:2;
  const sel=isC?`<div style="font-size:.78rem;color:#76d7c4;margin:6px 0 2px">配置するカラム</div><select onchange="setBcol(${i},+this.value)">${Array.from({length:cn},(_,c)=>`<option value="${c}" ${Math.min(cn-1,Math.max(0,parseInt(bl[i].col)||0))===c?'selected':''}>${colName(cn,c)}</option>`).join('')}</select>`:'';
- return `<div style="margin-left:${10*d}px;border-left:3px solid ${isC?'#16a085':'#8e44ad'};padding-left:6px">${sel}${h}</div>`};
+ return `<div data-fld="blk:${i}" style="margin-left:${10*d}px;border-left:3px solid ${isC?'#16a085':'#8e44ad'};padding-left:6px">${sel}${h}</div>`};
 const setBcol=(i,c)=>{pages[cur].blocks[i].col=c;renderForm();renderSlide()};
 const clr=(v,onin)=>`<input type="color" value="${v}" oninput="${onin}" style="width:100%;height:32px;border:0;padding:0;background:none">`;
 const optS=(arr,cur)=>arr.map(([v,t])=>`<option value="${v}" ${cur===v?'selected':''}>${t}</option>`).join('');
@@ -503,7 +508,7 @@ function bannerForm(b,i,ctl){
  const n=Math.max(1,Math.min(7,parseInt(b.bn)||1)),w=Math.round((1720-24*(n-1))/n);
  const cells=Array.from({length:n},(_,k)=>{
   const a=(b.bans||[])[k]||{},P=`pages[cur].blocks[${i}].bans[${k}]`;
-  return `<div style="border-left:2px solid #f39c12;padding-left:8px;margin:8px 0"><label>バナー ${k+1}</label>
+  return `<div data-fld="blk:${i}:ban:${k}" style="border-left:2px solid #f39c12;padding-left:8px;margin:8px 0"><label>バナー ${k+1}</label>
   <label>背景色</label>${clr(okColor(a.bg),P+".bg=this.value;renderSlide()")}
   <label>画像・GIF(任意)</label><input type="file" accept="image/*" onchange="setBanImg(${i},${k},this)">${a.img?mediaTag(a.img,true)+`<button class="btn del" style="margin-top:4px;padding:5px" onclick="${P}.img='';renderForm();renderSlide()">画像を外す</button>`:''}
   <label>テキスト</label><textarea oninput="${P}.t=this.value;renderSlide()">${esc(a.t||'')}</textarea>
@@ -585,21 +590,59 @@ const setBvis=(i,v)=>{pages[cur].blocks[i].vis=v;renderForm();renderSlide()};
 const slideCtlP=p=>`<label style="display:flex;gap:6px;align-items:center;margin-top:6px"><input type="checkbox" ${p.sl?'checked':''} onchange="setSl(this.checked)">横にスライドできるようにする</label>${p.sl?`<label>同時に見せる枚数</label><select onchange="setVis(+this.value)">${[1,2,3,4,5,6].filter(v=>v<p.n).map(v=>`<option ${(parseInt(p.vis)||Math.min(3,p.n-1))===v?'selected':''}>${v}</option>`).join('')}</select>`:''}`;
 const setSl=v=>{const p=pages[cur];p.sl=v;if(v&&!p.vis)p.vis=Math.min(3,p.n-1);renderForm();renderSlide()};
 const setVis=v=>{pages[cur].vis=v;renderForm();renderSlide()};
-const modeForm=()=>`<div class="fg"><label>表示方式(最初に選びます)</label><label style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><input type="radio" name="mode" ${mode==='slide'?'checked':''} onchange="setMode('slide')">スライド式(1ページずつ表示)</label><label style="display:flex;gap:8px;align-items:center"><input type="radio" name="mode" ${mode==='scroll'?'checked':''} onchange="setMode('scroll')">縦スクロール式(ホームページ)</label>${mode==='scroll'?'<div style="font-size:.75rem;color:#bdc3c7;margin-top:8px;line-height:1.5">全ページを縦に並べた1つのページになります。ヘッダー画像はいちばん上に1回、フッターは最後に1回だけ表示します。各ページのタイトルは、上のメニューのリンクになります。</div>':''}</div>`;
+const modeForm=()=>`<div class="fg"><label>表示方式(最初に選びます)</label><label style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><input type="radio" name="mode" ${mode==='slide'?'checked':''} onchange="setMode('slide')">スライド式(1ページずつ表示)</label><label style="display:flex;gap:8px;align-items:center"><input type="radio" name="mode" ${mode==='scroll'?'checked':''} onchange="setMode('scroll')">縦スクロール式(ホームページ)</label>${mode==='scroll'?'<div style="font-size:.75rem;color:#bdc3c7;margin-top:8px;line-height:1.5">全ページを縦に並べた1つのページになります。ヘッダー画像はいちばん上に1回、フッターは最後に1回だけ表示します。各ページのタイトルは、上のメニューのリンクになります。</div>':''}<label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" ${locOn?'checked':''} onchange="locOn=this.checked;document.body.classList.toggle('loc',locOn)">🎯 プレビューをタップして、編集する場所を表示する</label></div>`;
+/* --- プレビューをタップ → 管理画面の該当箇所を表示 --- */
+let locOn=true;
+const locLabel=k=>{const m={title:'タイトル',sub:'サブタイトル',hdr:'ヘッダーの設定',ftr:'フッターの設定',chat:'チャットボックスの設定'};if(m[k])return m[k];const p=k.split(':'),o=[];for(let i=0;i<p.length;i+=2){const n=+p[i+1];o.push(({blk:`${n+1}段目`,item:`テキスト項目${n+1}`,img:`画像${n+1}`,ban:`バナー${n+1}`})[p[i]]||k)}return o.join(' の ')};
+function locKey(t){
+ if(!t||!t.closest)return null;
+ if(t.closest('.pnav,.tog,.s-arr,#chatFab'))return null;
+ if(t.closest('#chat')){const h=t.closest('.c-head');return h&&!t.closest('.c-x')?{key:'chat',el:h,pg:null}:null}
+ if(!t.closest('#slide,#site'))return null;
+ const part=t.closest('[data-loc]');if(!part)return null;
+ const pk=part.getAttribute('data-loc');let key=pk;
+ if(!/^(blk|title|sub|hdr|ftr|chat)/.test(pk)){const blk=part.parentElement&&part.parentElement.closest('[data-loc^="blk:"]');if(blk)key=blk.getAttribute('data-loc')+':'+pk}
+ const pg=t.closest('[data-pg]');
+ return {key,el:part,pg:pg?+pg.getAttribute('data-pg'):null};
+}
+function locate(k){
+ if(k.pg!=null&&k.pg!==cur)cur=k.pg;
+ const key=k.key;
+ if(key==='hdr')sec.h=true;if(key==='ftr')sec.f=true;
+ renderForm();
+ if(isMob()&&$('admin').classList.contains('hidden')){$('admin').classList.remove('hidden');$('preview').classList.remove('full');updTog()}
+ const fl=$('form'),fk=key==='hdr'?'box:h':key==='ftr'?'box:f':key,parts=fk.split(':');let el=null;
+ for(let n=parts.length;n>=2&&!el;n-=2)el=fl.querySelector(`[data-fld="${parts.slice(0,n).join(':')}"]`);
+ if(!el)el=fl.querySelector(`[data-fld="${fk}"]`);
+ if(!el){note('この部分の設定は見つかりませんでした');return}
+ el.scrollIntoView({behavior:'smooth',block:'center'});
+ el.classList.remove('hl');void el.offsetWidth;el.classList.add('hl');
+ note('編集する場所: '+locLabel(key));
+}
+const locActive=()=>locOn&&!document.body.classList.contains('viewonly')&&(isMob()||!$('admin').classList.contains('hidden'));
+document.addEventListener('click',e=>{if(!locActive())return;const k=locKey(e.target);if(!k)return;e.preventDefault();e.stopPropagation();locate(k)},true);
+let locHov=null;
+document.addEventListener('pointermove',e=>{
+ if(e.pointerType==='touch')return;
+ const k=locActive()?locKey(e.target):null,el=k?k.el:null;
+ if(locHov&&locHov!==el)locHov.classList.remove('loc-h');
+ if(el&&el!==locHov)el.classList.add('loc-h');
+ locHov=el;
+});
 function setMode(m){mode=m;document.body.classList.toggle('scroll',m==='scroll');moveChat();renderForm();renderSlide();fit()}
 function moveChat(){const c=$('chat'),f=$('chatFab');if(mode==='scroll'){document.body.appendChild(c);document.body.appendChild(f);c.classList.add('fixed');f.classList.add('fixed')}else{$('slide').appendChild(c);$('slide').appendChild(f);c.classList.remove('fixed');f.classList.remove('fixed')}applyChat()}
 function siteGo(i){const e=document.getElementById('sec'+i);if(e)e.scrollIntoView({behavior:'smooth',block:'start'})}
 function renderSite(){
  const pv=$('preview'),st=pv.scrollTop,first=pages[0]||{fl:'',fr:''};
  const nav=pages.map((p,i)=>p.title?`<a href="#sec${i}" onclick="siteGo(${i});return false">${esc(p.title)}</a>`:'').join('');
- const head=hdr.on?`<div class="site-hdr" style="height:min(${hdr.h}px,${(hdr.h/19.2).toFixed(2)}vw)"><img src="${hdr.src}" alt="" style="object-position:50% ${hdr.y}%;-webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - ${hdr.f}px),transparent);mask-image:linear-gradient(to bottom,#000 calc(100% - ${hdr.f}px),transparent)"></div>`:'';
+ const head=hdr.on?`<div class="site-hdr" data-loc="hdr" style="height:min(${hdr.h}px,${(hdr.h/19.2).toFixed(2)}vw)"><img src="${hdr.src}" alt="" style="object-position:50% ${hdr.y}%;-webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - ${hdr.f}px),transparent);mask-image:linear-gradient(to bottom,#000 calc(100% - ${hdr.f}px),transparent)"></div>`:'';
  const secs=pages.map((p,i)=>{const fs=p.ts!=='auto'?`;--fp:${p.ts}px;--fh:${Math.round(p.ts*1.21)}px;--fc:${Math.round(p.ts*0.93)}px`:'';
-  return `<section class="sp" id="sec${i}" style="--tc:${p.tc};--hc:${p.hc};--fw:${p.tb?700:400}${fs}">${slideHTML(p,i+1,pages.length,true)}</section>`}).join('');
- $('site').innerHTML=`${head}<nav class="site-nav">${nav}</nav>${secs}<footer class="site-foot" style="background:${ftc};color:${ftx(ftc)}"><span>${esc(first.fl)}</span><span>${esc(first.fr)}</span></footer>`;
+  return `<section class="sp" id="sec${i}" data-pg="${i}" style="--tc:${p.tc};--hc:${p.hc};--fw:${p.tb?700:400}${fs}">${slideHTML(p,i+1,pages.length,true)}</section>`}).join('');
+ $('site').innerHTML=`${head}<nav class="site-nav">${nav}</nav>${secs}<footer class="site-foot" data-loc="ftr" style="background:${ftc};color:${ftx(ftc)}"><span>${esc(first.fl)}</span><span>${esc(first.fr)}</span></footer>`;
  pv.scrollTop=st;applyChat();
 }
 const sec={h:false,f:false};
-const togBox=(k,t,inner)=>`<div class="fg" style="padding:0;overflow:hidden"><button class="btn nav" style="width:100%;border-radius:0;text-align:left;padding:12px 14px;font-size:.9rem;background:#3d566e" onclick="sec['${k}']=!sec['${k}'];renderForm()">${sec[k]?'▼':'▶'} ${t}</button>${sec[k]?`<div style="padding:10px">${inner}</div>`:''}</div>`;
+const togBox=(k,t,inner)=>`<div class="fg" data-fld="box:${k}" style="padding:0;overflow:hidden"><button class="btn nav" style="width:100%;border-radius:0;text-align:left;padding:12px 14px;font-size:.9rem;background:#3d566e" onclick="sec['${k}']=!sec['${k}'];renderForm()">${sec[k]?'▼':'▶'} ${t}</button>${sec[k]?`<div style="padding:10px">${inner}</div>`:''}</div>`;
 function footForm(p){return togBox('f','フッターの設定',`<div class="fg"><label>フッター背景色(全ページ共通)</label><input type="color" value="${ftc}" oninput="ftc=this.value;renderSlide()" style="width:100%;height:40px;border:0;padding:0;background:none"></div>
  <div class="fg"><label>フッター(左)</label><input type="text" value="${esc(p.fl)}" oninput="setF('fl',this.value)"></div>
  <div class="fg"><label>フッター(右)</label><input type="text" value="${esc(p.fr)}" oninput="setF('fr',this.value)"></div>`)}
@@ -684,17 +727,17 @@ const setTp=v=>{const p=pages[cur];p.tp=v;if(v!=='none'&&!p.items.length)p.items
 const setBtp=(i,v)=>{const b=pages[cur].blocks[i];b.tp=v;if(v!=='none'&&!(b.items||[]).length)b.items=[{h:'',t:'ここにテキストを入力'}];renderForm();renderSlide()};
 function itemsEd(i){
  const t=i<0?pages[cur]:pages[cur].blocks[i],P=i<0?'pages[cur]':`pages[cur].blocks[${i}]`;
- return (t.items||[]).map((it,j)=>`<div style="border-left:2px solid #667;padding-left:8px;margin:8px 0"><label>見出し(空欄可)</label><input type="text" value="${esc(it.h)}" oninput="${P}.items[${j}].h=this.value;renderSlide()"><label>本文</label><textarea oninput="${P}.items[${j}].t=this.value;renderSlide()">${esc(it.t)}</textarea><button class="btn del" style="padding:4px;margin-top:4px" onclick="delBItem(${i},${j})">この項目を削除</button></div>`).join('')+`<button class="btn add" style="padding:6px;margin-top:4px" onclick="addBItem(${i})">＋ 項目を追加</button>`;
+ return (t.items||[]).map((it,j)=>`<div data-fld="blk:${i}:item:${j}" style="border-left:2px solid #667;padding-left:8px;margin:8px 0"><label>見出し(空欄可)</label><input type="text" value="${esc(it.h)}" oninput="${P}.items[${j}].h=this.value;renderSlide()"><label>本文</label><textarea oninput="${P}.items[${j}].t=this.value;renderSlide()">${esc(it.t)}</textarea><button class="btn del" style="padding:4px;margin-top:4px" onclick="delBItem(${i},${j})">この項目を削除</button></div>`).join('')+`<button class="btn add" style="padding:6px;margin-top:4px" onclick="addBItem(${i})">＋ 項目を追加</button>`;
 }
 function blkHTML(b){
- const secs=(b.items||[]).map(i=>`<div class="sec">${i.h?`<h3>${esc(i.h)}</h3>`:''}<p>${esc(i.t)}</p></div>`).join('');
+ const secs=(b.items||[]).map((i,ix)=>`<div class="sec" data-loc="item:${ix}">${i.h?`<h3>${esc(i.h)}</h3>`:''}<p>${esc(i.t)}</p></div>`).join('');
  if(b.k==='tt')return `<div class="s-blk tt"><div class="s-text wide">${secs}</div></div>`;
- if(b.k==='tw')return `<div class="s-blk"><div class="s-text">${secs}</div><div class="s-imgs${b.shape==='square'?' sq':''}" style="--n:2">${phTag(b.imgs[0])}${phTag(b.imgs[1])}</div></div>`;
- return `<div class="s-blk${b.k==='il'?' l-image':''}"><div class="s-text">${secs}</div><div class="s-imgs${b.shape==='square'?' sq':''}${b.shape==='square'&&sqn(b)>1?' h':''}${b.shape!=='square'&&b.dir==='h'&&sqn(b)>1?' fh':''}" style="--n:${sqn(b)}">${Array.from({length:sqn(b)},(_,k)=>phTag(b.imgs[k])).join('')}</div></div>`;
+ if(b.k==='tw')return `<div class="s-blk"><div class="s-text">${secs}</div><div class="s-imgs${b.shape==='square'?' sq':''}" style="--n:2">${phTag(b.imgs[0],0)}${phTag(b.imgs[1],1)}</div></div>`;
+ return `<div class="s-blk${b.k==='il'?' l-image':''}"><div class="s-text">${secs}</div><div class="s-imgs${b.shape==='square'?' sq':''}${b.shape==='square'&&sqn(b)>1?' h':''}${b.shape!=='square'&&b.dir==='h'&&sqn(b)>1?' fh':''}" style="--n:${sqn(b)}">${Array.from({length:sqn(b)},(_,k)=>phTag(b.imgs[k],k)).join('')}</div></div>`;
 }
-const bImgF=(i,k,b)=>`<label>画像・動画・GIF ${k+1}</label><input type="file" accept="image/*,video/*" onchange="setBImg(${i},${k},this)"><input type="text" style="margin-top:4px" placeholder="またはYouTubeのURLを貼り付け" onchange="setBYT(${i},${k},this.value)">${b.imgs[k]?mediaTag(b.imgs[k],true)+`<button class="btn del" style="margin-top:4px;padding:5px" onclick="pages[cur].blocks[${i}].imgs[${k}]='';renderForm();renderSlide()">画像を外す</button>`:''}`;
+const bImgF=(i,k,b)=>`<div data-fld="blk:${i}:img:${k}"><label>画像・動画・GIF ${k+1}</label><input type="file" accept="image/*,video/*" onchange="setBImg(${i},${k},this)"><input type="text" style="margin-top:4px" placeholder="またはYouTubeのURLを貼り付け" onchange="setBYT(${i},${k},this.value)">${b.imgs[k]?mediaTag(b.imgs[k],true)+`<button class="btn del" style="margin-top:4px;padding:5px" onclick="pages[cur].blocks[${i}].imgs[${k}]='';renderForm();renderSlide()">画像を外す</button>`:''}</div>`;
 function blkForm(b,i,ctl,rh){
- const items=(b.items||[]).map((it,j)=>`<div style="border-left:2px solid #667;padding-left:8px;margin:8px 0"><label>見出し(空欄可)</label><input type="text" value="${esc(it.h)}" oninput="pages[cur].blocks[${i}].items[${j}].h=this.value;renderSlide()"><label>本文</label><textarea oninput="pages[cur].blocks[${i}].items[${j}].t=this.value;renderSlide()">${esc(it.t)}</textarea><button class="btn del" style="padding:4px;margin-top:4px" onclick="delBItem(${i},${j})">この項目を削除</button></div>`).join('')+`<button class="btn add" style="padding:6px;margin-top:4px" onclick="addBItem(${i})">＋ 項目を追加</button>`;
+ const items=(b.items||[]).map((it,j)=>`<div data-fld="blk:${i}:item:${j}" style="border-left:2px solid #667;padding-left:8px;margin:8px 0"><label>見出し(空欄可)</label><input type="text" value="${esc(it.h)}" oninput="pages[cur].blocks[${i}].items[${j}].h=this.value;renderSlide()"><label>本文</label><textarea oninput="pages[cur].blocks[${i}].items[${j}].t=this.value;renderSlide()">${esc(it.t)}</textarea><button class="btn del" style="padding:4px;margin-top:4px" onclick="delBItem(${i},${j})">この項目を削除</button></div>`).join('')+`<button class="btn add" style="padding:6px;margin-top:4px" onclick="addBItem(${i})">＋ 項目を追加</button>`;
  const img=b.k==='tt'?'':shapeSel(b.shape,'setBshape('+i+',this.value)')+((b.k==='tl'||b.k==='il')?niSel(b.ni,'setBni('+i+',this.value)')+(b.shape!=='square'&&sqn(b)>1?dirSel(b.dir,'setBdir('+i+',this.value)'):''):'')+Array.from({length:sqn(b)},(_,k)=>bImgF(i,k,b)).join('')+(b.k==='tw'?bImgF(i,1,b):'')+`<div style="font-size:.75rem;color:#f1c40f;margin:4px 0">推奨: ${b.shape==='square'?Math.min(840,b.k==='tw'?Math.floor((rh-24)/2):rh)+'×'+Math.min(840,b.k==='tw'?Math.floor((rh-24)/2):rh):'840×'+(b.k==='tw'?Math.floor((rh-24)/2):rh)}px</div>`;
  return `<div class="dyn"><button class="x" onclick="delBlock(${i})">削除</button>${ctl}${img}${items}</div>`;
 }
@@ -748,7 +791,7 @@ function zoom(d){mz=Math.min(4,Math.max(1,Math.round(mz*(d>0?1.4:1/1.4)*100)/100
 function togglePanel(){$('admin').classList.toggle('hidden');$('preview').classList.toggle('full');updTog();fit();setTimeout(fit,320)}
 /* --- チャットボックス --- */
 const msgsHTML=()=>[{r:'bot',t:chat.greet}].concat(msgs).filter(m=>m.t).map(m=>`<div class="cm ${m.r}">${esc(m.t)}</div>`).join('');
-const chatInner=inter=>`<div class="c-head">${inter?'<span id="cTitle"></span><button class="c-x" onclick="toggleChat()" title="閉じる">－</button>':esc(chat.title)}</div><div class="c-msgs"${inter?' id="cMsgs"':''}>${inter?'':msgsHTML()}</div><div class="c-in"><input type="text" placeholder="質問を入力..." ${inter?'id="cIn"':'disabled'}><button ${inter?'onclick="sendChat()"':''}>送信</button></div>`;
+const chatInner=inter=>`<div class="c-head"${inter?' data-loc="chat"':''}>${inter?'<span id="cTitle"></span><button class="c-x" onclick="toggleChat()" title="閉じる">－</button>':esc(chat.title)}</div><div class="c-msgs"${inter?' id="cMsgs"':''}>${inter?'':msgsHTML()}</div><div class="c-in"><input type="text" placeholder="質問を入力..." ${inter?'id="cIn"':'disabled'}><button ${inter?'onclick="sendChat()"':''}>送信</button></div>`;
 function updateChat(){const t=$('cTitle'),m=$('cMsgs');if(!t||!m)return;t.textContent=chat.title;m.innerHTML=msgsHTML();m.scrollTop=m.scrollHeight}
 const norm=s=>String(s).normalize('NFKC').toLowerCase();
 function bigrams(s){s=norm(s).replace(/[\s、。，,.!！?？]/g,'');const r=new Set();for(let i=0;i<s.length-1;i++)r.add(s.substr(i,2));return r}
@@ -822,7 +865,7 @@ function sendChat(){const i=$('cIn'),q=i.value.trim();if(!q)return;msgs.push({r:
 const addFaq=()=>{chat.faq.push({k:'',a:''});renderForm()};
 const delFaq=i=>{chat.faq.splice(i,1);if(!chat.faq.length)chat.faq.push({k:'',a:''});renderForm()};
 function chatForm(){
- return `<h2 style="margin:22px 0 12px;border-top:2px solid var(--box);padding-top:14px;font-size:1.05rem">💬 チャットボックス設定(全ページ共通)</h2>
+ return `<h2 data-fld="chat" style="margin:22px 0 12px;border-top:2px solid var(--box);padding-top:14px;font-size:1.05rem">💬 チャットボックス設定(全ページ共通)</h2>
  <div class="fg"><label>チャット名</label><input type="text" value="${esc(chat.title)}" oninput="chat.title=this.value;updateChat()"></div>
  <div class="fg"><label>最初のあいさつ</label><textarea oninput="chat.greet=this.value;updateChat()">${esc(chat.greet)}</textarea></div>
  <div class="fg"><label>参考情報(コピペするだけでOK)</label><textarea style="height:220px" placeholder="見出し(1. 〜)や「• 項目名: 説明」の形のまま貼り付けられます。質問に合う項目を探して返答します" oninput="chat.kb=this.value">${esc(chat.kb)}</textarea></div>
@@ -877,7 +920,7 @@ async function saveHTML(){
  const k0=js.indexOf('\nwindow.__DATA__=');if(k0>=0)js=js.slice(0,k0);
  const a=js.indexOf('function samplePages(){'),b=js.indexOf('\nlet pages=samplePages()');
  if(a>=0&&b>a)js=js.slice(0,a)+'function samplePages(){return [newPage()]}'+js.slice(b);
- js+=`\nwindow.__DATA__=${json};applyData(window.__DATA__);document.body.classList.add('viewonly');$('admin').classList.add('hidden');$('preview').classList.add('full');updTog();fit();\n`;
+ js+=`\nwindow.__DATA__=${json};applyData(window.__DATA__);document.body.classList.add('viewonly');document.body.classList.remove('loc');$('admin').classList.add('hidden');$('preview').classList.add('full');updTog();fit();\n`;
  const c=document.documentElement.cloneNode(true);
  c.querySelectorAll('script').forEach(s=>{if(s.textContent.includes('function samplePages'))s.textContent='/*__JS__*/';else s.remove()});
  c.querySelectorAll('meta[http-equiv]').forEach(m=>m.remove());
@@ -926,7 +969,7 @@ function buildPrint(){window._pr=1;$('printArea').innerHTML=pages.map((p,i)=>`<d
 window.addEventListener('beforeprint',buildPrint);
 $('chat').innerHTML=chatInner(true);
 $('chat').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing&&e.target.id==='cIn')sendChat()});
-updateChat();renderForm();renderSlide();updTog();
+updateChat();renderForm();renderSlide();updTog();document.body.classList.add('loc');
 </script>
 </body>
 </html>
