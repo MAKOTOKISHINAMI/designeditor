@@ -393,7 +393,7 @@ body.mo-sect .site section.sp,body.mo-sect .site .sp-in{opacity:calc(1 - var(--l
 .hd-item[data-fs]{font-size:calc(var(--fs,2)*1cqw)}
 .hd-item[data-fs] .s-cap,.hd-item[data-fs] .sec h3,.hd-item[data-fs] .sec p{font-size:inherit!important;line-height:1.25}
 #site .hd-item{touch-action:none;cursor:move}
-#site .hd-rs{position:absolute;right:-6px;bottom:-6px;width:14px;height:14px;background:#ff7a1a;border:2px solid #fff;border-radius:3px;cursor:nwse-resize;z-index:9;box-shadow:0 1px 4px rgba(0,0,0,.35);touch-action:none}
+#site .hd-rs,#slide .hd-rs{position:absolute;right:2px;bottom:2px;width:14px;height:14px;background:#ff7a1a;border:2px solid #fff;border-radius:3px;cursor:nwse-resize;z-index:9;box-shadow:0 1px 4px rgba(0,0,0,.35);touch-action:none}
 .hd-item .s-row,.hd-item .s-grp,.hd-item .s-blk{height:auto!important;display:block!important;container-type:normal!important;width:100%!important;min-height:0!important}
 .hd-item .s-cell{width:100%!important;display:block!important;min-height:0!important}
 .hd-item .ph{aspect-ratio:auto!important;height:auto!important;width:100%!important;max-width:none!important;background:none!important;border:0!important;box-shadow:none!important;border-radius:0!important;overflow:visible!important;display:block}
@@ -507,6 +507,21 @@ svg.ic{vertical-align:-3px;margin-right:5px}
 .ol-ed{border-top-color:rgba(188,229,227,.25)}
 .ol-end{border-color:rgba(188,229,227,.3);color:var(--teal4)}
 .ol-bar select{background:var(--field)}
+.s-orb{position:relative;width:100%;min-height:var(--oh,520px);display:flex;flex-wrap:wrap;gap:16px;justify-content:center;align-items:center;overflow:hidden;box-sizing:border-box}
+.orb{position:relative;width:calc(var(--sz,30)*1%);max-width:260px;aspect-ratio:1;border-radius:50%;overflow:hidden;border:var(--ob,4px) solid rgba(255,255,255,.92);box-sizing:border-box;background:#e7eef2;display:flex;align-items:center;justify-content:center;color:#6fb3a6;font-weight:800;font-size:32px}
+.s-orb.sh .orb{box-shadow:0 14px 36px rgba(0,0,0,.22)}
+.orb img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
+.s-orb.on{display:block;height:var(--oh,520px);min-height:0}
+.s-orb.on .orb{position:absolute;left:0;top:0;max-width:none;flex:none;will-change:transform,opacity}
+.s-orb.on.fd .orb{animation:orbFade 8s ease-in-out infinite;animation-delay:var(--dl,0s)}
+@keyframes orbFade{0%{opacity:0;scale:.6}12%{opacity:1;scale:1}85%{opacity:1;scale:1}100%{opacity:0;scale:.6}}
+.hd-item.hd-orb{inset:0!important;left:0!important;top:0!important;right:0!important;bottom:0!important;width:auto!important;height:auto!important;max-width:none!important;translate:none!important;margin:0!important;pointer-events:none}
+.hd-item.hd-orb .s-orb{position:absolute;inset:0;height:100%!important;min-height:0}
+[data-rd] .s-row{height:auto!important;container-type:normal!important}
+[data-rd] .ph{border-radius:50%!important;aspect-ratio:1/1!important;height:auto!important;align-self:flex-start;overflow:hidden!important}
+[data-rd] .ph img{height:100%!important;object-fit:cover!important}
+.hd-item [data-rd] .ph{aspect-ratio:1/1!important;border-radius:50%!important;overflow:hidden!important}
+.hd-item [data-rd] .ph img{height:100%!important;object-fit:cover!important}
 #printArea{display:none}
 @media (min-width:901px){body.fullv .tog{left:10px;bottom:10px;padding:6px 10px;font-size:.72rem}}
 @media print{
@@ -671,7 +686,7 @@ function fit(){
  runFit();
 }
 
-function renderSlide(){if(mode==='scroll'){renderSite();navUpd();markSel();return}$('sBody').innerHTML=slideHTML(pages[cur],numOf(cur),totOf());if(pages[cur].hide)$('sBody').insertAdjacentHTML('afterbegin','<div class="hid-badge">このページは非表示です(公開版・PDFには出力されません)</div>');applyChat();navUpd();runFit();fit();markSel();animInit(null);moInit(null);hdEditInit();pvEditInit()}
+function renderSlide(){if(mode==='scroll'){renderSite();navUpd();markSel();return}$('sBody').innerHTML=slideHTML(pages[cur],numOf(cur),totOf());if(pages[cur].hide)$('sBody').insertAdjacentHTML('afterbegin','<div class="hid-badge">このページは非表示です(公開版・PDFには出力されません)</div>');applyChat();navUpd();runFit();fit();markSel();animInit(null);moInit(null);hdEditInit();pvEditInit();orbInit()}
 function applyChat(){const on=mode==='scroll'?pages.some(p=>p.chat):pages[cur].chat;$('chat').style.display=on&&chatOpen?'flex':'none';$('chatFab').style.display=on&&!chatOpen?'flex':'none'}
 function toggleChat(){chatOpen=!chatOpen;applyChat();if(chatOpen){const i=$('cIn');if(i)i.focus()}}
 function renderForm(){
@@ -705,12 +720,13 @@ function blockEditor(b,i,rh){
   if(b.k==='cube')return cubeForm(b,i,ctl);
   if(b.k==='big')return bigForm(b,i,ctl);
   if(b.k==='head')return headForm(b,i,ctl);
+  if(b.k==='orb')return orbForm(b,i,ctl);
   if(b.k==='banner')return bannerForm(b,i,ctl);
   if(b.k==='band')return bandForm(b,i,ctl);
   if(b.k==='cols')return colsForm(b,i,ctl);
   if(b.k!=='img'&&b.k!=='text')return blkForm(b,i,ctl,rh);
   const w=Math.round((1720-24*(b.n-1))/b.n);
-  return `<div class="dyn"><button class="x" onclick="delBlock(${i})">削除</button>${ctl}<label>画像の枚数</label><select onchange="setBn(${i},+this.value)">${[1,2,3,4,5,6,7].map(n=>`<option ${b.n===n?'selected':''}>${n}</option>`).join('')}</select>${advBox('img','画像の表示設定(形状・並べ方・スライド・文字の位置)',`<label style="display:flex;gap:6px;align-items:flex-start;margin-bottom:6px"><input type="checkbox" ${b.hs?'checked':''} onchange="setHs(${i},this.checked)"><span>スクロールに合わせて、横に流れる(縦スクロール式のみ)</span></label>${shapeSel(b.shape,'setBshape('+i+',this.value)')}${slideCtl(b,i)}<label>各画像のテキスト</label><select onchange="setBcpos(${i},this.value)"><option value="none" ${cpos(b)==='none'?'selected':''}>なし</option><option value="below" ${cpos(b)==='below'?'selected':''}>画像の下</option><option value="right" ${cpos(b)==='right'?'selected':''}>画像の右(横)</option></select>`)}${Array.from({length:b.n},(_,k)=>`<div data-fld="blk:${i}:img:${k}"><label>画像・動画・GIF ${k+1}</label><input type="file" accept="image/*,video/*" onchange="setBImg(${i},${k},this)"><input type="text" style="margin-top:4px" placeholder="またはYouTubeのURLを貼り付け" onchange="setBYT(${i},${k},this.value)">${lkImgIn(i,k,b)}${b.imgs[k]?mediaTag(b.imgs[k],true)+`<button class="btn del" style="margin-top:4px;padding:5px" onclick="pages[cur].blocks[${i}].imgs[${k}]='';renderForm();renderSlide()">画像を外す</button>`:''}${cpos(b)!=='none'?`<input type="text" style="margin-top:4px" placeholder="画像${k+1}のテキスト" value="${esc((b.caps||[])[k]||'')}" oninput="pages[cur].blocks[${i}].caps[${k}]=this.value;renderSlide()">`:''}</div>`).join('')}<div style="font-size:.75rem;color:#f1c40f;margin-top:6px">推奨: ${b.shape==='square'?Math.min(w,rh)+'×'+Math.min(w,rh):w+'×'+rh}px(テキスト1行想定)</div></div>`;
+  return `<div class="dyn"><button class="x" onclick="delBlock(${i})">削除</button>${ctl}<label>画像の枚数</label><select onchange="setBn(${i},+this.value)">${[1,2,3,4,5,6,7].map(n=>`<option ${b.n===n?'selected':''}>${n}</option>`).join('')}</select>${advBox('img','画像の表示設定(形状・並べ方・スライド・文字の位置)',`<label style="display:flex;gap:6px;align-items:flex-start;margin-bottom:6px"><input type="checkbox" ${b.hs?'checked':''} onchange="setHs(${i},this.checked)"><span>スクロールに合わせて、横に流れる(縦スクロール式のみ)</span></label><label style="display:flex;gap:6px;align-items:flex-start;margin-bottom:6px"><input type="checkbox" ${b.rd?'checked':''} onchange="setRd(${i},this.checked)"><span>画像を、円形に切り抜く</span></label>${shapeSel(b.shape,'setBshape('+i+',this.value)')}${slideCtl(b,i)}<label>各画像のテキスト</label><select onchange="setBcpos(${i},this.value)"><option value="none" ${cpos(b)==='none'?'selected':''}>なし</option><option value="below" ${cpos(b)==='below'?'selected':''}>画像の下</option><option value="right" ${cpos(b)==='right'?'selected':''}>画像の右(横)</option></select>`)}${Array.from({length:b.n},(_,k)=>`<div data-fld="blk:${i}:img:${k}"><label>画像・動画・GIF ${k+1}</label><input type="file" accept="image/*,video/*" onchange="setBImg(${i},${k},this)"><input type="text" style="margin-top:4px" placeholder="またはYouTubeのURLを貼り付け" onchange="setBYT(${i},${k},this.value)">${lkImgIn(i,k,b)}${b.imgs[k]?mediaTag(b.imgs[k],true)+`<button class="btn del" style="margin-top:4px;padding:5px" onclick="pages[cur].blocks[${i}].imgs[${k}]='';renderForm();renderSlide()">画像を外す</button>`:''}${cpos(b)!=='none'?`<input type="text" style="margin-top:4px" placeholder="画像${k+1}のテキスト" value="${esc((b.caps||[])[k]||'')}" oninput="pages[cur].blocks[${i}].caps[${k}]=this.value;renderSlide()">`:''}</div>`).join('')}<div style="font-size:.75rem;color:#f1c40f;margin-top:6px">推奨: ${b.shape==='square'?Math.min(w,rh)+'×'+Math.min(w,rh):w+'×'+rh}px(テキスト1行想定)</div></div>`;
 }
 const addBlock=(k,ti)=>{if(isSubT(k)){if(!pages[cur].blocks.length){note('先に段を追加してください(配置先の段が必要です)');return}addSubCol(k==='subL'?'l':'r',Number.isInteger(ti)?ti:defTarget());return}for(let q=0;q<addN;q++)pages[cur].blocks.push(mkNew(k));setSel(pages[cur].blocks.length-1);renderForm();renderSlide()};
 const delBlock=i=>{selBlk=-1;const bl=pages[cur].blocks;for(let j=0;j<i;j++){if(isCont(bl[j])&&(parseInt(bl[j].span)||0)>=i-j)bl[j].span--}bl.splice(i,1);renderForm();renderSlide()};
@@ -765,14 +781,14 @@ function bannerHTML(b){
  return `<div class="s-ban" style="--bh:${h}px;--bhv:${(h/19.2).toFixed(2)}vw;--br:${br}px">${cells}</div>`;
 }
 const markIdx=bl=>(bl.forEach((b,ix)=>Object.defineProperty(b,'_i',{value:ix,writable:true,configurable:true,enumerable:false})),bl);
-const locTag=(b,h)=>{h=h.replace(/^<([a-zA-Z0-9]+)/,`<$1 data-loc="blk:${b._i}"${b.px&&b.px!=='none'?` data-px="${b.px}"`:''}`);const c=spCss(b);return c?addStyle(h,c):h};
+const locTag=(b,h)=>{h=h.replace(/^<([a-zA-Z0-9]+)/,`<$1 data-loc="blk:${b._i}"${b.px&&b.px!=='none'?` data-px="${b.px}"`:''}${b.rd?' data-rd="1"':''}`);const c=spCss(b);return c?addStyle(h,c):h};
 function blockHTML(b){
- let h=b.k==='img'?grp(b,imgRow(b,rowCells(b))):b.k==='text'?`<div class="s-cap">${lnkA(b.lk,esc(b.t))}</div>`:b.k==='banner'?bannerHTML(b):b.k==='cube'?cubeHTML(b):b.k==='big'?bigHTML(b):b.k==='head'?headHTML(b):blkHTML(b);
+ let h=b.k==='img'?grp(b,imgRow(b,rowCells(b))):b.k==='text'?`<div class="s-cap">${lnkA(b.lk,esc(b.t))}</div>`:b.k==='banner'?bannerHTML(b):b.k==='cube'?cubeHTML(b):b.k==='big'?bigHTML(b):b.k==='head'?headHTML(b):b.k==='orb'?orbHTML(b):blkHTML(b);
  if(h&&b.k==='img'&&b.hs&&window._site)h=`<div class=\"s-hs\"><div class=\"s-hs-in\"><div class=\"s-hs-tr\">${h}</div></div></div>`;
  return h?locTag(b,h):'';
 }
 const isCont=b=>b.k==='band'||b.k==='cols';
-const ncol=(b,r)=>{r.col=Math.min(2,Math.max(0,parseInt(b.col)||0));if(b.hp)r.hp=normHp(b.hp);r.ff=ffOk(b.ff)?b.ff:'';r.ffc=ffClean(b.ffc);r.fc=hex6(b.fc);r.fh=hex6(b.fh);r.hs=!!b.hs;r.px=['none','soft','strong','rev'].includes(b.px)?b.px:'none';r.lk=okLink(b.lk);r.lks=[0,1,2,3,4,5,6].map(k=>okLink(b.lks&&b.lks[k]));r.hide=!!b.hide;r.mt=spN(b.mt,-60,300)||0;r.mb=spN(b.mb,-60,300)||0;r.ig=spN(b.ig,0,200);return r};
+const ncol=(b,r)=>{r.col=Math.min(2,Math.max(0,parseInt(b.col)||0));if(b.hp)r.hp=normHp(b.hp);if(Array.isArray(b.hps))r.hps=b.hps.slice(0,7).map(h=>h?normHp(h):null);r.rd=!!b.rd;r.ff=ffOk(b.ff)?b.ff:'';r.ffc=ffClean(b.ffc);r.fc=hex6(b.fc);r.fh=hex6(b.fh);r.hs=!!b.hs;r.px=['none','soft','strong','rev'].includes(b.px)?b.px:'none';r.lk=okLink(b.lk);r.lks=[0,1,2,3,4,5,6].map(k=>okLink(b.lks&&b.lks[k]));r.hide=!!b.hide;r.mt=spN(b.mt,-60,300)||0;r.mb=spN(b.mb,-60,300)||0;r.ig=spN(b.ig,0,200);return r};
 function unitsOf(list){const u=[];let i=0;while(i<list.length){const b=list[i],n=isCont(b)?Math.max(0,Math.min(parseInt(b.span)||0,list.length-i-1)):0;u.push(list.slice(i,i+n+1));i+=n+1}return u}
 const colRole=(cn,c)=>cn===3?(c===1?'main':'sub'):(c===0?'sub':'main');
 const colName=(cn,c)=>cn===3?['左サブカラム','メインカラム','右サブカラム'][c]:['サブカラム(左)','メインカラム'][c];
@@ -793,6 +809,7 @@ const mkNew=k=>{const b={k,n:3,cap:false,caps:['','','','','','',''],imgs:['',''
  if(k==='cube'){Object.assign(b,{n:3,sz:240,gp:40,sec:18,ax:'y',alt:true,cubes:newCubes(),items:[]})}
  if(k==='big'){Object.assign(b,{t:'BIG TEXT',sz:160,dir:'l',ol:false,dr:false,items:[]})}
  if(k==='head'){Object.assign(b,{t:'タイトル',s:'サブタイトル',lv:'1',al:'left',bar:true,sz:0,items:[]})}
+ if(k==='orb'){Object.assign(b,normOrb({n:3}))}
  return b};
 const parentMap=bl=>{const p=bl.map(()=>-1);for(let k=0;k<bl.length;k++){if(isCont(bl[k])){const n=Math.max(0,Math.min(parseInt(bl[k].span)||0,bl.length-k-1));for(let j=1;j<=n;j++)p[k+j]=k}}return p};
 const blkWrap=(i,h)=>{
@@ -875,9 +892,10 @@ const setVis=v=>{pages[cur].vis=v;renderForm();renderSlide()};
 const modeForm=()=>`<div class="fg"><label>表示方式(最初に選びます)</label><label style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><input type="radio" name="mode" ${mode==='slide'?'checked':''} onchange="setMode('slide')">スライド式(1ページずつ表示)</label><label style="display:flex;gap:8px;align-items:center"><input type="radio" name="mode" ${mode==='scroll'?'checked':''} onchange="setMode('scroll')">縦スクロール式(ホームページ)</label>${mode==='scroll'?'<div style="font-size:.75rem;color:#bdc3c7;margin-top:8px;line-height:1.5">全ページを縦に並べた1つのページになります。ヘッダー画像はいちばん上に1回、フッターは最後に1回だけ表示します。各ページのタイトルは、上のメニューのリンクになります。</div>':''}<label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" ${locOn?'checked':''} onchange="locOn=this.checked;document.body.classList.toggle('loc',locOn)">🎯 プレビューをタップして、編集する場所を表示する</label><label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" ${window.__pvEdit?'checked':''} onchange="window.__pvEdit=this.checked;renderSlide()">✋ プレビューで、ドラッグして並べ替える(マウス・タッチ)</label></div>`;
 /* --- レイアウト構成(アウトライン): プレビューと同じ並びで、感覚的に編集 --- */
 const OLIC={img:'<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="1.8"/><path d="M4 18l5-5 4 4 3-3 4 4"/></svg>',text:'<svg viewBox="0 0 24 24"><path d="M5 7h14M5 12h14M5 17h9"/></svg>',tl:'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M12 5v14M5.5 9h4M5.5 13h4"/></svg>',il:'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M12 5v14M14.5 9h4M14.5 13h4"/></svg>',tt:'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M12 5v14M5.5 9h4M14.5 9h4M5.5 13h4M14.5 13h4"/></svg>',banner:'<svg viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="8" rx="4"/></svg>',band:'<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/></svg>',cols:'<svg viewBox="0 0 24 24"><rect x="3" y="4" width="6" height="16" rx="1.5"/><rect x="11" y="4" width="10" height="16" rx="1.5"/></svg>',cube:'<svg viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg>',big:'<svg viewBox="0 0 24 24"><path d="M3 18l5-12 5 12M5 14h6M16 10c0-2 5-2 5 0v8"/></svg>',head:'<svg viewBox="0 0 24 24"><path d="M5 6v12M19 6v12M5 12h14"/></svg>',tw:'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M12 5v14M5.5 9h4M14.5 9h4M5.5 13h4M14.5 13h4"/></svg>'};
+OLIC.orb='<svg viewBox="0 0 24 24"><circle cx="8" cy="9" r="4.5"/><circle cx="16.5" cy="14.5" r="3.5"/><circle cx="6" cy="18" r="2"/></svg>';
 const BKS=k=>(BK[k]||k).replace(/\(.*?\)/g,'');
 const SLOTK=['L','M','R'];
-const olSum=b=>{if(b.k==='text')return b.t||'';if(b.k==='cube')return `${b.n}個・${b.sec}秒で1回転`;if(b.k==='big')return b.t||'';if(b.k==='head')return b.t||'';if(b.k==='banner'){const a=(b.bans||[])[0]||{};return `${b.bn}個 ${a.t||''}`}if(b.k==='img')return `${b.n}枚${b.sl?'(スライド)':''}`;if(b.k==='band')return `背景 ${b.bg}`;if(b.k==='cols')return (b.cn===3?'左右サブ':(b.rs?'右サブ':'左サブ'))+((parseInt(b.pgx)||0)>0?` ↓次の${b.pgx}ページまで`:'');const it=(b.items||[])[0];return it?(it.h||it.t||''):''};
+const olSum=b=>{if(b.k==='text')return b.t||'';if(b.k==='cube')return `${b.n}個・${b.sec}秒で1回転`;if(b.k==='big')return b.t||'';if(b.k==='head')return b.t||'';if(b.k==='orb')return `${b.n}個の円`;if(b.k==='banner'){const a=(b.bans||[])[0]||{};return `${b.bn}個 ${a.t||''}`}if(b.k==='img')return `${b.n}枚${b.sl?'(スライド)':''}`;if(b.k==='band')return `背景 ${b.bg}`;if(b.k==='cols')return (b.cn===3?'左右サブ':(b.rs?'右サブ':'左サブ'))+((parseInt(b.pgx)||0)>0?` ↓次の${b.pgx}ページまで`:'');const it=(b.items||[])[0];return it?(it.h||it.t||''):''};
 const newText=t=>Object.assign(mkNew('text'),{t});
 function toTree(bl){
  const build=(from,to)=>{const out=[];let i=from;
@@ -1114,14 +1132,14 @@ function exportPublic0(){
  const vis=pages.filter(p=>!p.hide&&!p.hd);
  if(!vis.length){note('表示するページがありません');return}
  const title=esc(vis[0].title||'ホームページ'),css=pubCss(),ch=pubChat();
- const animJS=()=>`\nwindow.__anOn=true;const GS=${JSON.stringify({a1:GS.a1,a2:GS.a2,a3:GS.a3,as:GS.as})};\n${anSplit.toString()}\n${animInit.toString()}`;
+ const animJS=()=>`\nwindow.__anOn=true;const GS=${JSON.stringify({a1:GS.a1,a2:GS.a2,a3:GS.a3,as:GS.as})};\n${anSplit.toString()}\n${animInit.toString()}\n${orbInit.toString()}`;
  const common=`${slideBy.toString()}\n${initSliderDrag.toString()}\ninitSliderDrag();`;
  let body,js,cls;
- if(mode==='scroll'){cls='pub';body=`<div class="site">${pubSiteBody()}</div>${ch.html}`;js=common+'\n'+ch.js+'\n'+fxInit.toString()+'\nfxInit(window);'+animJS()+'\nanimInit(window);'+moJS()+'\nmoInit(window);'}
+ if(mode==='scroll'){cls='pub';body=`<div class="site">${pubSiteBody()}</div>${ch.html}`;js=common+'\n'+ch.js+'\n'+fxInit.toString()+'\nfxInit(window);'+animJS()+'\nanimInit(window);'+moJS()+'\nmoInit(window);'+'\n'+orbInit.toString()+'\norbInit();'}
  else{
   cls='pubs';const S=pubSlides();
   body=`<div id="stage"><div id="slide" class="slide"></div></div><div class="pn"><button onclick="go(-1)">◀</button><span id="pn"></span><button onclick="go(1)">▶</button></div>${ch.html}`;
-  js=common+'\n'+ch.js+animJS()+`\nconst S=${JSON.stringify(S).replace(/</g,'\\u003c')};let c=0;const sl=document.getElementById('slide');\nfunction fitS(){sl.style.transform='scale('+Math.min(innerWidth/1920,innerHeight/1080)+')'}\nfunction show(){sl.setAttribute('style',S[c].v);sl.innerHTML=S[c].h;document.getElementById('pn').textContent=(c+1)+' / '+S.length;fitS();animInit(null)}\nfunction go(d){c=Math.max(0,Math.min(S.length-1,c+d));show()}\naddEventListener('resize',fitS);addEventListener('keydown',e=>{if(/^(INPUT|TEXTAREA)$/.test(e.target.tagName))return;if(e.key==='ArrowRight'||e.key==='PageDown')go(1);else if(e.key==='ArrowLeft'||e.key==='PageUp')go(-1)});\nlet tx=null;addEventListener('touchstart',e=>{tx=e.touches[0].clientX},{passive:true});addEventListener('touchend',e=>{if(tx==null)return;const d=e.changedTouches[0].clientX-tx;tx=null;if(Math.abs(d)>60)go(d<0?1:-1)});\nshow();`;
+  js=common+'\n'+ch.js+animJS()+`\nconst S=${JSON.stringify(S).replace(/</g,'\\u003c')};let c=0;const sl=document.getElementById('slide');\nfunction fitS(){sl.style.transform='scale('+Math.min(innerWidth/1920,innerHeight/1080)+')'}\nfunction show(){sl.setAttribute('style',S[c].v);sl.innerHTML=S[c].h;document.getElementById('pn').textContent=(c+1)+' / '+S.length;fitS();animInit(null);orbInit()}\nfunction go(d){c=Math.max(0,Math.min(S.length-1,c+d));show()}\naddEventListener('resize',fitS);addEventListener('keydown',e=>{if(/^(INPUT|TEXTAREA)$/.test(e.target.tagName))return;if(e.key==='ArrowRight'||e.key==='PageDown')go(1);else if(e.key==='ArrowLeft'||e.key==='PageUp')go(-1)});\nlet tx=null;addEventListener('touchstart',e=>{tx=e.touches[0].clientX},{passive:true});addEventListener('touchend',e=>{if(tx==null)return;const d=e.changedTouches[0].clientX-tx;tx=null;if(Math.abs(d)>60)go(d<0?1:-1)});\nshow();`;
  }
  const html=`<!DOCTYPE html>\n<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>${css}\n${PUBCSS}</style></head><body class="${cls}">${body}<script>${js}${'<'+'/script>'}</body></html>`;
  saveFile('index.html',html,'text/html');
@@ -1443,38 +1461,22 @@ const normHp=h=>{h=h||{};const n=(v,d,lo,hi)=>{v=parseFloat(v);return isNaN(v)?d
  return {m:h.m==='x'?'x':'a',x:r1(n(h.x,10,-50,150)),y:r1(n(h.y,20,-50,150)),an:h.an==='c'?'c':'tl',hh:r1(n(h.hh,0,0,100)),of:h.of==='cover'?'cover':'contain',fs:r1(n(h.fs,0,0,20)),
   ha:['left','center','right'].includes(h.ha)?h.ha:'center',va:['top','middle','bottom'].includes(h.va)?h.va:'middle',ox:Math.round(n(h.ox,0,-1200,1200)),oy:Math.round(n(h.oy,0,-600,600)),wd:r1(n(h.wd,0,0,100)),
   en:['none','up','down','left','right','zoom','blur','fade'].includes(h.en)?h.en:'none',lp:['none','float','pulse','sway','spin'].includes(h.lp)?h.lp:'none',dl:r1(n(h.dl,0,0,10)),du:r1(n(h.du,0,0,10))}};
-function hdItemHTML(b){const h=normHp(b.hp),inner=blockHTML(b);if(!inner)return '';
- const fs=h.fs>0?` data-fs="1"`:'';
- const common=`--w:${h.wd?h.wd+'%':'fit-content'};--dl:${h.dl}s;--du:${h.du||0.9}s${h.fs>0?`;--fs:${h.fs}`:''}`;
- if(h.m==='x')return `<div class="hd-item hd-en-${h.en}" data-m="x"${fs}${h.hh>0?' data-hh="1"':''} style="--x:${h.x}%;--y:${h.y}%;--ax:${h.an==='c'?'50%':'0%'};--ay:${h.an==='c'?'50%':'0%'};--hh:${h.hh>0?h.hh+'%':'auto'};--of:${h.of};${common}"><div class="hd-lp hd-lp-${h.lp}">${inner}</div></div>`;
- return `<div class="hd-item hd-en-${h.en}" style="--ox:${h.ox}px;--oy:${h.oy}px;${common}"${fs} data-ha="${h.ha}" data-va="${h.va}"><div class="hd-lp hd-lp-${h.lp}">${inner}</div></div>`}
-function setHp(i,k,v){const b=pages[cur].blocks[i];const o=Object.assign({},b.hp);o[k]=v;b.hp=normHp(o);renderForm();renderSlide()}
+
+
 const hpSel=(i,h,k,label,opts)=>`<label style="margin-top:6px">${label}</label><select onchange="setHp(${i},'${k}',this.value)">${opts.map(o=>`<option value="${o[0]}" ${h[k]===o[0]?'selected':''}>${o[1]}</option>`).join('')}</select>`;
 const hpNum=(i,h,k,label)=>`<label style="margin-top:6px">${label}</label><input type="text" inputmode="decimal" value="${h[k]}" onchange="setHp(${i},'${k}',this.value)">`;
-const hdPosCtl=(b,i)=>{const p=pages[cur];if(!(p&&p.hd&&p.hdOver))return '';const h=normHp(b.hp);
- const pos=h.m==='x'?`<div style="font-size:.72rem;color:#aab7c4;line-height:1.5;margin:4px 0">ヘッダー画像を、横100%・縦100%として、位置と大きさを%で指定します。プレビュー上で、ドラッグして動かし、右下の■をドラッグして大きさも変えられます。</div>
-  ${hpNum(i,h,'x','左からの位置(%)')}${hpNum(i,h,'y','上からの位置(%)')}${hpNum(i,h,'wd','幅(%・0=内容に合わせる)')}${hpNum(i,h,'hh','高さ(%・0=自動)')}
-  ${hpSel(i,h,'an','位置の基準点',[['tl','要素の左上'],['c','要素の中心']])}${hpSel(i,h,'of','画像のはまり方(高さを指定したとき)',[['contain','全体が見えるように'],['cover','枠いっぱいに']])}`
-  :`${hpSel(i,h,'ha','横の位置',[['left','左'],['center','中央'],['right','右']])}${hpSel(i,h,'va','縦の位置',[['top','上'],['middle','中央'],['bottom','下']])}${hpNum(i,h,'ox','横にずらす(px・マイナスは左)')}${hpNum(i,h,'oy','縦にずらす(px・マイナスは上)')}${hpNum(i,h,'wd','幅(%・0=内容に合わせる)')}`;
- return advBox('hp','ヘッダー画像の上の、位置・大きさ・動き',`<div style="font-size:.72rem;color:#f5b041;line-height:1.5;margin-bottom:6px">ヘッダー画像の高さに収まる大きさにしてください。高さは「ヘッダーの設定」で変えられます。</div>
- ${hpSel(i,h,'m','配置のしかた',[['x','位置と大きさを、数字(%)で指定する'],['a','場所を選んで、少しずらす']])}
- ${pos}
- ${hpNum(i,h,'fs','文字の大きさ(ヘッダー幅に対する%・0=標準。例: 2.5)')}
- ${hpSel(i,h,'en','登場の動き',[['none','なし'],['up','下からふわっと'],['down','上からふわっと'],['left','左からスライド'],['right','右からスライド'],['zoom','拡大して現れる'],['blur','ぼかしから、くっきり'],['fade','ゆっくり現れる']])}
- ${hpSel(i,h,'lp','くり返しの動き',[['none','なし'],['float','ふわふわ浮く'],['pulse','ゆっくり脈打つ'],['sway','ゆらゆら揺れる'],['spin','ゆっくり回る(画像向き)']])}
- ${hpNum(i,h,'dl','動きの開始を遅らせる(秒)')}${hpNum(i,h,'du','登場にかける秒数(0=標準)')}`)};
 /* プレビュー上で、ヘッダー画像の上の要素を、ドラッグで動かす・大きさを変える(編集画面のみ) */
 function hdEditInit(){
  const root=document.getElementById(mode==='slide'?'slide':'site');if(!root)return;
  root.querySelectorAll('.hd-item').forEach(it=>{
-  if(it.querySelector(':scope>.hd-rs'))return;
+  if(it.querySelector(':scope>.hd-rs')||it.classList.contains('hd-orb'))return;
   const rs=document.createElement('div');rs.className='hd-rs';rs.title='ドラッグで大きさを変える';it.appendChild(rs);
  });
  if(window.__hdEd)return;window.__hdEd=1;
- const info=el=>{const it=el.closest('.hd-item');if(!it)return null;const lay=it.parentElement,zr=lay.getBoundingClientRect(),loc=it.querySelector('[data-loc^="blk:"]'),pg=+lay.dataset.pg;if(!loc||isNaN(pg)||!pages[pg])return null;return {it,zr,pg,bi:+loc.dataset.loc.split(':')[1],b:pages[pg].blocks[+loc.dataset.loc.split(':')[1]]}};
+ const info=el=>{const it=el.closest('.hd-item');if(!it||it.classList.contains('hd-orb'))return null;const lay=it.parentElement,zr=lay.getBoundingClientRect(),loc=it.querySelector('[data-loc^="blk:"]'),pg=+lay.dataset.pg;if(!loc||isNaN(pg)||!pages[pg])return null;return {it,zr,pg,bi:+loc.dataset.loc.split(':')[1],b:pages[pg].blocks[+loc.dataset.loc.split(':')[1]],hk:it.dataset.hk==null?null:+it.dataset.hk}};
  let st=null;
  document.addEventListener('pointerdown',e=>{if(!(e.target.closest&&e.target.closest('#site,#slide')))return;const rs=e.target.closest('.hd-rs');const d=info(e.target);if(!d||!d.b)return;
-  const r=d.it.getBoundingClientRect(),h=normHp(d.b.hp);
+  const r=d.it.getBoundingClientRect(),h=d.hk!=null?hdEff(d.b,d.hk):normHp(d.b.hp);if(d.hk!=null)window.__hdK=d.hk;
   st={d,mode:rs?'rs':'mv',sx:e.clientX,sy:e.clientY,r,h,moved:false};
   if(!rs){ // 位置指定(%)へ切り替える(いまの見た目の位置から始める)
    const x=(r.left-d.zr.left)/d.zr.width*100,y=(r.top-d.zr.top)/d.zr.height*100;
@@ -1486,10 +1488,10 @@ function hdEditInit(){
   if(st.mode==='mv'){const x=st.x0+dx/zr.width*100,y=st.y0+dy/zr.height*100;it.dataset.m='x';it.removeAttribute('data-ha');it.removeAttribute('data-va');it.style.setProperty('--x',x.toFixed(1)+'%');it.style.setProperty('--y',y.toFixed(1)+'%');it.style.setProperty('--ax','0%');it.style.setProperty('--ay','0%');st.nx=x;st.ny=y}
   else{const w=(st.r.width+dx)/zr.width*100;it.style.setProperty('--w',Math.max(2,w).toFixed(1)+'%');st.nw=Math.max(2,w);if(st.h.hh>0){const hh=(st.r.height+dy)/zr.height*100;it.style.setProperty('--hh',Math.max(2,hh).toFixed(1)+'%');st.nh=Math.max(2,hh)}}},true);
  const end=()=>{if(!st)return;const s=st;st=null;if(!s.moved)return;window.__hdDrag=1;setTimeout(()=>{window.__hdDrag=0},350);
-  const o=Object.assign({},s.d.b.hp);
+  const o=Object.assign({},s.d.hk!=null?hdEff(s.d.b,s.d.hk):s.d.b.hp);
   if(s.mode==='mv'){o.m='x';o.an='tl';o.x=s.nx;o.y=s.ny;if(s.wasA&&!(+o.wd>0)){}}
   else{o.m='x';if(s.nw!=null)o.wd=s.nw;if(s.nh!=null)o.hh=s.nh;if(s.h.m!=='x'){const x=(s.r.left-s.d.zr.left)/s.d.zr.width*100,y=(s.r.top-s.d.zr.top)/s.d.zr.height*100;o.x=Math.round(x*10)/10;o.y=Math.round(y*10)/10;o.an='tl'}}
-  s.d.b.hp=normHp(o);renderForm();renderSlide()};
+  if(s.d.hk!=null){s.d.b.hps=s.d.b.hps||[];s.d.b.hps[s.d.hk]=normHp(o)}else s.d.b.hp=normHp(o);renderForm();renderSlide()};
  document.addEventListener('pointerup',end,true);document.addEventListener('pointercancel',end,true);
  document.addEventListener('click',e=>{if(window.__hdDrag){e.stopPropagation();e.preventDefault();window.__hdDrag=0}},true);
 }
@@ -1720,6 +1722,125 @@ function pvEditInit(){
  document.addEventListener('pointercancel',()=>{if(st){clear();st=null}},true);
  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&st){clear();st=null}});
 }
+/* --- ヘッダー内の画像を1枚ずつ動かす / 円形の画像(ふわふわ漂う) --- */
+function hdEff(b,k){
+ const base=normHp(b.hp),own=b.hps&&b.hps[k];
+ if(own)return normHp(own);
+ const n=Math.max(1,b.n||1),wd=base.wd||(n>1?Math.max(8,Math.floor(80/n)-2):30);
+ const x0=base.m==='x'?base.x:6,y0=base.m==='x'?base.y:20;
+ return normHp(Object.assign({},base,{m:'x',an:'tl',x:x0+k*(wd+2),y:y0,wd}));
+}
+function hdWrap(h,inner,hk){
+ const fs=h.fs>0?` data-fs="1"`:'',hkA=hk==null?'':` data-hk="${hk}"`;
+ const common=`--w:${h.wd?h.wd+'%':'fit-content'};--dl:${h.dl}s;--du:${h.du||0.9}s${h.fs>0?`;--fs:${h.fs}`:''}`;
+ if(h.m==='x')return `<div class="hd-item hd-en-${h.en}" data-m="x"${hkA}${fs}${h.hh>0?' data-hh="1"':''} style="--x:${h.x}%;--y:${h.y}%;--ax:${h.an==='c'?'50%':'0%'};--ay:${h.an==='c'?'50%':'0%'};--hh:${h.hh>0?h.hh+'%':'auto'};--of:${h.of};${common}"><div class="hd-lp hd-lp-${h.lp}">${inner}</div></div>`;
+ return `<div class="hd-item hd-en-${h.en}"${hkA} style="--ox:${h.ox}px;--oy:${h.oy}px;${common}"${fs} data-ha="${h.ha}" data-va="${h.va}"><div class="hd-lp hd-lp-${h.lp}">${inner}</div></div>`;
+}
+function hdItemHTML(b){
+ if(b.k==='orb'){const inner=blockHTML(b);return inner?`<div class="hd-item hd-orb">${inner}</div>`:''}
+ if(b.k==='img'&&(b.n||1)>1){
+  const out=[];
+  for(let k=0;k<Math.min(7,b.n);k++){
+   if(window._pub&&!(b.imgs||[])[k])continue;
+   const one=(a)=>[a[k]||'','','','','','',''];
+   const sb=Object.assign({},b,{n:1,imgs:one(b.imgs||[]),caps:one(b.caps||[]),lks:one(b.lks||[]),hp:null,hps:null,hs:false});
+   const inner=blockHTML(sb);if(inner)out.push(hdWrap(hdEff(b,k),inner,k));
+  }
+  return out.join('');
+ }
+ const inner=blockHTML(b);if(!inner)return '';
+ return hdWrap(normHp(b.hp),inner,null);
+}
+function setHp(i,k,v){
+ const b=pages[cur].blocks[i];
+ if(b.k==='img'&&(b.n||1)>1){const kk=Math.min(window.__hdK||0,b.n-1);b.hps=b.hps||[];const o=Object.assign({},hdEff(b,kk));o[k]=v;b.hps[kk]=normHp(o)}
+ else{const o=Object.assign({},b.hp);o[k]=v;b.hp=normHp(o)}
+ renderForm();renderSlide();
+}
+const hdPosCtl=(b,i)=>{const p=pages[cur];if(!(p&&p.hd&&p.hdOver))return '';
+ if(b.k==='orb')return `<div style="font-size:.72rem;color:#f5b041;line-height:1.5;margin:6px 0">円形の画像は、ヘッダー画像の全体に広がって、ふわふわ動きます。ヘッダーの高さは、「ヘッダーの設定」で変えられます。</div>`;
+ const multi=b.k==='img'&&(b.n||1)>1,kk=multi?Math.min(window.__hdK||0,b.n-1):-1,h=multi?hdEff(b,kk):normHp(b.hp);
+ const pos=h.m==='x'?`<div style="font-size:.72rem;color:#aab7c4;line-height:1.5;margin:4px 0">ヘッダー画像を、横100%・縦100%として、位置と大きさを%で指定します。プレビュー上で、ドラッグして動かし、右下の■をドラッグして大きさも変えられます。</div>
+  ${hpNum(i,h,'x','左からの位置(%)')}${hpNum(i,h,'y','上からの位置(%)')}${hpNum(i,h,'wd','幅(%・0=内容に合わせる)')}${hpNum(i,h,'hh','高さ(%・0=自動)')}
+  ${hpSel(i,h,'an','位置の基準点',[['tl','要素の左上'],['c','要素の中心']])}${hpSel(i,h,'of','画像のはまり方(高さを指定したとき)',[['contain','全体が見えるように'],['cover','枠いっぱいに']])}`
+  :`${hpSel(i,h,'ha','横の位置',[['left','左'],['center','中央'],['right','右']])}${hpSel(i,h,'va','縦の位置',[['top','上'],['middle','中央'],['bottom','下']])}${hpNum(i,h,'ox','横にずらす(px・マイナスは左)')}${hpNum(i,h,'oy','縦にずらす(px・マイナスは上)')}${hpNum(i,h,'wd','幅(%・0=内容に合わせる)')}`;
+ const pick=multi?`<label>調整する画像(1枚ずつ、位置・大きさ・動きを変えられます)</label><select onchange="window.__hdK=+this.value;renderForm()">${Array.from({length:b.n},(_,k)=>`<option value="${k}" ${k===kk?'selected':''}>画像${k+1}</option>`).join('')}</select>`:'';
+ return advBox('hp','ヘッダー画像の上の、位置・大きさ・動き',`<div style="font-size:.72rem;color:#f5b041;line-height:1.5;margin-bottom:6px">ヘッダー画像の高さに収まる大きさにしてください。高さは「ヘッダーの設定」で変えられます。</div>
+ ${pick}
+ ${hpSel(i,h,'m','配置のしかた',[['x','位置と大きさを、数字(%)で指定する'],['a','場所を選んで、少しずらす']])}
+ ${pos}
+ ${hpNum(i,h,'fs','文字の大きさ(ヘッダー幅に対する%・0=標準。例: 2.5)')}
+ ${hpSel(i,h,'en','登場の動き',[['none','なし'],['up','下からふわっと'],['down','上からふわっと'],['left','左からスライド'],['right','右からスライド'],['zoom','拡大して現れる'],['blur','ぼかしから、くっきり'],['fade','ゆっくり現れる']])}
+ ${hpSel(i,h,'lp','くり返しの動き',[['none','なし'],['float','ふわふわ浮く'],['pulse','ゆっくり脈打つ'],['sway','ゆらゆら揺れる'],['spin','ゆっくり回る(画像向き)']])}
+ ${hpNum(i,h,'dl','動きの開始を遅らせる(秒)')}${hpNum(i,h,'du','登場にかける秒数(0=標準)')}`)};
+function setRd(i,v){pages[cur].blocks[i].rd=!!v;renderForm();renderSlide()}
+/* 円形の画像 */
+const ORB_SZ=[42,36,48,30,40,34,38];
+const normOrb=b=>{const n=(v,d,lo,hi)=>{v=parseFloat(v);return isNaN(v)?d:Math.min(hi,Math.max(lo,v))};
+ const arr=(a,d,lo,hi)=>Array.from({length:7},(_,k)=>n(Array.isArray(a)?a[k]:undefined,d[k],lo,hi));
+ return {k:'orb',n:Math.round(n(b.n,3,1,7)),sz:arr(b.sz,ORB_SZ,8,100),dl:arr(b.dl,[0,1.2,2.4,3.6,4.8,6,7.2],0,20),h:Math.round(n(b.h,520,200,1400)),mv:b.mv==='still'?'still':'drift',fd:b.fd!==false,bd:Math.round(n(b.bd,4,0,20)),sh:b.sh!==false,spd:n(b.spd,1,0.3,3),av:b.av!==false,imgs:Array.from({length:7},(_,k)=>IMG_OK.test(String((b.imgs||[])[k]||''))?b.imgs[k]:''),t:'',items:[]}};
+function orbHTML(b){
+ const n=Math.min(7,Math.max(1,b.n||3)),SZ=b.sz||ORB_SZ;
+ const circles=Array.from({length:n},(_,k)=>{const src=(b.imgs||[])[k];if(!src&&window._pub)return '';
+  return `<div class="orb${src?'':' empty'}" style="--sz:${SZ[k]};--dl:${(b.dl||[])[k]||0}s" data-sz="${SZ[k]}">${src&&!/^data:video/.test(src)?`<img src="${src}" alt="" draggable="false">`:(src?'':`<span>${k+1}</span>`)}</div>`}).join('');
+ return `<div class="s-orb${b.fd!==false?' fd':''}${b.sh!==false?' sh':''}" data-mv="${b.mv==='still'?'still':'drift'}" data-av="${b.av!==false?1:0}" data-spd="${b.spd||1}" style="--oh:${b.h||520}px;--ob:${b.bd==null?4:b.bd}px">${circles}</div>`;
+}
+function setOrbP(i,k,v){const b=pages[cur].blocks[i];b[k]=v;Object.assign(b,normOrb(b));renderForm();renderSlide()}
+function setOrbA(i,key,k,v){const b=pages[cur].blocks[i];b[key]=(b[key]||[]).slice();b[key][k]=v;Object.assign(b,normOrb(b));renderSlide()}
+function orbForm(b,i,ctl){
+ const cs=Array.from({length:b.n},(_,k)=>advBox('ob'+k,`円${k+1}の画像・大きさ`,`${bImgF(i,k,b)}<label style="margin-top:6px">大きさ(エリアの短い辺に対する%)</label><input type="text" inputmode="numeric" value="${b.sz[k]}" onchange="setOrbA(${i},'sz',${k},this.value)"><label style="margin-top:6px">現れるタイミング(秒)</label><input type="text" inputmode="decimal" value="${b.dl[k]}" onchange="setOrbA(${i},'dl',${k},this.value)">`)).join('');
+ return `<div class="dyn" data-fld="blk:${i}:orb" style="border-left-color:#65cab3"><button class="x" onclick="delBlock(${i})">削除</button>${ctl}
+ <label>円の数(1〜7)</label><select onchange="setOrbP(${i},'n',+this.value)">${[1,2,3,4,5,6,7].map(v=>`<option ${b.n===v?'selected':''}>${v}</option>`).join('')}</select>
+ <label style="margin-top:6px">動き</label><select onchange="setOrbP(${i},'mv',this.value)"><option value="drift" ${b.mv==='drift'?'selected':''}>ふわふわ漂う(ぶつからずに動く)</option><option value="still" ${b.mv==='still'?'selected':''}>動かない(ばらばらに配置)</option></select>
+ <label style="display:flex;gap:6px;align-items:center;margin-top:6px"><input type="checkbox" ${b.fd?'checked':''} onchange="setOrbP(${i},'fd',this.checked)">ゆっくり現れて、消える(くり返す)</label>
+ <label style="display:flex;gap:6px;align-items:center;margin-top:6px"><input type="checkbox" ${b.av?'checked':''} onchange="setOrbP(${i},'av',this.checked)">ヘッダー上の文字などを、よけて動く</label>
+ <label style="display:flex;gap:6px;align-items:center;margin-top:6px"><input type="checkbox" ${b.sh?'checked':''} onchange="setOrbP(${i},'sh',this.checked)">影をつける</label>
+ <label style="margin-top:6px">動く速さ(0.3〜3)</label><input type="text" inputmode="decimal" value="${b.spd}" onchange="setOrbP(${i},'spd',this.value)">
+ <label style="margin-top:6px">円のふちの太さ(px)</label><input type="text" inputmode="numeric" value="${b.bd}" onchange="setOrbP(${i},'bd',this.value)">
+ <label style="margin-top:6px">エリアの高さ(px・ヘッダーに置いたときは、ヘッダー全体)</label><input type="text" inputmode="numeric" value="${b.h}" onchange="setOrbP(${i},'h',this.value)">
+ ${cs}<div style="font-size:.72rem;color:#aab7c4;margin-top:6px;line-height:1.5">動かない環境や、「動きを減らす」設定の端末では、円が並んだまま表示されます。</div></div>`;
+}
+function orbInit(){
+ const S=window.__orbS||(window.__orbS={list:[],raf:0});
+ const root=(typeof mode!=='undefined'&&mode==='slide'&&document.getElementById('slide'))||document.getElementById('site')||document;
+ const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+ S.list=[];
+ root.querySelectorAll('.s-orb').forEach(box=>{
+  const cs=[...box.querySelectorAll('.orb')];if(!cs.length)return;
+  box.classList.remove('on');
+  const W=box.clientWidth,H=box.clientHeight;if(W<40||H<40)return;
+  const m=Math.min(W,H),small=W<700?0.8:1;
+  box.classList.add('on');
+  const items=cs.map(c=>{const d=Math.max(48,m*(+c.dataset.sz||30)/100*small);c.style.width=c.style.height=d+'px';return {el:c,d,r:d/2,x:0,y:0,vx:0,vy:0,placed:false}});
+  const sc=(box.getBoundingClientRect().width/(box.clientWidth||1))||1;
+  const obst=()=>{if(box.dataset.av!=='1')return [];const lay=box.closest('.site-hd-in,.site-hd-lay');if(!lay)return [];const br=box.getBoundingClientRect();return [...lay.querySelectorAll('.hd-item:not(.hd-orb)')].map(e=>{const r=e.getBoundingClientRect();return {x:(r.left-br.left)/sc,y:(r.top-br.top)/sc,w:r.width/sc,h:r.height/sc}})};
+  const ob=obst();
+  const hit=(it,x,y)=>{for(const o of items){if(o===it||!o.placed)continue;if(Math.hypot((x+it.r)-(o.x+o.r),(y+it.r)-(o.y+o.r))<it.r+o.r+6)return true}
+   for(const r of ob){const cx=Math.max(r.x,Math.min(x+it.r,r.x+r.w)),cy=Math.max(r.y,Math.min(y+it.r,r.y+r.h));if(Math.hypot(x+it.r-cx,y+it.r-cy)<it.r+8)return true}return false};
+  items.forEach(it=>{let ok=false;for(let t=0;t<300&&!ok;t++){const x=Math.random()*Math.max(1,W-it.d),y=Math.random()*Math.max(1,H-it.d);if(!hit(it,x,y)){it.x=x;it.y=y;ok=true}}
+   if(!ok){it.x=Math.random()*Math.max(1,W-it.d);it.y=Math.random()*Math.max(1,H-it.d)}
+   it.placed=true;const a=Math.random()*Math.PI*2,sp=0.25+Math.random()*0.35;it.vx=Math.cos(a)*sp;it.vy=Math.sin(a)*sp;
+   it.el.style.transform='translate3d('+it.x.toFixed(1)+'px,'+it.y.toFixed(1)+'px,0)'});
+  if(reduce)box.classList.remove('fd');
+  S.list.push({box,items,W,H,ob,spd:+box.dataset.spd||1,still:box.dataset.mv==='still'||reduce,vis:true});
+ });
+ if(!S.io&&'IntersectionObserver' in window){S.io=new IntersectionObserver(es=>es.forEach(e=>{const g=S.list.find(x=>x.box===e.target);if(g)g.vis=e.isIntersecting}),{threshold:0})}
+ if(S.io)S.list.forEach(g=>S.io.observe(g.box));
+ if(!S.rs){S.rs=1;addEventListener('resize',()=>{clearTimeout(S.rt);S.rt=setTimeout(orbInit,250)})}
+ if(!S.raf&&S.list.length){let last=performance.now();
+  const loop=t=>{const dt=Math.min(40,t-last)/16.7;last=t;
+   S.list.forEach(g=>{if(!g.vis||g.still||!g.box.isConnected)return;
+    g.items.forEach(it=>{it.x+=it.vx*g.spd*dt;it.y+=it.vy*g.spd*dt;
+     if(it.x<0){it.x=0;it.vx=Math.abs(it.vx)}else if(it.x>g.W-it.d){it.x=g.W-it.d;it.vx=-Math.abs(it.vx)}
+     if(it.y<0){it.y=0;it.vy=Math.abs(it.vy)}else if(it.y>g.H-it.d){it.y=g.H-it.d;it.vy=-Math.abs(it.vy)}
+     g.ob.forEach(r=>{const cx=Math.max(r.x,Math.min(it.x+it.r,r.x+r.w)),cy=Math.max(r.y,Math.min(it.y+it.r,r.y+r.h));let dx=it.x+it.r-cx,dy=it.y+it.r-cy,dist=Math.hypot(dx,dy);
+      if(dist<it.r+4){if(dist===0){dx=1;dy=0;dist=1}const nx=dx/dist,ny=dy/dist,push=it.r+4-dist;it.x+=nx*push;it.y+=ny*push;const dot=it.vx*nx+it.vy*ny;if(dot<0){it.vx-=2*dot*nx;it.vy-=2*dot*ny}}})});
+    for(let a=0;a<g.items.length;a++)for(let b=a+1;b<g.items.length;b++){const p=g.items[a],q=g.items[b],dx=(q.x+q.r)-(p.x+p.r),dy=(q.y+q.r)-(p.y+p.r),dist=Math.hypot(dx,dy),min=p.r+q.r+2;
+     if(dist<min&&dist>0){const nx=dx/dist,ny=dy/dist,ov=(min-dist)/2;p.x-=nx*ov;p.y-=ny*ov;q.x+=nx*ov;q.y+=ny*ov;const rv=(p.vx-q.vx)*nx+(p.vy-q.vy)*ny;if(rv>0){p.vx-=rv*nx;p.vy-=rv*ny;q.vx+=rv*nx;q.vy+=rv*ny}}}
+    g.items.forEach(it=>{it.el.style.transform='translate3d('+it.x.toFixed(1)+'px,'+it.y.toFixed(1)+'px,0)'})});
+   S.raf=S.list.length?requestAnimationFrame(loop):0};
+  S.raf=requestAnimationFrame(loop)}
+}
 /* --- 追加する場所を選んでレイアウトを追加 --- */
 let selBlk=-1,selPg=-1,selObj=null;let addN=1;const nOpts=()=>`<label>追加する個数(1〜9)</label><select onchange="addN=+this.value;renderForm()">${[1,2,3,4,5,6,7,8,9].map(v=>`<option ${addN===v?'selected':''}>${v}</option>`).join('')}</select>`;
 const setSel=i=>{selBlk=i;selPg=cur;selObj=pages[cur].blocks[i]||null};
@@ -1809,7 +1930,7 @@ function siteHTML0(){
  const hz=(HD.over?`<div class="site-hd ov">${head}<div class="site-hd-lay">${HD.over}</div></div>`:head)+(HD.under?`<div class="site-hd-under">${HD.under}</div>`:'');
  return `${hz}<nav class="site-nav">${nav}</nav>${fxWrap(secs,foot)}`;
 }
-function renderSite(){const pv=$('preview'),st=pv.scrollTop;$('site').innerHTML=siteHTML();pv.scrollTop=st;applyChat();fxInit(pv);animInit(pv);moInit(pv);hdEditInit();pvEditInit()}
+function renderSite(){const pv=$('preview'),st=pv.scrollTop;$('site').innerHTML=siteHTML();pv.scrollTop=st;applyChat();fxInit(pv);animInit(pv);moInit(pv);hdEditInit();pvEditInit();orbInit()}
 const sec={h:false,f:false};
 const TBI={h:'<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="1.8"/><path d="M4 18l5-5 4 4 3-3 4 4"/></svg>',f:'<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 15h18"/></svg>',txt:'<svg viewBox="0 0 24 24"><path d="M4 18l4.5-12L13 18M5.7 14h5.6M16 9v9M16 12.5c1-2 4-2 4 1v4.5"/></svg>',chat:'<svg viewBox="0 0 24 24"><path d="M4 5h16v11H10l-5 4v-4H4z"/></svg>',fx:'<svg viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg>',mo:'<svg viewBox="0 0 24 24"><path d="M3 12c3-6 5 6 9 0s6 6 9 0"/></svg>',gs:'<svg viewBox="0 0 24 24"><path d="M4 7V5h16v2M12 5v14M9 19h6"/></svg>'};
 const tbIco=k=>`<span class="ico c-${TBI[k]?k:'d'}">${TBI[k]||'<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 9h18"/></svg>'}</span>`;
@@ -1879,7 +2000,7 @@ function printAll(){
  try{buildPrint();note('印刷画面を開いています。「PDFに保存」を選んでください。開かないときは、HTMLファイルをブラウザで直接開いてください。');window.print()}
  catch(e){note('印刷画面を開けませんでした。HTMLファイルをブラウザで直接開いて、もう一度お試しください。')}
 }
-const BK={img:'画像の行(1〜7枚)',cube:'回転する立方体(6面に画像・横に複数並べる)',big:'巨大な文字(スクロールで横に流れる)',head:'タイトル・サブタイトル(見出し)',text:'テキスト1行',tl:'テキスト左・画像右',il:'画像左・テキスト右',tw:'テキスト左・画像2枚',tt:'テキスト2段組',cols:'カラム(2〜3列・サブカラム付き)',subL:'左サブカラムのみ追加(配置先がメインになる)',subR:'右サブカラムのみ追加(配置先がメインになる)',banner:'角丸バナー(横に1〜7個)',band:'背景色ボックス(横フルサイズ)'};
+const BK={img:'画像の行(1〜7枚)',cube:'回転する立方体(6面に画像・横に複数並べる)',big:'巨大な文字(スクロールで横に流れる)',head:'タイトル・サブタイトル(見出し)',orb:'円形の画像(ふわふわ漂う・ヘッダーにも)',text:'テキスト1行',tl:'テキスト左・画像右',il:'画像左・テキスト右',tw:'テキスト左・画像2枚',tt:'テキスト2段組',cols:'カラム(2〜3列・サブカラム付き)',subL:'左サブカラムのみ追加(配置先がメインになる)',subR:'右サブカラムのみ追加(配置先がメインになる)',banner:'角丸バナー(横に1〜7個)',band:'背景色ボックス(横フルサイズ)'};
 let bkType='img';
 const sqn=o=>Math.min(4,Math.max(1,parseInt(o.ni)||1));
 const cpos=b=>b.cpos||(b.cap?'below':'none');
@@ -1930,6 +2051,7 @@ function setBk(i,k){
  if(k==='cube'&&!b.cubes)Object.assign(b,{n:3,sz:240,gp:40,sec:18,ax:'y',alt:true,cubes:newCubes(),items:[]});
  if(k==='big'&&!b.sz)Object.assign(b,{t:'BIG TEXT',sz:160,dir:'l',ol:false,dr:false,items:[]});
  if(k==='head'&&!b.lv)Object.assign(b,{t:'タイトル',s:'サブタイトル',lv:'1',al:'left',bar:true,sz:0,items:[]});
+ if(k==='orb'&&!b.sz)Object.assign(b,normOrb({n:3}));
  if(k==='band'){b.bg=b.bg||'#eef3f7';b.span=b.span||0}
  if(k==='cols'){b.cn=b.cn||2;b.span=b.span||0;b.cs=b.cs||[{w:420,bg:'',bc:'#cfd8dc',bw:0,r:0},{w:420,bg:'',bc:'#cfd8dc',bw:0,r:0},{w:420,bg:'',bc:'#cfd8dc',bw:0,r:0}]}
  if(k==='text')b.t=txt||'テキストを入力';
@@ -2066,7 +2188,7 @@ function normPage(o){
  p.shape=o.shape==='square'?'square':'fit';
  const cc=v=>/^#[0-9a-fA-F]{6}$/.test(v||''),tn=parseInt(o.ts);
  p.ts=o.ts==='auto'||!(tn>=14&&tn<=48)?'auto':tn;p.tc=cc(o.tc)?o.tc:p.tc;p.hc=cc(o.hc)?o.hc:p.hc;p.tb=!!o.tb;p.nh=!!o.nh;p.tp=['below','right'].includes(o.tp)?o.tp:'none';p.ni=Math.min(4,Math.max(1,parseInt(o.ni)||1));p.dir=o.dir==='h'?'h':'v';p.sl=!!o.sl;p.vis=Math.min(6,Math.max(1,parseInt(o.vis)||3));p.gap=spN(o.gap,0,200);p.tgap=spN(o.tgap,0,200);p.hide=!!o.hide;p.hd=!!o.hd;p.hdOver=!!o.hdOver;p.pf=ffOk(o.pf)?o.pf:'';p.pfc=ffClean(o.pfc);p.chat=!!o.chat;p.title=s(o.title);p.subtitle=s(o.subtitle);p.fl=s(o.fl);p.fr=s(o.fr);
- p.blocks=Array.isArray(o.blocks)?o.blocks.filter(b=>b&&typeof b==='object').slice(0,80).map(b=>ncol(b,b.k==='banner'?normBan(b):b.k==='cube'?normCube(b):b.k==='big'?normBig(b):b.k==='head'?normHead(b):b.k==='band'?{k:'band',bg:okColor(b.bg),span:Math.max(0,Math.min(200,parseInt(b.span)||0)),n:3,imgs:['','','','','','',''],t:'',items:[]}:b.k==='cols'?{k:'cols',pgx:Math.max(0,Math.min(30,parseInt(b.pgx)||0)),cn:b.cn===3?3:2,rs:b.cn!==3&&!!b.rs,cs:[0,1,2].map(c=>{const a=(Array.isArray(b.cs)&&b.cs[c])||{},nn=v=>Number.isFinite(parseInt(v))?parseInt(v):null;return {w:Math.max(120,Math.min(900,nn(a.w)||420)),bg:/^#[0-9a-fA-F]{6}$/.test(a.bg||'')?a.bg:'',bc:okColor(a.bc||'#cfd8dc'),bw:Math.max(0,Math.min(24,nn(a.bw)||0)),r:Math.max(0,Math.min(60,nn(a.r)||0))}}),span:Math.max(0,Math.min(200,parseInt(b.span)||0)),n:3,imgs:['','','','','','',''],t:'',items:[]}:b.k==='img'?{k:'img',dv:b.dv==='v'?'v':'h',sl:!!b.sl,vis:Math.min(6,Math.max(1,parseInt(b.vis)||3)),n:Math.min(7,Math.max(1,parseInt(b.n)||3)),imgs:[0,1,2,3,4,5,6].map(i=>Array.isArray(b.imgs)&&IMG_OK.test(s(b.imgs[i]))?b.imgs[i]:''),t:'',shape:b.shape==='square'?'square':'fit',cpos:['below','right'].includes(b.cpos)?b.cpos:(b.cap?'below':'none'),cap:!!b.cap||b.cpos==='below',caps:[0,1,2,3,4,5,6].map(i=>s(Array.isArray(b.caps)?b.caps[i]:'')),tp:['below','right'].includes(b.tp)?b.tp:'none',items:Array.isArray(b.items)?b.items.filter(x=>x&&typeof x==='object').slice(0,12).map(x=>({h:s(x.h),t:s(x.t),hide:!!x.hide,lk:okLink(x.lk)})):[]}:b.k==='tl'||b.k==='il'||b.k==='tw'||b.k==='tt'?{k:b.k,n:3,imgs:[0,1,2,3,4,5,6].map(i=>Array.isArray(b.imgs)&&IMG_OK.test(s(b.imgs[i]))?b.imgs[i]:''),t:'',shape:b.shape==='square'?'square':'fit',ni:Math.min(4,Math.max(1,parseInt(b.ni)||1)),dir:b.dir==='h'?'h':'v',cap:false,caps:['','','','','','',''],items:Array.isArray(b.items)?b.items.filter(x=>x&&typeof x==='object').slice(0,12).map(x=>({h:s(x.h),t:s(x.t),hide:!!x.hide,lk:okLink(x.lk)})):[]}:{k:'text',n:3,imgs:['','','','','','',''],t:s(b.t)})):[];
+ p.blocks=Array.isArray(o.blocks)?o.blocks.filter(b=>b&&typeof b==='object').slice(0,80).map(b=>ncol(b,b.k==='banner'?normBan(b):b.k==='cube'?normCube(b):b.k==='big'?normBig(b):b.k==='head'?normHead(b):b.k==='orb'?normOrb(b):b.k==='band'?{k:'band',bg:okColor(b.bg),span:Math.max(0,Math.min(200,parseInt(b.span)||0)),n:3,imgs:['','','','','','',''],t:'',items:[]}:b.k==='cols'?{k:'cols',pgx:Math.max(0,Math.min(30,parseInt(b.pgx)||0)),cn:b.cn===3?3:2,rs:b.cn!==3&&!!b.rs,cs:[0,1,2].map(c=>{const a=(Array.isArray(b.cs)&&b.cs[c])||{},nn=v=>Number.isFinite(parseInt(v))?parseInt(v):null;return {w:Math.max(120,Math.min(900,nn(a.w)||420)),bg:/^#[0-9a-fA-F]{6}$/.test(a.bg||'')?a.bg:'',bc:okColor(a.bc||'#cfd8dc'),bw:Math.max(0,Math.min(24,nn(a.bw)||0)),r:Math.max(0,Math.min(60,nn(a.r)||0))}}),span:Math.max(0,Math.min(200,parseInt(b.span)||0)),n:3,imgs:['','','','','','',''],t:'',items:[]}:b.k==='img'?{k:'img',dv:b.dv==='v'?'v':'h',sl:!!b.sl,vis:Math.min(6,Math.max(1,parseInt(b.vis)||3)),n:Math.min(7,Math.max(1,parseInt(b.n)||3)),imgs:[0,1,2,3,4,5,6].map(i=>Array.isArray(b.imgs)&&IMG_OK.test(s(b.imgs[i]))?b.imgs[i]:''),t:'',shape:b.shape==='square'?'square':'fit',cpos:['below','right'].includes(b.cpos)?b.cpos:(b.cap?'below':'none'),cap:!!b.cap||b.cpos==='below',caps:[0,1,2,3,4,5,6].map(i=>s(Array.isArray(b.caps)?b.caps[i]:'')),tp:['below','right'].includes(b.tp)?b.tp:'none',items:Array.isArray(b.items)?b.items.filter(x=>x&&typeof x==='object').slice(0,12).map(x=>({h:s(x.h),t:s(x.t),hide:!!x.hide,lk:okLink(x.lk)})):[]}:b.k==='tl'||b.k==='il'||b.k==='tw'||b.k==='tt'?{k:b.k,n:3,imgs:[0,1,2,3,4,5,6].map(i=>Array.isArray(b.imgs)&&IMG_OK.test(s(b.imgs[i]))?b.imgs[i]:''),t:'',shape:b.shape==='square'?'square':'fit',ni:Math.min(4,Math.max(1,parseInt(b.ni)||1)),dir:b.dir==='h'?'h':'v',cap:false,caps:['','','','','','',''],items:Array.isArray(b.items)?b.items.filter(x=>x&&typeof x==='object').slice(0,12).map(x=>({h:s(x.h),t:s(x.t),hide:!!x.hide,lk:okLink(x.lk)})):[]}:{k:'text',n:3,imgs:['','','','','','',''],t:s(b.t)})):[];
  p.n=Math.min(7,Math.max(1,parseInt(o.n)||3));p.imgs=[0,1,2,3,4,5,6].map(k=>Array.isArray(o.imgs)&&IMG_OK.test(s(o.imgs[k]))?o.imgs[k]:'');p.lks=[0,1,2,3,4,5,6].map(k=>okLink(o.lks&&o.lks[k]));
  p.items=Array.isArray(o.items)?o.items.filter(i=>i&&typeof i==='object').map(i=>({h:s(i.h),t:s(i.t),hide:!!i.hide,lk:okLink(i.lk)})):[];
  return p;
